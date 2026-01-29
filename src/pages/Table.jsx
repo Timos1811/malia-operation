@@ -41,10 +41,35 @@ export default function Table() {
   );
   const [editingCell, setEditingCell] = useState(null);
 
-  const handleCellChange = (rowIndex, colKey, value) => {
+  const handleCellChange = async (rowIndex, colKey, value) => {
     const newData = [...tableData];
     newData[rowIndex][colKey] = value;
     setTableData(newData);
+
+    // Auto-fill data from Google Sheets when order number is entered
+    if (colKey === 'order_number' && value.trim() !== '') {
+      try {
+        const response = await base44.functions.invoke('fetchOrderData', { orderNumber: value });
+        
+        if (response.data) {
+          newData[rowIndex] = {
+            ...newData[rowIndex],
+            customer: response.data.customer,
+            nights: response.data.nights,
+            hotel: response.data.hotel,
+            gender: response.data.gender
+          };
+          setTableData([...newData]);
+          toast.success('נתונים נמלאו מגוגל שיטס');
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          toast.error('מספר הזמנה לא נמצא');
+        } else {
+          toast.error('שגיאה בטעינת נתונים');
+        }
+      }
+    }
   };
 
   const handleCellBlur = (e) => {
