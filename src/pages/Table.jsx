@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Save, Check } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 import { toast } from "sonner";
+import { base44 } from "@/api/base44Client";
 
 export default function Table() {
   const rows = 5;
@@ -40,9 +41,18 @@ export default function Table() {
     setHasChanges(false);
   };
 
-  const handleAddRow = () => {
-    setTableData([...tableData, Array.from({ length: columns }, () => '')]);
-    setHasChanges(true);
+  const handleAddRow = async () => {
+    // Save all current rows to the database
+    for (const row of tableData) {
+      const hasData = row.some(cell => cell.trim() !== '');
+      if (hasData) {
+        await base44.entities.TableData.create({ row_data: row });
+      }
+    }
+    // Reset the table
+    setTableData(Array.from({ length: rows }, () => Array.from({ length: columns }, () => '')));
+    setHasChanges(false);
+    toast.success('Data saved to Saved Data page!');
   };
 
   return (
