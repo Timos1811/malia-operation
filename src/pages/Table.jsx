@@ -47,8 +47,11 @@ export default function Table() {
     setTableData(newData);
   };
 
-  const handleCellBlur = () => {
-    setEditingCell(null);
+  const handleCellBlur = (e) => {
+    // Only blur if we're not clicking on another cell
+    if (!e.relatedTarget || !e.relatedTarget.closest('td')) {
+      setTimeout(() => setEditingCell(null), 0);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -114,7 +117,10 @@ export default function Table() {
                       ) : (
                         <div 
                           className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
-                          onMouseDown={() => setEditingCell({ row: rowIndex, col: colKey })}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setEditingCell({ row: rowIndex, col: colKey });
+                          }}
                         >
                           {row[colKey] || <span className="text-slate-400">—</span>}
                         </div>
