@@ -65,6 +65,28 @@ export default function SavedData() {
     if (e.key === 'Enter') {
       setEditingCell(null);
       handleCellChange(rowId, colKey, value);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      handleCellChange(rowId, colKey, value);
+      
+      const currentRowIndex = savedRows.findIndex(r => r.id === rowId);
+      const currentColIndex = COLUMN_KEYS.indexOf(colKey);
+      
+      if (e.shiftKey) {
+        // Shift+Tab - move to previous cell
+        if (currentColIndex > 0) {
+          setEditingCell({ row: rowId, col: COLUMN_KEYS[currentColIndex - 1] });
+        } else if (currentRowIndex > 0) {
+          setEditingCell({ row: savedRows[currentRowIndex - 1].id, col: COLUMN_KEYS[COLUMN_KEYS.length - 1] });
+        }
+      } else {
+        // Tab - move to next cell
+        if (currentColIndex < COLUMN_KEYS.length - 1) {
+          setEditingCell({ row: rowId, col: COLUMN_KEYS[currentColIndex + 1] });
+        } else if (currentRowIndex < savedRows.length - 1) {
+          setEditingCell({ row: savedRows[currentRowIndex + 1].id, col: COLUMN_KEYS[0] });
+        }
+      }
     }
   };
 

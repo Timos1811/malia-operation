@@ -54,9 +54,28 @@ export default function Table() {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e, rowIndex, colKey) => {
     if (e.key === 'Enter') {
       setEditingCell(null);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const currentColIndex = COLUMN_KEYS.indexOf(colKey);
+      
+      if (e.shiftKey) {
+        // Shift+Tab - move to previous cell
+        if (currentColIndex > 0) {
+          setEditingCell({ row: rowIndex, col: COLUMN_KEYS[currentColIndex - 1] });
+        } else if (rowIndex > 0) {
+          setEditingCell({ row: rowIndex - 1, col: COLUMN_KEYS[COLUMN_KEYS.length - 1] });
+        }
+      } else {
+        // Tab - move to next cell
+        if (currentColIndex < COLUMN_KEYS.length - 1) {
+          setEditingCell({ row: rowIndex, col: COLUMN_KEYS[currentColIndex + 1] });
+        } else if (rowIndex < tableData.length - 1) {
+          setEditingCell({ row: rowIndex + 1, col: COLUMN_KEYS[0] });
+        }
+      }
     }
   };
 
@@ -111,7 +130,7 @@ export default function Table() {
                           value={row[colKey]}
                           onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
                           onBlur={handleCellBlur}
-                          onKeyDown={handleKeyDown}
+                          onKeyDown={(e) => handleKeyDown(e, rowIndex, colKey)}
                           className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
                         />
                       ) : (
