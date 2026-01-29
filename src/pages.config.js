@@ -49,6 +49,7 @@
  */
 import Table from './pages/Table';
 import SavedData from './pages/SavedData';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -59,4 +60,5 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "Table",
     Pages: PAGES,
+    Layout: __Layout,
 };

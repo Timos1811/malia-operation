@@ -83,7 +83,7 @@ export default function Table() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8 md:p-12">
+    <div className="p-8 md:p-12">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-light text-slate-800 tracking-tight">
