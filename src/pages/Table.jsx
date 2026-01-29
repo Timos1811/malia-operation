@@ -114,7 +114,7 @@ export default function Table() {
                       ) : (
                         <div 
                           className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
-                          onClick={() => setEditingCell({ row: rowIndex, col: colKey })}
+                          onMouseDown={() => setEditingCell({ row: rowIndex, col: colKey })}
                         >
                           {row[colKey] || <span className="text-slate-400">—</span>}
                         </div>
