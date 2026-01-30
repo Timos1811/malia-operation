@@ -47,14 +47,14 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import Table from './pages/Table';
 import SavedData from './pages/SavedData';
+import Table from './pages/Table';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Table": Table,
     "SavedData": SavedData,
+    "Table": Table,
 }
 
 export const pagesConfig = {

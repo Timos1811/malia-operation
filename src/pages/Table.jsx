@@ -39,6 +39,7 @@ export default function Table() {
     );
     const [editingCell, setEditingCell] = useState(null);
     const [fetchingRows, setFetchingRows] = useState(new Set());
+    const [missingFields, setMissingFields] = useState({});
 
   const fetchOrderDetails = async (rowIndex, orderNumber) => {
     const trimmedOrderNumber = orderNumber.trim();
@@ -99,6 +100,18 @@ export default function Table() {
 
     setTableData(newData);
 
+    // Clear error for this field
+    if (missingFields[rowIndex]?.includes(colKey)) {
+      setMissingFields(prev => {
+        const newMissing = { ...prev };
+        newMissing[rowIndex] = newMissing[rowIndex].filter(field => field !== colKey);
+        if (newMissing[rowIndex].length === 0) {
+          delete newMissing[rowIndex];
+        }
+        return newMissing;
+      });
+    }
+
     // Auto-fetch when order number changes and has at least 5 digits
     if (colKey === 'order_number' && value.trim().length >= 5) {
       fetchOrderDetails(rowIndex, value);
@@ -149,21 +162,40 @@ export default function Table() {
   const handleAddRow = async () => {
     // Validate that all required fields are filled
     const requiredFields = COLUMN_KEYS.filter(key => key !== 'eur_status');
+    const newMissingFields = {};
+    let hasErrors = false;
 
+    for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
+      const row = tableData[rowIndex];
+      const hasData = COLUMN_KEYS.some(key => row[key]?.trim() !== '');
+
+      if (hasData) {
+        // Check if all required fields are filled
+        const missing = requiredFields.filter(key => !row[key]?.trim());
+        if (missing.length > 0) {
+          newMissingFields[rowIndex] = missing;
+          hasErrors = true;
+        }
+      }
+    }
+
+    if (hasErrors) {
+      setMissingFields(newMissingFields);
+      toast.error('יש למלא את כל השדות לפני ההוספה');
+      return;
+    }
+
+    // Save all rows with data
     for (const row of tableData) {
       const hasData = COLUMN_KEYS.some(key => row[key]?.trim() !== '');
       if (hasData) {
-        // Check if all required fields are filled
-        const missingFields = requiredFields.filter(key => !row[key]?.trim());
-        if (missingFields.length > 0) {
-          toast.error('יש למלא את כל השדות לפני ההוספה');
-          return;
-        }
         await base44.entities.TableData.create(row);
       }
     }
-    // Reset the table
+
+    // Reset the table and clear errors
     setTableData(Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})));
+    setMissingFields({});
     toast.success('הנתונים נשמרו בהצלחה!');
   };
 
@@ -216,6 +248,8 @@ export default function Table() {
                       }
                     }
 
+                    const isMissing = missingFields[rowIndex]?.includes(colKey);
+
                     return (
                       <td 
                         key={colKey} 
@@ -234,11 +268,11 @@ export default function Table() {
                             onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
                             onBlur={(e) => handleCellBlur(e, rowIndex, colKey, row[colKey])}
                             onKeyDown={(e) => handleKeyDown(e, rowIndex, colKey, row[colKey])}
-                            className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
+                            className={`h-9 focus:border-slate-500 focus:ring-slate-500 text-right ${isMissing ? 'border-red-500 bg-red-50' : 'border-slate-300'}`}
                           />
                         ) : (
                           <div 
-                            className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
+                            className={`px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center ${isMissing ? 'bg-red-100 border-2 border-red-500' : ''}`}
                             onMouseDown={(e) => {
                               e.preventDefault();
                               setEditingCell({ row: rowIndex, col: colKey });
