@@ -147,10 +147,18 @@ export default function Table() {
   };
 
   const handleAddRow = async () => {
-    // Save all current rows to the database
+    // Validate that all required fields are filled
+    const requiredFields = COLUMN_KEYS.filter(key => key !== 'eur_status');
+
     for (const row of tableData) {
       const hasData = COLUMN_KEYS.some(key => row[key]?.trim() !== '');
       if (hasData) {
+        // Check if all required fields are filled
+        const missingFields = requiredFields.filter(key => !row[key]?.trim());
+        if (missingFields.length > 0) {
+          toast.error('יש למלא את כל השדות לפני ההוספה');
+          return;
+        }
         await base44.entities.TableData.create(row);
       }
     }
