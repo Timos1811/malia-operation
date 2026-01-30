@@ -190,10 +190,16 @@ export default function SavedData() {
                 </tr>
               </thead>
               <tbody>
-                {savedRows.map((row) => (
+                {savedRows.map((row) => {
+                  // Check if EUR status is negative
+                  const eurAmount = parseFloat(row.eur_amount) || 0;
+                  const requestedAmount = parseFloat(row.requested_amount) || 0;
+                  const isNegative = eurAmount && requestedAmount && (eurAmount - requestedAmount) < 0;
+
+                  return (
                   <tr 
                     key={row.id} 
-                    className="hover:bg-slate-50/50 transition-colors duration-200"
+                    className={`transition-colors duration-200 ${isNegative ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50/50'}`}
                   >
                     {COLUMN_KEYS.map((colKey) => {
                       // Calculate EUR status
@@ -259,10 +265,11 @@ export default function SavedData() {
                           )}
                         </td>
                       );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
+                      })}
+                      </tr>
+                      );
+                      })}
+                      </tbody>
             </table>
           )}
         </div>
