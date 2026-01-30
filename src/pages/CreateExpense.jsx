@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+// Sheet imports removed
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,7 +34,7 @@ export default function CreateExpense() {
 
   // State for side table data: map rowIndex to array of events
   const [eventDetails, setEventDetails] = useState({});
-  const [openSheetIndex, setOpenSheetIndex] = useState(null);
+  const [activeRowIndex, setActiveRowIndex] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('expenseTableData', JSON.stringify(tableData));
@@ -45,13 +45,21 @@ export default function CreateExpense() {
     newData[rowIndex][key] = value;
     
     // Clear event details if reason changes from supplier payment
-    if (key === 'reason' && value !== 'תשלום לספק') {
-        const newDetails = { ...eventDetails };
-        delete newDetails[rowIndex];
-        setEventDetails(newDetails);
+    if (key === 'reason') {
+        if (value !== 'תשלום לספק') {
+            const newDetails = { ...eventDetails };
+            delete newDetails[rowIndex];
+            setEventDetails(newDetails);
+        } else {
+             // If switched to supplier payment, ensure event details array exists
+             if (!eventDetails[rowIndex]) {
+                 setEventDetails(prev => ({ ...prev, [rowIndex]: [] }));
+             }
+        }
     }
     
     setTableData(newData);
+    setActiveRowIndex(rowIndex);
   };
 
   const handleEventDetailChange = (rowIndex, detailIndex, key, value) => {
@@ -96,7 +104,7 @@ export default function CreateExpense() {
         if (row.reason === 'תשלום לספק' && row.recipient && row.amount) {
             const details = eventDetails[i];
             if (!details || details.length === 0) {
-                toast.error(`בשורה ${i + 1}: חובה להזין פרטי אירועים עבור תשלום לספק`);
+                toast.error(`בשורה ${i + 1}: חובה להזין פרטי אירועים עבור תשלום לספק (יש לבחור את השורה ולמלא בטבלה הצדדית)`);
                 return;
             }
             // Validate inner details
