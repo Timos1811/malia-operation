@@ -73,6 +73,7 @@ export default function Layout({ children, currentPageName }) {
               <Landmark className="w-5 h-5" />
               <span>טבלת בנק</span>
             </Link>
+            <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
             <Link
               to={createPageUrl('ReturnedToIsrael')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
