@@ -49,7 +49,7 @@ export default function SavedData() {
     // Auto-fetch order details on mount for existing order numbers
     if (savedRows && savedRows.length > 0) {
       savedRows.forEach((row) => {
-        if (row.order_number?.trim() && row.order_number.trim().length >= 5 && !row.customer) {
+        if (row.order_number?.trim() && row.order_number.trim().length >= 7 && !row.customer) {
           fetchAndUpdateOrder(row.id, row.order_number);
         }
       });
@@ -122,7 +122,7 @@ export default function SavedData() {
       });
 
       // Then fetch additional data from Google Sheets
-      if (trimmedOrderNumber.length >= 5) {
+      if (trimmedOrderNumber.length >= 7) {
         await fetchAndUpdateOrder(rowId, trimmedOrderNumber);
       }
       return;

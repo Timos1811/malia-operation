@@ -60,7 +60,7 @@ export default function Table() {
     React.useEffect(() => {
       // Auto-fetch order details on mount for existing order numbers
       tableData.forEach((row, index) => {
-        if (row.order_number?.trim() && row.order_number.trim().length >= 5 && !row.customer) {
+        if (row.order_number?.trim() && row.order_number.trim().length >= 7 && !row.customer) {
           fetchOrderDetails(index, row.order_number);
         }
       });
@@ -137,8 +137,8 @@ export default function Table() {
       });
     }
 
-    // Auto-fetch when order number changes and has at least 5 digits
-    if (colKey === 'order_number' && value.trim().length >= 5 && !newData[rowIndex].customer) {
+    // Auto-fetch when order number changes and has at least 7 digits
+    if (colKey === 'order_number' && value.trim().length >= 7 && !newData[rowIndex].customer) {
       fetchOrderDetails(rowIndex, value);
     }
   };
