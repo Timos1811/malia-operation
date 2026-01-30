@@ -57,10 +57,11 @@ export default function BankTable() {
         toEur(getNet('usd'), 'USD') +
         toEur(getNet('eur'), 'EUR');
 
-    const totalDestinationValue = 
-        toEur(getNet('shekel'), 'ILS') +
-        toEur(getNet('usd'), 'USD') +
-        toEur(getNet('eur'), 'EUR');
+    const destinationBalances = {
+        eur: getNet('eur'),
+        shekel: getNet('shekel'),
+        usd: getNet('usd')
+    };
 
     return {
       rows: [
@@ -70,7 +71,7 @@ export default function BankTable() {
         { label: 'דולר', ...totals.usd, currency: '$' },
       ],
       totalEurValue,
-      totalDestinationValue
+      destinationBalances
     };
   }, [incomeData, expenseData]);
 
@@ -125,10 +126,23 @@ export default function BankTable() {
                             
                             {/* Destination Value Row */}
                             <tr className="bg-slate-100 text-slate-800 font-bold text-lg border-t-2 border-slate-200">
-                                <td className="px-6 py-6">שווי מוערך ביעד (EUR)</td>
+                                <td className="px-6 py-6">שווי מוערך ביעד</td>
                                 <td className="px-6 py-6" colSpan="3" dir="ltr">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <span>€ {summary.totalDestinationValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                    <div className="flex items-center justify-end gap-6 text-base">
+                                        <span className="flex items-center gap-1">
+                                            <span className="text-slate-500">€</span>
+                                            {summary.destinationBalances.eur.toLocaleString()}
+                                        </span>
+                                        <span className="text-slate-300">|</span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="text-slate-500">₪</span>
+                                            {summary.destinationBalances.shekel.toLocaleString()}
+                                        </span>
+                                        <span className="text-slate-300">|</span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="text-slate-500">$</span>
+                                            {summary.destinationBalances.usd.toLocaleString()}
+                                        </span>
                                     </div>
                                 </td>
                             </tr>
