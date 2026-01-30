@@ -61,23 +61,7 @@ export default function CreateExpense() {
       });
   };
 
-  const addEventRow = (rowIndex) => {
-      setEventDetails(prev => ({
-          ...prev,
-          [rowIndex]: [
-              ...(prev[rowIndex] || []),
-              { event_name: 'קודו', event_date: new Date().toISOString().split('T')[0], buyers_count: '', scanned_count: '' }
-          ]
-      }));
-  };
-
-  const removeEventRow = (rowIndex, detailIndex) => {
-      setEventDetails(prev => {
-          const rowEvents = [...(prev[rowIndex] || [])];
-          rowEvents.splice(detailIndex, 1);
-          return { ...prev, [rowIndex]: rowEvents };
-      });
-  };
+// Unused event row functions removed
 
   const handleSaveAll = async () => {
     const rowsToSave = tableData.filter(row => 
@@ -93,15 +77,18 @@ export default function CreateExpense() {
     for (let i = 0; i < tableData.length; i++) {
         const row = tableData[i];
         if (row.reason === 'תשלום לספק' && row.recipient && row.amount) {
-            const details = eventDetails[i];
-            if (!details || details.length === 0) {
-                toast.error(`בשורה ${i + 1}: חובה להזין פרטי אירועים עבור תשלום לספק (יש לבחור את השורה ולמלא בטבלה הצדדית)`);
+            const details = eventDetails[i] || [];
+            // Filter only rows that have at least one field filled
+            const filledDetails = details.filter(d => d && (d.event_name || d.event_date || d.buyers_count || d.scanned_count));
+            
+            if (filledDetails.length === 0) {
+                toast.error(`בשורה ${i + 1}: חובה להזין לפחות שורת אירוע אחת עבור תשלום לספק`);
                 return;
             }
-            // Validate inner details
-            const incomplete = details.some(d => !d.event_name || !d.event_date || !d.buyers_count || !d.scanned_count);
+            // Validate that filled rows are complete
+            const incomplete = filledDetails.some(d => !d.event_name || !d.event_date || !d.buyers_count || !d.scanned_count);
             if (incomplete) {
-                toast.error(`בשורה ${i + 1}: יש למלא את כל שדות פרטי האירוע (תאריך, כמויות)`);
+                toast.error(`בשורה ${i + 1}: יש למלא את כל השדות עבור שורות האירוע שהוזנו (אירוע, תאריך, כמויות)`);
                 return;
             }
         }
@@ -123,14 +110,18 @@ export default function CreateExpense() {
 
         if (eventDetails[i] && eventDetails[i].length > 0) {
             const details = eventDetails[i];
-            const eventsToCreate = details.map(d => ({
-                expense_id: expense.id,
-                event_name: d.event_name,
-                event_date: d.event_date,
-                buyers_count: parseInt(d.buyers_count) || 0,
-                scanned_count: parseInt(d.scanned_count) || 0
-            }));
-            await base44.entities.ExpenseEvent.bulkCreate(eventsToCreate);
+            const validDetails = details.filter(d => d && d.event_name && d.event_date && d.buyers_count && d.scanned_count);
+            
+            if (validDetails.length > 0) {
+                const eventsToCreate = validDetails.map(d => ({
+                    expense_id: expense.id,
+                    event_name: d.event_name,
+                    event_date: d.event_date,
+                    buyers_count: parseInt(d.buyers_count) || 0,
+                    scanned_count: parseInt(d.scanned_count) || 0
+                }));
+                await base44.entities.ExpenseEvent.bulkCreate(eventsToCreate);
+            }
         }
 
         savedCount++;
@@ -269,9 +260,6 @@ export default function CreateExpense() {
                     <>
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-bold text-xl text-slate-800">פרטי אירוע (שורה {activeRowIndex + 1})</h3>
-                            <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                                {eventDetails[activeRowIndex]?.length || 0} רשומות
-                            </div>
                         </div>
                         
                         <div className="bg-white rounded-xl overflow-hidden border border-slate-200 mb-4">
@@ -282,78 +270,64 @@ export default function CreateExpense() {
                                         <th className="px-3 py-3 text-xs font-semibold text-slate-500 border-b text-right">תאריך</th>
                                         <th className="px-3 py-3 text-xs font-semibold text-slate-500 border-b text-right">קונים</th>
                                         <th className="px-3 py-3 text-xs font-semibold text-slate-500 border-b text-right">נסרקים</th>
-                                        <th className="px-3 py-3 text-xs font-semibold text-slate-500 border-b w-8"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {eventDetails[activeRowIndex]?.map((detail, dIndex) => (
-                                        <tr key={dIndex} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-2 py-2 border-b border-slate-100">
-                                                <Select 
-                                                    value={detail.event_name} 
-                                                    onValueChange={(v) => handleEventDetailChange(activeRowIndex, dIndex, 'event_name', v)}
-                                                >
-                                                    <SelectTrigger className="h-10 text-right w-full" dir="rtl">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent dir="rtl">
-                                                        <SelectItem value="קודו">קודו</SelectItem>
-                                                        <SelectItem value="קנדי">קנדי</SelectItem>
-                                                        <SelectItem value="הסעות">הסעות</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </td>
-                                            <td className="px-2 py-2 border-b border-slate-100">
-                                                <Input 
-                                                    type="date" 
-                                                    value={detail.event_date} 
-                                                    onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'event_date', e.target.value)}
-                                                    className="h-10 w-full px-1"
-                                                />
-                                            </td>
-                                            <td className="px-2 py-2 border-b border-slate-100">
-                                                <Input 
-                                                    type="number" 
-                                                    placeholder="0"
-                                                    value={detail.buyers_count} 
-                                                    onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'buyers_count', e.target.value)}
-                                                    className="h-10 text-right w-full px-1"
-                                                />
-                                            </td>
-                                            <td className="px-2 py-2 border-b border-slate-100">
-                                                <Input 
-                                                    type="number" 
-                                                    placeholder="0"
-                                                    value={detail.scanned_count} 
-                                                    onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'scanned_count', e.target.value)}
-                                                    className="h-10 text-right w-full px-1"
-                                                />
-                                            </td>
-                                            <td className="px-2 py-2 border-b border-slate-100 text-center">
-                                                <Button variant="ghost" size="icon" onClick={() => removeEventRow(activeRowIndex, dIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {(!eventDetails[activeRowIndex] || eventDetails[activeRowIndex].length === 0) && (
-                                        <tr>
-                                            <td colSpan={5} className="text-center text-slate-400 py-8 text-sm bg-slate-50/30">
-                                                אין אירועים מוזנים
-                                            </td>
-                                        </tr>
-                                    )}
+                                    {Array.from({ length: 5 }).map((_, dIndex) => {
+                                        const detail = eventDetails[activeRowIndex]?.[dIndex] || {};
+                                        return (
+                                            <tr key={dIndex} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-2 py-2 border-b border-slate-100">
+                                                    <Select 
+                                                        value={detail.event_name || ''} 
+                                                        onValueChange={(v) => handleEventDetailChange(activeRowIndex, dIndex, 'event_name', v)}
+                                                    >
+                                                        <SelectTrigger className="h-10 text-right w-full" dir="rtl">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent dir="rtl">
+                                                            <SelectItem value="קודו">קודו</SelectItem>
+                                                            <SelectItem value="קנדי">קנדי</SelectItem>
+                                                            <SelectItem value="הסעות">הסעות</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="px-2 py-2 border-b border-slate-100">
+                                                    <Input 
+                                                        type="date" 
+                                                        value={detail.event_date || ''} 
+                                                        onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'event_date', e.target.value)}
+                                                        className="h-10 w-full px-1"
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-2 border-b border-slate-100">
+                                                    <Input 
+                                                        type="number" 
+                                                        placeholder="0"
+                                                        value={detail.buyers_count || ''} 
+                                                        onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'buyers_count', e.target.value)}
+                                                        className="h-10 text-right w-full px-1"
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-2 border-b border-slate-100">
+                                                    <Input 
+                                                        type="number" 
+                                                        placeholder="0"
+                                                        value={detail.scanned_count || ''} 
+                                                        onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'scanned_count', e.target.value)}
+                                                        className="h-10 text-right w-full px-1"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                         
-                        <Button onClick={() => addEventRow(activeRowIndex)} className="w-full gap-2 bg-slate-800 hover:bg-slate-900 text-white py-6 rounded-xl shadow-sm">
-                            <Plus className="h-5 w-5" /> הוסף שורת אירוע
-                        </Button>
-                        
                         {tableData[activeRowIndex]?.reason === 'תשלום לספק' ? (
                             <div className="mt-4 text-xs text-red-500 bg-red-50 p-3 rounded-lg border border-red-100 text-center font-medium">
-                                * עבור תשלום לספק, חובה למלא פרטי אירוע
+                                * עבור תשלום לספק, חובה למלא לפחות שורת אירוע אחת מלאה
                             </div>
                         ) : (
                             <div className="mt-4 text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 text-center">
