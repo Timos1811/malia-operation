@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 const COLUMNS = [
   { key: 'reason', label: 'סיבת הוצאה' },
   { key: 'recipient', label: 'למי הועבר' },
+  { key: 'event', label: 'אירוע' },
   { key: 'amount', label: 'סכום' },
   { key: 'currency', label: 'מטבע' },
 ];
@@ -23,6 +24,7 @@ export default function CreateExpense() {
     return Array.from({ length: rowsCount }, () => ({
       reason: '',
       recipient: '',
+      event: '',
       amount: '',
       currency: 'ILS',
       expense_date: new Date().toISOString().split('T')[0]
@@ -64,6 +66,7 @@ export default function CreateExpense() {
       const emptyRow = {
         reason: '',
         recipient: '',
+        event: '',
         amount: '',
         currency: 'ILS',
         expense_date: new Date().toISOString().split('T')[0]
@@ -147,6 +150,25 @@ export default function CreateExpense() {
                             onChange={(e) => handleCellChange(rowIndex, 'recipient', e.target.value)}
                             className="text-right h-10"
                         />
+                    )}
+                  </td>
+                  <td className="px-2 py-2 border-b border-slate-100">
+                    {row.reason === 'תשלום לספק' ? (
+                        <Select 
+                            value={row.event} 
+                            onValueChange={(val) => handleCellChange(rowIndex, 'event', val)}
+                        >
+                            <SelectTrigger className="w-full h-10 text-right" dir="rtl">
+                                <SelectValue placeholder="בחר אירוע" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                                <SelectItem value="קודו">קודו</SelectItem>
+                                <SelectItem value="קנדי">קנדי</SelectItem>
+                                <SelectItem value="הסעות">הסעות</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <div className="bg-slate-50 h-10 rounded-md border border-slate-100" />
                     )}
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
