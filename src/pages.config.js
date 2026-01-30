@@ -52,6 +52,7 @@ import BankTable from './pages/BankTable';
 import CreateExpense from './pages/CreateExpense';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
+import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import __Layout from './Layout.jsx';
 
 
@@ -61,6 +62,7 @@ export const PAGES = {
     "CreateExpense": CreateExpense,
     "SavedData": SavedData,
     "Table": Table,
+    "ReturnedToIsrael": ReturnedToIsrael,
 }
 
 export const pagesConfig = {

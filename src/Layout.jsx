@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Table2, Database, Receipt, PlusCircle, Landmark } from 'lucide-react';
+import { Table2, Database, Receipt, PlusCircle, Landmark, Plane } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
   const isTablePage = currentPageName === 'Table';
@@ -9,6 +9,7 @@ export default function Layout({ children, currentPageName }) {
   const isCreateExpensePage = currentPageName === 'CreateExpense';
   const isAllExpensesPage = currentPageName === 'AllExpenses';
   const isBankTablePage = currentPageName === 'BankTable';
+  const isReturnedToIsraelPage = currentPageName === 'ReturnedToIsrael';
 
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -71,6 +72,17 @@ export default function Layout({ children, currentPageName }) {
             >
               <Landmark className="w-5 h-5" />
               <span>טבלת בנק</span>
+            </Link>
+            <Link
+              to={createPageUrl('ReturnedToIsrael')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                isReturnedToIsraelPage
+                  ? 'bg-slate-900 text-white shadow-lg'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Plane className="w-5 h-5 transform rotate-180" />
+              <span>חזר לארץ</span>
             </Link>
           </div>
         </div>
