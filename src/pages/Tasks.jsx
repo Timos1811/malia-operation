@@ -17,6 +17,13 @@ function TaskList() {
     queryFn: () => base44.entities.Task.list('-created_date'),
   });
 
+  const sortedTasks = React.useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      if (a.status === b.status) return 0;
+      return a.status === 'done' ? 1 : -1;
+    });
+  }, [tasks]);
+
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, status }) => base44.entities.Task.update(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
@@ -58,7 +65,7 @@ function TaskList() {
 
   return (
     <div className="grid gap-4">
-      {tasks.map((task) => {
+      {sortedTasks.map((task) => {
         const isRefund = task.task_type === 'refund';
         const isDone = task.status === 'done';
         
