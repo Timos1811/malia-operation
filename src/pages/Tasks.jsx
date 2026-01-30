@@ -64,7 +64,15 @@ function TaskList() {
                   )}
                 </div>
                 <p className="text-slate-600 text-sm whitespace-pre-wrap">{task.description}</p>
-                <div className="text-xs text-slate-400">
+                {task.order_number && (
+                  <div className="flex gap-4 text-sm mt-2 text-slate-700">
+                    <span className="font-medium bg-slate-100 px-2 py-0.5 rounded">הזמנה: {task.order_number}</span>
+                    {task.people_count > 0 && (
+                      <span className="font-medium bg-slate-100 px-2 py-0.5 rounded">כמות אנשים: {task.people_count}</span>
+                    )}
+                  </div>
+                )}
+                <div className="text-xs text-slate-400 mt-2">
                   {new Date(task.created_date).toLocaleDateString('he-IL')}
                 </div>
               </div>

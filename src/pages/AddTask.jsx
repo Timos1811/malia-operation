@@ -19,6 +19,8 @@ export default function AddTask() {
   const [refundType, setRefundType] = useState('partial'); // 'full' or 'partial'
   const [selectedEvents, setSelectedEvents] = useState(new Set());
   const [calculatedAmount, setCalculatedAmount] = useState(0);
+  const [orderNumber, setOrderNumber] = useState('');
+  const [peopleCount, setPeopleCount] = useState('');
 
   // Fetch attractions/events
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
@@ -61,6 +63,16 @@ export default function AddTask() {
       return;
     }
 
+    if (!orderNumber) {
+      toast.error('יש להזין מספר הזמנה');
+      return;
+    }
+
+    if (!peopleCount) {
+      toast.error('יש להזין כמות אנשים');
+      return;
+    }
+
     setLoading(true);
     try {
       // Create description string from selected events
@@ -70,19 +82,23 @@ export default function AddTask() {
       }).join(', ');
 
       await base44.entities.Task.create({
-        title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'}`,
+        title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'} - הזמנה ${orderNumber}`,
         description: `אירועים שנבחרו: ${eventNames}`,
         status: 'todo',
         task_type: 'refund',
         refund_type: refundType,
         amount: parseFloat(calculatedAmount.toFixed(2)),
         currency: 'EUR',
+        order_number: orderNumber,
+        people_count: parseInt(peopleCount) || 0,
         due_date: new Date().toISOString().split('T')[0]
       });
 
       toast.success('הבקשה נשלחה בהצלחה');
       setSelectedEvents(new Set());
       setRefundType('partial');
+      setOrderNumber('');
+      setPeopleCount('');
     } catch (error) {
       console.error(error);
       toast.error('שגיאה ביצירת הבקשה');
@@ -104,6 +120,31 @@ export default function AddTask() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-8">
             
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="orderNumber">מספר הזמנה</Label>
+                <Input
+                  id="orderNumber"
+                  value={orderNumber}
+                  onChange={(e) => setOrderNumber(e.target.value)}
+                  placeholder="הזן מספר הזמנה"
+                  className="text-right"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="peopleCount">כמות אנשים להחזר</Label>
+                <Input
+                  id="peopleCount"
+                  type="number"
+                  value={peopleCount}
+                  onChange={(e) => setPeopleCount(e.target.value)}
+                  placeholder="0"
+                  className="text-right"
+                  min="1"
+                />
+              </div>
+            </div>
+
             {/* Refund Type Selection */}
             <div className="space-y-3">
               <Label className="text-lg font-semibold">סוג החזר</Label>
