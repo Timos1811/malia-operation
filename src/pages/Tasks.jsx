@@ -59,7 +59,7 @@ function TaskList() {
                   )}
                   {task.amount > 0 && (
                     <Badge variant="secondary">
-                      €{task.amount}
+                      €{parseFloat((task.amount * (task.people_count || 1)).toFixed(2))}
                     </Badge>
                   )}
                 </div>
