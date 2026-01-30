@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
         );
 
         if (!matchingRow) {
+            console.log(`Order ${targetOrder} not found in ${rows.length} rows. First row sample: ${JSON.stringify(rows[0])}`);
             return Response.json({ error: 'Order number not found' }, { status: 404, headers: corsHeaders });
         }
 

@@ -47,6 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import AddTask from './pages/AddTask';
 import AllExpenses from './pages/AllExpenses';
 import BankTable from './pages/BankTable';
 import CreateExpense from './pages/CreateExpense';
@@ -55,11 +56,11 @@ import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import AddTask from './pages/AddTask';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "AddTask": AddTask,
     "AllExpenses": AllExpenses,
     "BankTable": BankTable,
     "CreateExpense": CreateExpense,
@@ -68,7 +69,6 @@ export const PAGES = {
     "SavedData": SavedData,
     "Table": Table,
     "Tasks": Tasks,
-    "AddTask": AddTask,
 }
 
 export const pagesConfig = {

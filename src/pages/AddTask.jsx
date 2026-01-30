@@ -65,15 +65,11 @@ export default function AddTask() {
       const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
       
       if (response.data) {
-        // עדכון השדות הקיימים
-        setCustomerName(response.data.customer || '');
-        setHotelName(response.data.hotel || '');
-        
         // עדכון תאריך העזיבה ישירות מהשדה החדש (עמודה B)
         if (response.data.departureDate) {
           setDepartureDate(response.data.departureDate);
         }
-        
+
         toast.success("נתוני הזמנה נטענו");
       }
     } catch (error) {
