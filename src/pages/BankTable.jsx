@@ -34,8 +34,8 @@ export default function BankTable() {
       totals.eur.income += parseFloat(row.eur_amount) || 0;
       
       const bitAmount = parseFloat(row.bit_amount) || 0;
-      if (row.company === 'קשרי תעופה') totals.bitKishrei += bitAmount;
-      else if (row.company === 'נטו פאן') totals.bitNeto += bitAmount;
+      if (row.company === 'נטו פאן') totals.bitNeto += bitAmount;
+      else if (row.company !== 'כספר') totals.bitKishrei += bitAmount;
     });
 
     // Calculate Expenses
