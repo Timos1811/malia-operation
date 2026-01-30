@@ -9,7 +9,6 @@ import { toast } from "sonner";
 const COLUMNS = [
   { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן'] },
   { key: 'recipient', label: 'למי הועבר', type: 'text' },
-  { key: 'event', label: 'אירוע', type: 'select', options: ['קודו', 'קנדי', 'הסעות'] },
   { key: 'amount', label: 'סכום', type: 'number' },
   { key: 'currency', label: 'מטבע', type: 'select' },
 ];
@@ -114,9 +113,8 @@ export default function AllExpenses() {
                   <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
                     {COLUMNS.map((col) => {
                         const isRecipientSelect = col.key === 'recipient' && expense.reason === 'תשלום לספק';
-                        const isEventSelect = col.key === 'event' && expense.reason === 'תשלום לספק';
-                        const isSelect = col.type === 'select' || isRecipientSelect || isEventSelect;
-                        const isEditable = col.key !== 'event' || expense.reason === 'תשלום לספק';
+                        const isSelect = col.type === 'select' || isRecipientSelect;
+                        const isEditable = true;
 
                         return (
                         <td key={col.key} className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0">
@@ -146,12 +144,6 @@ export default function AllExpenses() {
                                                 <SelectItem value="טמיס">טמיס</SelectItem>
                                                 <SelectItem value="מייק">מייק</SelectItem>
                                                 <SelectItem value="מגדה">מגדה</SelectItem>
-                                            </>
-                                        ) : isEventSelect ? (
-                                            <>
-                                                <SelectItem value="קודו">קודו</SelectItem>
-                                                <SelectItem value="קנדי">קנדי</SelectItem>
-                                                <SelectItem value="הסעות">הסעות</SelectItem>
                                             </>
                                         ) : (
                                           col.options?.map(opt => (

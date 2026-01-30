@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Trash2 } from "lucide-react";
 
 const COLUMNS = [
   { key: 'reason', label: 'סיבת הוצאה' },
   { key: 'recipient', label: 'למי הועבר' },
-  { key: 'event', label: 'אירוע' },
   { key: 'amount', label: 'סכום' },
   { key: 'currency', label: 'מטבע' },
 ];
@@ -24,12 +26,15 @@ export default function CreateExpense() {
     return Array.from({ length: rowsCount }, () => ({
       reason: '',
       recipient: '',
-      event: '',
       amount: '',
       currency: 'ILS',
       expense_date: new Date().toISOString().split('T')[0]
     }));
   });
+
+  // State for side table data: map rowIndex to array of events
+  const [eventDetails, setEventDetails] = useState({});
+  const [openSheetIndex, setOpenSheetIndex] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('expenseTableData', JSON.stringify(tableData));
@@ -38,7 +43,41 @@ export default function CreateExpense() {
   const handleCellChange = (rowIndex, key, value) => {
     const newData = [...tableData];
     newData[rowIndex][key] = value;
+    
+    // Clear event details if reason changes from supplier payment
+    if (key === 'reason' && value !== 'תשלום לספק') {
+        const newDetails = { ...eventDetails };
+        delete newDetails[rowIndex];
+        setEventDetails(newDetails);
+    }
+    
     setTableData(newData);
+  };
+
+  const handleEventDetailChange = (rowIndex, detailIndex, key, value) => {
+      setEventDetails(prev => {
+          const rowEvents = [...(prev[rowIndex] || [])];
+          rowEvents[detailIndex] = { ...rowEvents[detailIndex], [key]: value };
+          return { ...prev, [rowIndex]: rowEvents };
+      });
+  };
+
+  const addEventRow = (rowIndex) => {
+      setEventDetails(prev => ({
+          ...prev,
+          [rowIndex]: [
+              ...(prev[rowIndex] || []),
+              { event_name: 'קודו', event_date: new Date().toISOString().split('T')[0], buyers_count: '', scanned_count: '' }
+          ]
+      }));
+  };
+
+  const removeEventRow = (rowIndex, detailIndex) => {
+      setEventDetails(prev => {
+          const rowEvents = [...(prev[rowIndex] || [])];
+          rowEvents.splice(detailIndex, 1);
+          return { ...prev, [rowIndex]: rowEvents };
+      });
   };
 
   const handleSaveAll = async () => {
@@ -51,13 +90,50 @@ export default function CreateExpense() {
       return;
     }
 
+    // Validation for supplier payments
+    for (let i = 0; i < tableData.length; i++) {
+        const row = tableData[i];
+        if (row.reason === 'תשלום לספק' && row.recipient && row.amount) {
+            const details = eventDetails[i];
+            if (!details || details.length === 0) {
+                toast.error(`בשורה ${i + 1}: חובה להזין פרטי אירועים עבור תשלום לספק`);
+                return;
+            }
+            // Validate inner details
+            const incomplete = details.some(d => !d.event_name || !d.event_date || !d.buyers_count || !d.scanned_count);
+            if (incomplete) {
+                toast.error(`בשורה ${i + 1}: יש למלא את כל שדות פרטי האירוע (תאריך, כמויות)`);
+                return;
+            }
+        }
+    }
+
     try {
       let savedCount = 0;
-      for (const row of rowsToSave) {
-        await base44.entities.Expense.create({
-          ...row,
-          amount: parseFloat(row.amount)
+      for (let i = 0; i < tableData.length; i++) {
+        const row = tableData[i];
+        if (!row.reason || !row.recipient || !row.amount) continue;
+
+        const expense = await base44.entities.Expense.create({
+          reason: row.reason,
+          recipient: row.recipient,
+          amount: parseFloat(row.amount),
+          currency: row.currency,
+          expense_date: row.expense_date
         });
+
+        if (row.reason === 'תשלום לספק' && eventDetails[i]) {
+            const details = eventDetails[i];
+            const eventsToCreate = details.map(d => ({
+                expense_id: expense.id,
+                event_name: d.event_name,
+                event_date: d.event_date,
+                buyers_count: parseInt(d.buyers_count),
+                scanned_count: parseInt(d.scanned_count)
+            }));
+            await base44.entities.ExpenseEvent.bulkCreate(eventsToCreate);
+        }
+
         savedCount++;
       }
 
@@ -66,7 +142,6 @@ export default function CreateExpense() {
       const emptyRow = {
         reason: '',
         recipient: '',
-        event: '',
         amount: '',
         currency: 'ILS',
         expense_date: new Date().toISOString().split('T')[0]
@@ -81,6 +156,7 @@ export default function CreateExpense() {
          });
          return newTable;
       });
+      setEventDetails({});
 
     } catch (error) {
       console.error(error);
@@ -153,23 +229,96 @@ export default function CreateExpense() {
                     )}
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
-                    {row.reason === 'תשלום לספק' ? (
-                        <Select 
-                            value={row.event} 
-                            onValueChange={(val) => handleCellChange(rowIndex, 'event', val)}
-                        >
-                            <SelectTrigger className="w-full h-10 text-right" dir="rtl">
-                                <SelectValue placeholder="בחר אירוע" />
-                            </SelectTrigger>
-                            <SelectContent dir="rtl">
-                                <SelectItem value="קודו">קודו</SelectItem>
-                                <SelectItem value="קנדי">קנדי</SelectItem>
-                                <SelectItem value="הסעות">הסעות</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <div className="bg-slate-50 h-10 rounded-md border border-slate-100" />
-                    )}
+                      {row.reason === 'תשלום לספק' && (
+                          <Sheet open={openSheetIndex === rowIndex} onOpenChange={(open) => setOpenSheetIndex(open ? rowIndex : null)}>
+                              <SheetTrigger asChild>
+                                  <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
+                                      {eventDetails[rowIndex]?.length > 0 
+                                          ? `פרטי אירועים (${eventDetails[rowIndex].length})`
+                                          : 'הוסף פרטי אירוע (חובה)'}
+                                  </Button>
+                              </SheetTrigger>
+                              <SheetContent side="left" className="w-[600px] sm:w-[540px] overflow-y-auto">
+                                  <SheetHeader className="mb-6 text-right">
+                                      <SheetTitle>פרטי אירועים לתשלום ספק</SheetTitle>
+                                  </SheetHeader>
+                                  
+                                  <div className="space-y-4">
+                                      <Table dir="rtl">
+                                          <TableHeader>
+                                              <TableRow>
+                                                  <TableHead className="text-right">אירוע</TableHead>
+                                                  <TableHead className="text-right">תאריך</TableHead>
+                                                  <TableHead className="text-right">קונים</TableHead>
+                                                  <TableHead className="text-right">נסרקים</TableHead>
+                                                  <TableHead></TableHead>
+                                              </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                              {eventDetails[rowIndex]?.map((detail, dIndex) => (
+                                                  <TableRow key={dIndex}>
+                                                      <TableCell className="p-1">
+                                                          <Select 
+                                                              value={detail.event_name} 
+                                                              onValueChange={(v) => handleEventDetailChange(rowIndex, dIndex, 'event_name', v)}
+                                                          >
+                                                              <SelectTrigger className="h-8">
+                                                                  <SelectValue />
+                                                              </SelectTrigger>
+                                                              <SelectContent>
+                                                                  <SelectItem value="קודו">קודו</SelectItem>
+                                                                  <SelectItem value="קנדי">קנדי</SelectItem>
+                                                                  <SelectItem value="הסעות">הסעות</SelectItem>
+                                                              </SelectContent>
+                                                          </Select>
+                                                      </TableCell>
+                                                      <TableCell className="p-1">
+                                                          <Input 
+                                                              type="date" 
+                                                              value={detail.event_date} 
+                                                              onChange={(e) => handleEventDetailChange(rowIndex, dIndex, 'event_date', e.target.value)}
+                                                              className="h-8"
+                                                          />
+                                                      </TableCell>
+                                                      <TableCell className="p-1">
+                                                          <Input 
+                                                              type="number" 
+                                                              placeholder="0"
+                                                              value={detail.buyers_count} 
+                                                              onChange={(e) => handleEventDetailChange(rowIndex, dIndex, 'buyers_count', e.target.value)}
+                                                              className="h-8"
+                                                          />
+                                                      </TableCell>
+                                                      <TableCell className="p-1">
+                                                          <Input 
+                                                              type="number" 
+                                                              placeholder="0"
+                                                              value={detail.scanned_count} 
+                                                              onChange={(e) => handleEventDetailChange(rowIndex, dIndex, 'scanned_count', e.target.value)}
+                                                              className="h-8"
+                                                          />
+                                                      </TableCell>
+                                                      <TableCell className="p-1">
+                                                          <Button variant="ghost" size="icon" onClick={() => removeEventRow(rowIndex, dIndex)} className="h-8 w-8 text-red-500">
+                                                              <Trash2 className="h-4 w-4" />
+                                                          </Button>
+                                                      </TableCell>
+                                                  </TableRow>
+                                              ))}
+                                          </TableBody>
+                                      </Table>
+                                      
+                                      <Button onClick={() => addEventRow(rowIndex)} className="w-full gap-2" variant="secondary">
+                                          <Plus className="h-4 w-4" /> הוסף שורה
+                                      </Button>
+                                      
+                                      <Button onClick={() => setOpenSheetIndex(null)} className="w-full mt-4">
+                                          סיום ועבור לטבלה
+                                      </Button>
+                                  </div>
+                              </SheetContent>
+                          </Sheet>
+                      )}
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
                     <Input 
