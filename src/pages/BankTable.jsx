@@ -35,7 +35,7 @@ export default function BankTable() {
       
       const bitAmount = parseFloat(row.bit_amount) || 0;
       if (row.company === 'נטו פאן') totals.bitNeto += bitAmount;
-      else if (row.company !== 'כספר') totals.bitKishrei += bitAmount;
+      else totals.bitKishrei += bitAmount;
     });
 
     // Calculate Expenses
