@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
         const accessToken = await base44.asServiceRole.connectors.getAccessToken('googlesheets');
 
         // Fetch all data from the sheet starting at row 3
-        const range = `${SHEET_NAME}!A3:K1000`;
+        const range = `'${SHEET_NAME}'!A3:K1000`;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
 
         const response = await fetch(url, {
