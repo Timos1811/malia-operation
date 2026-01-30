@@ -1,98 +1,178 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
+import { Loader2 } from "lucide-react";
 
 export default function AddTask() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    due_date: ''
+  const [refundType, setRefundType] = useState('partial'); // 'full' or 'partial'
+  const [selectedEvents, setSelectedEvents] = useState(new Set());
+  const [calculatedAmount, setCalculatedAmount] = useState(0);
+
+  // Fetch attractions/events
+  const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
+    queryKey: ['attractions'],
+    queryFn: () => base44.entities.Attraction.list(),
   });
+
+  // Calculate total whenever selection or refund type changes
+  useEffect(() => {
+    let total = 0;
+    selectedEvents.forEach(eventId => {
+      const event = attractions.find(a => a.id === eventId);
+      if (event && event.price_eur) {
+        total += parseFloat(event.price_eur);
+      }
+    });
+
+    if (refundType === 'partial') {
+      total = total * 0.4;
+    }
+
+    setCalculatedAmount(total);
+  }, [selectedEvents, refundType, attractions]);
+
+  const handleEventToggle = (eventId) => {
+    const newSelected = new Set(selectedEvents);
+    if (newSelected.has(eventId)) {
+      newSelected.delete(eventId);
+    } else {
+      newSelected.add(eventId);
+    }
+    setSelectedEvents(newSelected);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title) {
-      toast.error('נא להזין כותרת למשימה');
+    
+    if (selectedEvents.size === 0) {
+      toast.error('יש לבחור לפחות אירוע אחד');
       return;
     }
 
     setLoading(true);
     try {
+      // Create description string from selected events
+      const eventNames = Array.from(selectedEvents).map(id => {
+        const attr = attractions.find(a => a.id === id);
+        return attr ? `${attr.name} (€${attr.price_eur})` : '';
+      }).join(', ');
+
       await base44.entities.Task.create({
-        ...formData,
-        status: 'todo'
+        title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'}`,
+        description: `אירועים שנבחרו: ${eventNames}`,
+        status: 'todo',
+        task_type: 'refund',
+        refund_type: refundType,
+        amount: parseFloat(calculatedAmount.toFixed(2)),
+        currency: 'EUR',
+        due_date: new Date().toISOString().split('T')[0]
       });
-      toast.success('המשימה נוצרה בהצלחה');
+
+      toast.success('הבקשה נשלחה בהצלחה');
       navigate(createPageUrl('Tasks'));
     } catch (error) {
       console.error(error);
-      toast.error('שגיאה ביצירת המשימה');
+      toast.error('שגיאה ביצירת הבקשה');
     } finally {
       setLoading(false);
     }
   };
 
+  if (isLoadingAttractions) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex items-center justify-center" dir="rtl">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">הוספת משימה חדשה</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">בקשת החזר חדשה</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">כותרת</label>
-              <Input
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                placeholder="מה צריך לעשות?"
-                className="text-right"
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-8">
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium">תיאור</label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="פרטים נוספים..."
-                className="text-right min-h-[100px]"
-              />
+            {/* Refund Type Selection */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold">סוג החזר</Label>
+              <RadioGroup 
+                value={refundType} 
+                onValueChange={setRefundType}
+                className="flex gap-6"
+                dir="rtl"
+              >
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <RadioGroupItem value="partial" id="partial" />
+                  <Label htmlFor="partial" className="cursor-pointer">החזר חלקי (40%)</Label>
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <RadioGroupItem value="full" id="full" />
+                  <Label htmlFor="full" className="cursor-pointer">החזר מלא (100%)</Label>
+                </div>
+              </RadioGroup>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">תאריך יעד</label>
-              <Input
-                type="date"
-                value={formData.due_date}
-                onChange={(e) => setFormData({...formData, due_date: e.target.value})}
-                className="text-right"
-              />
+            {/* Events Selection */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold">בחירת אירועים</Label>
+              <div className="border rounded-lg p-4 space-y-3 max-h-[300px] overflow-y-auto bg-white">
+                {attractions.length === 0 ? (
+                  <p className="text-slate-500 text-center py-4">אין אירועים זמינים</p>
+                ) : (
+                  attractions.map((event) => (
+                    <div key={event.id} className="flex items-center space-x-3 space-x-reverse p-2 hover:bg-slate-50 rounded-md transition-colors">
+                      <Checkbox 
+                        id={event.id} 
+                        checked={selectedEvents.has(event.id)}
+                        onCheckedChange={() => handleEventToggle(event.id)}
+                      />
+                      <Label htmlFor={event.id} className="flex-1 cursor-pointer flex justify-between">
+                        <span>{event.name}</span>
+                        <span className="text-slate-500">€{event.price_eur}</span>
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
-            <div className="pt-4 flex gap-3">
+            {/* Calculation Result */}
+            <div className="bg-slate-100 p-6 rounded-xl flex flex-col items-center justify-center space-y-2">
+              <span className="text-slate-600 font-medium">סכום להחזר</span>
+              <div className="text-4xl font-bold text-slate-900">
+                €{calculatedAmount.toFixed(2)}
+              </div>
+              <span className="text-sm text-slate-500">
+                {refundType === 'partial' ? 'חישוב לפי 40% מערך האירועים' : 'חישוב לפי מחיר מלא'}
+              </span>
+            </div>
+
+            <div className="flex gap-3 pt-4">
               <Button 
                 type="button" 
                 variant="outline" 
-                className="flex-1"
+                className="flex-1 h-12"
                 onClick={() => navigate(createPageUrl('Tasks'))}
               >
                 ביטול
               </Button>
               <Button 
                 type="submit" 
-                className="flex-1 bg-slate-900 text-white hover:bg-slate-800"
-                disabled={loading}
+                className="flex-1 h-12 bg-slate-900 text-white hover:bg-slate-800 text-lg"
+                disabled={loading || selectedEvents.size === 0}
               >
-                {loading ? 'שומר...' : 'הוסף משימה'}
+                {loading ? 'שולח...' : 'שלח בקשה'}
               </Button>
             </div>
           </form>
