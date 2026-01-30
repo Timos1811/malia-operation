@@ -15,6 +15,8 @@ const COLUMNS = [
   'חברה',
   'סכום מבוקש',
   'EUR',
+  'שקל',
+  'דולר',
   'סטטוס בEUR'
 ];
 
@@ -28,6 +30,8 @@ const COLUMN_KEYS = [
   'company',
   'requested_amount',
   'eur_amount',
+  'shekel_amount',
+  'dollar_amount',
   'eur_status'
 ];
 
@@ -191,10 +195,13 @@ export default function SavedData() {
               </thead>
               <tbody>
                 {savedRows.map((row) => {
-                  // Check if EUR status is negative
+                  // Check if EUR status is negative (including all currencies)
                   const eurAmount = parseFloat(row.eur_amount) || 0;
+                  const shekelAmount = parseFloat(row.shekel_amount) || 0;
+                  const dollarAmount = parseFloat(row.dollar_amount) || 0;
                   const requestedAmount = parseFloat(row.requested_amount) || 0;
-                  const isNegative = eurAmount && requestedAmount && (eurAmount - requestedAmount) < 0;
+                  const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95);
+                  const isNegative = totalInEur && requestedAmount && (totalInEur - requestedAmount) < 0;
 
                   return (
                   <tr 
@@ -202,14 +209,20 @@ export default function SavedData() {
                     className={`transition-colors duration-200 ${isNegative ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50/50'}`}
                   >
                     {COLUMN_KEYS.map((colKey) => {
-                      // Calculate EUR status
+                      // Calculate EUR status with all currencies
                       let eurStatus = '';
                       let eurStatusColor = '';
                       if (colKey === 'eur_status') {
                         const eurAmount = parseFloat(row.eur_amount) || 0;
+                        const shekelAmount = parseFloat(row.shekel_amount) || 0;
+                        const dollarAmount = parseFloat(row.dollar_amount) || 0;
                         const requestedAmount = parseFloat(row.requested_amount) || 0;
-                        if (eurAmount && requestedAmount) {
-                          const diff = eurAmount - requestedAmount;
+
+                        // Convert to EUR: 1 Shekel = 0.26 EUR, 1 Dollar = 0.95 EUR
+                        const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95);
+
+                        if (totalInEur && requestedAmount) {
+                          const diff = totalInEur - requestedAmount;
                           if (diff > 0) {
                             eurStatus = `+${diff.toFixed(2)}`;
                             eurStatusColor = 'bg-green-100 text-green-800';
