@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 
 const COLUMNS = [
+  { key: 'created_date', label: 'תאריך יצירה', type: 'readonly' },
   { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן'] },
   { key: 'recipient', label: 'למי הועבר', type: 'text' },
   { key: 'amount', label: 'סכום', type: 'number' },
@@ -122,7 +123,7 @@ export default function AllExpenses() {
 
   const renderCellContent = (expense, col) => {
       if (col.key === 'created_date') {
-          return <span className="text-slate-600 font-medium">{new Date(expense.created_date).toLocaleDateString('he-IL')}</span>;
+          return <span className="text-slate-600 font-medium">{expense.created_date ? new Date(expense.created_date).toLocaleDateString('he-IL') : '-'}</span>;
       }
 
       const isEventField = ['event_name', 'event_date', 'buyers_count', 'scanned_count'].includes(col.key);
