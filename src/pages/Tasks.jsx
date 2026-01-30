@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 function TaskList() {
   const queryClient = useQueryClient();
@@ -20,6 +21,30 @@ function TaskList() {
     mutationFn: ({ id, status }) => base44.entities.Task.update(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
   });
+
+  const handleStatusToggle = async (task) => {
+    const isDone = task.status === 'done';
+    const newStatus = isDone ? 'todo' : 'done';
+
+    if (newStatus === 'done' && task.task_type === 'refund') {
+      try {
+        const totalAmount = (task.amount || 0) * (task.people_count || 1);
+        await base44.entities.Expense.create({
+          reason: task.refund_type === 'full' ? 'החזר מלא' : 'החזר חלקי',
+          recipient: task.order_number || '',
+          amount: parseFloat(totalAmount.toFixed(2)),
+          currency: 'EUR',
+          expense_date: new Date().toISOString()
+        });
+        toast.success('הוצאה נוצרה בהצלחה');
+      } catch (error) {
+        console.error('Failed to create expense:', error);
+        toast.error('שגיאה ביצירת הוצאה');
+      }
+    }
+
+    toggleStatusMutation.mutate({ id: task.id, status: newStatus });
+  };
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
   
@@ -80,10 +105,7 @@ function TaskList() {
               <Button
                 variant={isDone ? "outline" : "default"}
                 size={isDone ? "icon" : "sm"}
-                onClick={() => toggleStatusMutation.mutate({ 
-                  id: task.id, 
-                  status: isDone ? 'todo' : 'done' 
-                })}
+                onClick={() => handleStatusToggle(task)}
                 className={isDone ? "text-green-600 border-green-200 bg-green-50 shrink-0" : "bg-green-600 hover:bg-green-700 text-white shrink-0 shadow-sm px-4"}
               >
                 {isDone ? <CheckCircle2 className="w-5 h-5" /> : "בוצע"}
