@@ -67,7 +67,8 @@ Deno.serve(async (req) => {
             customer: matchingRow[7] || '',
             nights: matchingRow[2] || '',
             hotel: matchingRow[9] || '',
-            gender: matchingRow[10] || ''
+            gender: matchingRow[10] || '',
+            checkInDate: matchingRow[0] || '' // Assuming Column A is Check-in Date
         });
 
     } catch (error) {
