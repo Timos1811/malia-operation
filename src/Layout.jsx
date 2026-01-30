@@ -11,6 +11,14 @@ export default function Layout({ children, currentPageName }) {
   const isBankTablePage = currentPageName === 'BankTable';
   const isReturnedToIsraelPage = currentPageName === 'ReturnedToIsrael';
 
+  if (currentPageName === 'AddTask') {
+    return (
+      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <nav className="bg-white border-b border-slate-200 shadow-sm">
