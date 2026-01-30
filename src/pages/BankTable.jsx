@@ -118,35 +118,22 @@ export default function BankTable() {
                             })}
                             
                             {/* Destination Value Row */}
-                            <tr className="bg-slate-100 text-slate-800 font-bold text-lg border-t-2 border-slate-200">
-                                <td className="px-6 py-6">שווי מוערך ביעד</td>
-                                <td className="px-6 py-6" colSpan="3" dir="ltr">
-                                    <div className="flex items-center justify-end gap-6 text-base">
-                                        <span className="flex items-center gap-1">
-                                            <span className="text-slate-500">€</span>
-                                            {summary.destinationBalances.eur.toLocaleString()}
-                                        </span>
-                                        <span className="text-slate-300">|</span>
-                                        <span className="flex items-center gap-1">
-                                            <span className="text-slate-500">₪</span>
-                                            {summary.destinationBalances.shekel.toLocaleString()}
-                                        </span>
-                                        <span className="text-slate-300">|</span>
-                                        <span className="flex items-center gap-1">
-                                            <span className="text-slate-500">$</span>
-                                            {summary.destinationBalances.usd.toLocaleString()}
-                                        </span>
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                            {/* Summary Row */}
-                            <tr className="bg-slate-900 text-white font-bold text-lg">
-                                <td className="px-6 py-6">שווי כולל מוערך (EUR)</td>
-                                <td className="px-6 py-6" colSpan="3" dir="ltr">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <span>€ {summary.totalEurValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                                        <Wallet className="w-5 h-5 text-slate-400" />
+                            <tr className="bg-slate-50 border-t-2 border-slate-200">
+                                <td className="px-6 py-8 align-top font-bold text-slate-700 text-lg">שווי מוערך ביעד</td>
+                                <td className="px-6 py-6" colSpan="3">
+                                    <div className="flex flex-wrap justify-end gap-4">
+                                        <div className="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-4 shadow-sm min-w-[120px]">
+                                            <span className="text-slate-500 text-sm font-medium mb-1">יורו</span>
+                                            <span className="text-2xl font-bold text-slate-800">€{summary.destinationBalances.eur.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-4 shadow-sm min-w-[120px]">
+                                            <span className="text-slate-500 text-sm font-medium mb-1">שקל</span>
+                                            <span className="text-2xl font-bold text-slate-800">₪{summary.destinationBalances.shekel.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-4 shadow-sm min-w-[120px]">
+                                            <span className="text-slate-500 text-sm font-medium mb-1">דולר</span>
+                                            <span className="text-2xl font-bold text-slate-800">${summary.destinationBalances.usd.toLocaleString()}</span>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
