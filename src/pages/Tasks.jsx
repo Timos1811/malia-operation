@@ -70,15 +70,15 @@ function TaskList() {
               </div>
               
               <Button
-                variant={isDone ? "outline" : "ghost"}
-                size="icon"
+                variant={isDone ? "outline" : "default"}
+                size={isDone ? "icon" : "sm"}
                 onClick={() => toggleStatusMutation.mutate({ 
                   id: task.id, 
                   status: isDone ? 'todo' : 'done' 
                 })}
-                className={isDone ? "text-green-600 border-green-200 bg-green-50" : "text-slate-400 hover:text-green-600 hover:bg-green-50"}
+                className={isDone ? "text-green-600 border-green-200 bg-green-50 shrink-0" : "bg-green-600 hover:bg-green-700 text-white shrink-0 shadow-sm px-4"}
               >
-                {isDone ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-current" />}
+                {isDone ? <CheckCircle2 className="w-5 h-5" /> : "בוצע"}
               </Button>
             </CardContent>
           </Card>
