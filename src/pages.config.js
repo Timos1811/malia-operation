@@ -49,12 +49,16 @@
  */
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
+import CreateExpense from './pages/CreateExpense';
+import AllExpenses from './pages/AllExpenses';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "SavedData": SavedData,
     "Table": Table,
+    "CreateExpense": CreateExpense,
+    "AllExpenses": AllExpenses,
 }
 
 export const pagesConfig = {
