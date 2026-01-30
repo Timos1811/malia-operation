@@ -138,14 +138,14 @@ export default function Table() {
     }
 
     // Auto-fetch when order number changes and has at least 7 digits
-    if (colKey === 'order_number' && value.trim().length >= 7 && !newData[rowIndex].customer) {
+    if (colKey === 'order_number' && value.trim().length === 7) {
       fetchOrderDetails(rowIndex, value);
     }
   };
 
   const handleCellBlur = async (e, rowIndex, colKey, value) => {
     // Fetch order details when leaving order_number cell
-    if (colKey === 'order_number' && value.trim() !== '') {
+    if (colKey === 'order_number' && value.trim().length === 7) {
       await fetchOrderDetails(rowIndex, value);
     }
 
@@ -158,7 +158,7 @@ export default function Table() {
   const handleKeyDown = async (e, rowIndex, colKey, value) => {
     if (e.key === 'Enter') {
       // Fetch order details when pressing Enter on order_number cell
-      if (colKey === 'order_number' && value.trim() !== '') {
+      if (colKey === 'order_number' && value.trim().length === 7) {
         await fetchOrderDetails(rowIndex, value);
       }
       setEditingCell(null);
