@@ -57,6 +57,11 @@ export default function BankTable() {
         toEur(getNet('usd'), 'USD') +
         toEur(getNet('eur'), 'EUR');
 
+    const totalDestinationValue = 
+        toEur(getNet('shekel'), 'ILS') +
+        toEur(getNet('usd'), 'USD') +
+        toEur(getNet('eur'), 'EUR');
+
     return {
       rows: [
         { label: 'יורו', ...totals.eur, currency: '€' },
@@ -64,7 +69,8 @@ export default function BankTable() {
         { label: 'ביט', ...totals.bit, currency: '₪' },
         { label: 'דולר', ...totals.usd, currency: '$' },
       ],
-      totalEurValue
+      totalEurValue,
+      totalDestinationValue
     };
   }, [incomeData, expenseData]);
 
@@ -116,6 +122,16 @@ export default function BankTable() {
                                     </tr>
                                 );
                             })}
+                            
+                            {/* Destination Value Row */}
+                            <tr className="bg-slate-100 text-slate-800 font-bold text-lg border-t-2 border-slate-200">
+                                <td className="px-6 py-6">שווי מוערך ביעד (EUR)</td>
+                                <td className="px-6 py-6" colSpan="3" dir="ltr">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <span>€ {summary.totalDestinationValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                </td>
+                            </tr>
                             
                             {/* Summary Row */}
                             <tr className="bg-slate-900 text-white font-bold text-lg">
