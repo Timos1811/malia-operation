@@ -20,10 +20,10 @@ export default function EventsAndAttractions() {
   const [editingId, setEditingId] = useState(null);
   
   // New Item State
-  const [newItem, setNewItem] = useState({ name: '', price_eur: '' });
+  const [newItem, setNewItem] = useState({ name: '', price_eur: '', cost_price_eur: '' });
   
   // Edit Item State
-  const [editItem, setEditItem] = useState({ name: '', price_eur: '' });
+  const [editItem, setEditItem] = useState({ name: '', price_eur: '', cost_price_eur: '' });
 
   // Fetch Attractions
   const { data: attractions = [], isLoading } = useQuery({
@@ -66,30 +66,36 @@ export default function EventsAndAttractions() {
 
   const handleAdd = () => {
     if (!newItem.name || !newItem.price_eur) {
-      toast.error('נא למלא את כל השדות');
+      toast.error('נא למלא את כל השדות (שם ומחיר ללקוח)');
       return;
     }
     createMutation.mutate({
       name: newItem.name,
-      price_eur: parseFloat(newItem.price_eur)
+      price_eur: parseFloat(newItem.price_eur),
+      cost_price_eur: newItem.cost_price_eur ? parseFloat(newItem.cost_price_eur) : 0
     });
   };
 
   const startEdit = (attraction) => {
     setEditingId(attraction.id);
-    setEditItem({ name: attraction.name, price_eur: attraction.price_eur });
+    setEditItem({ 
+      name: attraction.name, 
+      price_eur: attraction.price_eur,
+      cost_price_eur: attraction.cost_price_eur || ''
+    });
   };
 
   const handleUpdate = () => {
     if (!editItem.name || !editItem.price_eur) {
-      toast.error('נא למלא את כל השדות');
+      toast.error('נא למלא את כל השדות (שם ומחיר ללקוח)');
       return;
     }
     updateMutation.mutate({
       id: editingId,
       data: {
         name: editItem.name,
-        price_eur: parseFloat(editItem.price_eur)
+        price_eur: parseFloat(editItem.price_eur),
+        cost_price_eur: editItem.cost_price_eur ? parseFloat(editItem.cost_price_eur) : 0
       }
     });
   };
@@ -116,9 +122,10 @@ export default function EventsAndAttractions() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="text-right font-bold w-1/2">שם אירוע</TableHead>
-                <TableHead className="text-right font-bold w-1/4">מחיר ביורו (€)</TableHead>
-                <TableHead className="text-center font-bold w-1/4">פעולות</TableHead>
+                <TableHead className="text-right font-bold w-1/3">שם אירוע</TableHead>
+                <TableHead className="text-right font-bold w-1/4">מחיר עלות (€)</TableHead>
+                <TableHead className="text-right font-bold w-1/4">מחיר ללקוח (€)</TableHead>
+                <TableHead className="text-center font-bold w-1/6">פעולות</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -132,6 +139,15 @@ export default function EventsAndAttractions() {
                       onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                       className="bg-white"
                       autoFocus
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={newItem.cost_price_eur}
+                      onChange={(e) => setNewItem({ ...newItem, cost_price_eur: e.target.value })}
+                      className="bg-white"
                     />
                   </TableCell>
                   <TableCell>
@@ -183,6 +199,13 @@ export default function EventsAndAttractions() {
                         <TableCell>
                           <Input
                             type="number"
+                            value={editItem.cost_price_eur}
+                            onChange={(e) => setEditItem({ ...editItem, cost_price_eur: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
                             value={editItem.price_eur}
                             onChange={(e) => setEditItem({ ...editItem, price_eur: e.target.value })}
                           />
@@ -201,7 +224,8 @@ export default function EventsAndAttractions() {
                     ) : (
                       <>
                         <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell className="font-mono text-lg">€{item.price_eur?.toFixed(2)}</TableCell>
+                        <TableCell className="font-mono text-slate-500">€{item.cost_price_eur?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell className="font-mono text-lg font-bold text-slate-800">€{item.price_eur?.toFixed(2)}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-2">
                             <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-8 w-8 text-slate-500 hover:text-blue-600">
