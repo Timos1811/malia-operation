@@ -34,8 +34,9 @@ const COLUMN_KEYS = [
 ];
 
 export default function SavedData() {
-  const [editingCell, setEditingCell] = useState(null);
-  const queryClient = useQueryClient();
+    const [editingCell, setEditingCell] = useState(null);
+    const [fetchingRows, setFetchingRows] = useState(new Set());
+    const queryClient = useQueryClient();
   
   const { data: savedRows = [], isLoading } = useQuery({
     queryKey: ['tableData'],
@@ -49,33 +50,51 @@ export default function SavedData() {
     },
   });
 
+  const fetchAndUpdateOrder = async (rowId, orderNumber) => {
+    const trimmedOrderNumber = orderNumber.trim();
+
+    if (!trimmedOrderNumber || fetchingRows.has(rowId)) {
+      return;
+    }
+
+    setFetchingRows(prev => new Set(prev).add(rowId));
+
+    try {
+      const response = await base44.functions.invoke('fetchOrderData', { orderNumber: trimmedOrderNumber });
+
+      if (response.data) {
+        updateMutation.mutate({
+          id: rowId,
+          data: {
+            order_number: trimmedOrderNumber,
+            customer: response.data.customer,
+            nights: response.data.nights,
+            hotel: response.data.hotel,
+            gender: response.data.gender
+          }
+        });
+        toast.success('נתונים נמלאו מגוגל שיטס');
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        toast.error('מספר הזמנה לא נמצא');
+      } else {
+        toast.error('שגיאה בטעינת נתונים');
+      }
+    } finally {
+      setFetchingRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(rowId);
+        return newSet;
+      });
+    }
+  };
+
   const handleCellChange = async (rowId, colKey, value) => {
     // Auto-fill data from Google Sheets when order number is entered
-    if (colKey === 'order_number' && value.trim() !== '') {
-      try {
-        const response = await base44.functions.invoke('fetchOrderData', { orderNumber: value });
-        
-        if (response.data) {
-          updateMutation.mutate({
-            id: rowId,
-            data: {
-              order_number: value,
-              customer: response.data.customer,
-              nights: response.data.nights,
-              hotel: response.data.hotel,
-              gender: response.data.gender
-            }
-          });
-          toast.success('נתונים נמלאו מגוגל שיטס');
-          return;
-        }
-      } catch (error) {
-        if (error.response?.status === 404) {
-          toast.error('מספר הזמנה לא נמצא');
-        } else {
-          toast.error('שגיאה בטעינת נתונים');
-        }
-      }
+    if (colKey === 'order_number' && value.trim().length >= 5) {
+      await fetchAndUpdateOrder(rowId, value);
+      return;
     }
 
     updateMutation.mutate({
@@ -169,9 +188,16 @@ export default function SavedData() {
                           <Input
                             autoFocus
                             defaultValue={row[colKey]}
+                            onChange={(e) => {
+                              if (colKey === 'order_number' && e.target.value.trim().length >= 5) {
+                                handleCellChange(row.id, colKey, e.target.value);
+                              }
+                            }}
                             onBlur={(e) => {
                               handleCellBlur(e);
-                              handleCellChange(row.id, colKey, e.target.value);
+                              if (colKey !== 'order_number') {
+                                handleCellChange(row.id, colKey, e.target.value);
+                              }
                             }}
                             onKeyDown={(e) => handleKeyDown(e, row.id, colKey, e.target.value)}
                             className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"

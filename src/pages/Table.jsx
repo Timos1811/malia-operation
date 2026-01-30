@@ -34,33 +34,38 @@ const COLUMN_KEYS = [
 ];
 
 export default function Table() {
-  const rows = 5;
+    const rows = 5;
 
-  const [tableData, setTableData] = useState(
-    Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {}))
-  );
-  const [editingCell, setEditingCell] = useState(null);
-
-  const handleCellChange = (rowIndex, colKey, value) => {
-    const newData = [...tableData];
-    newData[rowIndex][colKey] = value;
-    setTableData(newData);
-  };
+    const [tableData, setTableData] = useState(
+      Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {}))
+    );
+    const [editingCell, setEditingCell] = useState(null);
+    const [fetchingRows, setFetchingRows] = useState(new Set());
 
   const fetchOrderDetails = async (rowIndex, orderNumber) => {
+    const trimmedOrderNumber = orderNumber.trim();
+
+    if (!trimmedOrderNumber || fetchingRows.has(rowIndex)) {
+      return;
+    }
+
+    setFetchingRows(prev => new Set(prev).add(rowIndex));
+
     try {
-      const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
+      const response = await base44.functions.invoke('fetchOrderData', { orderNumber: trimmedOrderNumber });
 
       if (response.data) {
-        const newData = [...tableData];
-        newData[rowIndex] = {
-          ...newData[rowIndex],
-          customer: response.data.customer,
-          nights: response.data.nights,
-          hotel: response.data.hotel,
-          gender: response.data.gender
-        };
-        setTableData(newData);
+        setTableData(prevData => {
+          const newData = [...prevData];
+          newData[rowIndex] = {
+            ...newData[rowIndex],
+            customer: response.data.customer,
+            nights: response.data.nights,
+            hotel: response.data.hotel,
+            gender: response.data.gender
+          };
+          return newData;
+        });
         toast.success('נתונים נמלאו מגוגל שיטס');
       }
     } catch (error) {
@@ -69,6 +74,23 @@ export default function Table() {
       } else {
         toast.error('שגיאה בטעינת נתונים');
       }
+    } finally {
+      setFetchingRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(rowIndex);
+        return newSet;
+      });
+    }
+  };
+
+  const handleCellChange = (rowIndex, colKey, value) => {
+    const newData = [...tableData];
+    newData[rowIndex][colKey] = value;
+    setTableData(newData);
+
+    // Auto-fetch when order number changes and has at least 5 digits
+    if (colKey === 'order_number' && value.trim().length >= 5) {
+      fetchOrderDetails(rowIndex, value);
     }
   };
 
