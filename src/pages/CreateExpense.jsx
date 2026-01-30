@@ -2,16 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
-  { key: 'supplier', label: 'ספק' },
-  { key: 'description', label: 'תיאור' },
+  { key: 'reason', label: 'סיבת הוצאה' },
+  { key: 'recipient', label: 'למי הועבר' },
   { key: 'amount', label: 'סכום' },
   { key: 'currency', label: 'מטבע' },
-  { key: 'expense_date', label: 'תאריך' },
 ];
 
 export default function CreateExpense() {
@@ -23,8 +21,8 @@ export default function CreateExpense() {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
     return Array.from({ length: rowsCount }, () => ({
-      supplier: '',
-      description: '',
+      reason: '',
+      recipient: '',
       amount: '',
       currency: 'ILS',
       expense_date: new Date().toISOString().split('T')[0]
@@ -43,11 +41,11 @@ export default function CreateExpense() {
 
   const handleSaveAll = async () => {
     const rowsToSave = tableData.filter(row => 
-      row.supplier && row.amount && row.expense_date
+      row.reason && row.recipient && row.amount
     );
 
     if (rowsToSave.length === 0) {
-      toast.error('אין נתונים תקינים לשמירה (חובה למלא ספק, סכום ותאריך)');
+      toast.error('אין נתונים תקינים לשמירה (חובה למלא סיבה, למי הועבר וסכום)');
       return;
     }
 
@@ -63,23 +61,17 @@ export default function CreateExpense() {
 
       toast.success(`${savedCount} הוצאות נשמרו בהצלחה!`);
       
-      // Clear saved rows
       const emptyRow = {
-        supplier: '',
-        description: '',
+        reason: '',
+        recipient: '',
         amount: '',
         currency: 'ILS',
         expense_date: new Date().toISOString().split('T')[0]
       };
       
       setTableData(prev => {
-         // Keep rows that weren't saved (incomplete ones), or reset if they were all saved
-         // For simplicity, let's just reset the rows that were valid, similar to the other table
-         // Actually, let's just reset the whole table logic like the user asked for previously
-         // "Valid rows saved and cleared, invalid remain"
-         
          const newTable = prev.map(row => {
-             if (row.supplier && row.amount && row.expense_date) {
+             if (row.reason && row.recipient && row.amount) {
                  return { ...emptyRow };
              }
              return row;
@@ -114,15 +106,15 @@ export default function CreateExpense() {
                 <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-2 py-2 border-b border-slate-100">
                     <Input 
-                      value={row.supplier} 
-                      onChange={(e) => handleCellChange(rowIndex, 'supplier', e.target.value)}
+                      value={row.reason} 
+                      onChange={(e) => handleCellChange(rowIndex, 'reason', e.target.value)}
                       className="text-right h-10"
                     />
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
                     <Input 
-                      value={row.description} 
-                      onChange={(e) => handleCellChange(rowIndex, 'description', e.target.value)}
+                      value={row.recipient} 
+                      onChange={(e) => handleCellChange(rowIndex, 'recipient', e.target.value)}
                       className="text-right h-10"
                     />
                   </td>
@@ -148,14 +140,6 @@ export default function CreateExpense() {
                         <SelectItem value="EUR">€ (EUR)</SelectItem>
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className="px-2 py-2 border-b border-slate-100">
-                    <Input 
-                      type="date"
-                      value={row.expense_date} 
-                      onChange={(e) => handleCellChange(rowIndex, 'expense_date', e.target.value)}
-                      className="text-right h-10"
-                    />
                   </td>
                 </tr>
               ))}

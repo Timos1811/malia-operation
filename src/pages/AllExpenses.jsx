@@ -5,12 +5,10 @@ import { Loader2, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
 const COLUMNS = [
-  { key: 'expense_date', label: 'תאריך', type: 'date' },
-  { key: 'supplier', label: 'ספק', type: 'text' },
-  { key: 'description', label: 'תיאור', type: 'text' },
+  { key: 'reason', label: 'סיבת הוצאה', type: 'text' },
+  { key: 'recipient', label: 'למי הועבר', type: 'text' },
   { key: 'amount', label: 'סכום', type: 'number' },
   { key: 'currency', label: 'מטבע', type: 'select' },
 ];
@@ -28,7 +26,6 @@ export default function AllExpenses() {
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      // toast.success('ההוצאה עודכנה'); // SavedData usually doesn't toast on every cell update to avoid spam
     },
     onError: () => toast.error('שגיאה בעדכון ההוצאה')
   });
@@ -39,15 +36,13 @@ export default function AllExpenses() {
   };
 
   const handleCellBlur = (e) => {
-    // Only close if we're not moving to another cell (logic handled by timeout or relatedTarget check)
-    // SavedData uses a timeout to allow focus to move
     if (!e.relatedTarget || !e.relatedTarget.closest('td')) {
       setTimeout(() => setEditingCell(null), 0);
     }
   };
 
   const handleKeyDown = (e, rowId, colKey) => {
-      const expensesList = expenses; // current list
+      const expensesList = expenses;
       const currentRowIndex = expensesList.findIndex(r => r.id === rowId);
       const currentColIndex = COLUMNS.findIndex(c => c.key === colKey);
 
@@ -59,14 +54,12 @@ export default function AllExpenses() {
         handleCellChange(rowId, colKey, e.target.value);
         
         if (e.shiftKey) {
-          // Shift+Tab - move to previous cell
           if (currentColIndex > 0) {
             setEditingCell({ row: rowId, col: COLUMNS[currentColIndex - 1].key });
           } else if (currentRowIndex > 0) {
             setEditingCell({ row: expensesList[currentRowIndex - 1].id, col: COLUMNS[COLUMNS.length - 1].key });
           }
         } else {
-          // Tab - move to next cell
           if (currentColIndex < COLUMNS.length - 1) {
             setEditingCell({ row: rowId, col: COLUMNS[currentColIndex + 1].key });
           } else if (currentRowIndex < expensesList.length - 1) {
@@ -79,9 +72,6 @@ export default function AllExpenses() {
   const renderCellContent = (expense, col) => {
       if (col.key === 'currency') {
           return expense[col.key] || <span className="text-slate-400">—</span>;
-      }
-      if (col.key === 'amount') {
-          return expense[col.key] ? expense[col.key] : <span className="text-slate-400">—</span>;
       }
       return expense[col.key] || <span className="text-slate-400">—</span>;
   };
@@ -129,8 +119,6 @@ export default function AllExpenses() {
                                         defaultValue={expense.currency} 
                                         onValueChange={(val) => {
                                             handleCellChange(expense.id, 'currency', val);
-                                            // setEditingCell(null); // Keep editing or close? Usually select closes itself, but we might want to stay in edit mode if tab? 
-                                            // Select behaves differently, let's close it after selection for UX
                                             setEditingCell(null);
                                         }}
                                         defaultOpen={true}
@@ -147,7 +135,7 @@ export default function AllExpenses() {
                                 ) : (
                                     <Input
                                         autoFocus
-                                        type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
+                                        type={col.type === 'number' ? 'number' : 'text'}
                                         defaultValue={expense[col.key]}
                                         onBlur={(e) => {
                                             handleCellBlur(e);
