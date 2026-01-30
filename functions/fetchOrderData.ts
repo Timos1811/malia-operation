@@ -60,34 +60,8 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Order number not found' }, { status: 404, headers: corsHeaders });
         }
 
-        // Calculate departure date
-        let departureDate = '';
-        const checkInDate = matchingRow[0] || '';
-        const nights = parseInt(matchingRow[2]) || 0;
-
-        if (checkInDate) {
-            try {
-                const parts = checkInDate.split(/[./-]/);
-                if (parts.length === 3) {
-                   const day = parseInt(parts[0]);
-                   const month = parseInt(parts[1]) - 1;
-                   let yearStr = parts[2];
-                   if (yearStr.length === 2) yearStr = '20' + yearStr;
-                   const year = parseInt(yearStr);
-                   
-                   const date = new Date(year, month, day);
-                   if (!isNaN(date.getTime())) {
-                       date.setDate(date.getDate() + nights);
-                       const d = date.getDate().toString().padStart(2, '0');
-                       const m = (date.getMonth() + 1).toString().padStart(2, '0');
-                       const y = date.getFullYear();
-                       departureDate = `${d}/${m}/${y}`;
-                   }
-                }
-            } catch (e) {
-                console.error('Date parsing error', e);
-            }
-        }
+        // Column B (index 1) is departure date
+        const departureDate = matchingRow[1] || '';
 
         // Return data mapping
         return Response.json({
