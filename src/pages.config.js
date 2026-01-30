@@ -47,20 +47,20 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import SavedData from './pages/SavedData';
-import Table from './pages/Table';
-import CreateExpense from './pages/CreateExpense';
 import AllExpenses from './pages/AllExpenses';
 import BankTable from './pages/BankTable';
+import CreateExpense from './pages/CreateExpense';
+import SavedData from './pages/SavedData';
+import Table from './pages/Table';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "SavedData": SavedData,
-    "Table": Table,
-    "CreateExpense": CreateExpense,
     "AllExpenses": AllExpenses,
     "BankTable": BankTable,
+    "CreateExpense": CreateExpense,
+    "SavedData": SavedData,
+    "Table": Table,
 }
 
 export const pagesConfig = {

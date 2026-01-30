@@ -87,55 +87,44 @@ export default function BankTable() {
         <div className="grid gap-6">
             <Card className="border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-right">
+                    <table className="w-full text-sm text-center">
                         <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4">מטבע / סוג</th>
-                                <th className="px-6 py-4 text-green-700">סה"כ הכנסות</th>
-                                <th className="px-6 py-4 text-red-700">סה"כ הוצאות</th>
-                                <th className="px-6 py-4 font-bold">יתרה בקופה</th>
+                                <th className="px-6 py-4 text-right">תיאור</th>
+                                {summary.rows.map((row, index) => (
+                                    <th key={index} className="px-6 py-4">{row.label}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {summary.rows.map((row, index) => {
-                                const net = row.income - row.expenses;
-                                return (
-                                    <tr key={index} className="hover:bg-slate-50/50 transition-colors text-base">
-                                        <td className="px-6 py-4 font-medium text-slate-700">{row.label}</td>
-                                        <td className="px-6 py-4 text-green-600 font-medium">
-                                            {row.income.toLocaleString()} {row.currency}
-                                        </td>
-                                        <td className="px-6 py-4 text-red-500 font-medium">
-                                            {row.expenses.toLocaleString()} {row.currency}
-                                        </td>
-                                        <td className="px-6 py-4 font-bold" dir="ltr">
+                            <tr className="hover:bg-slate-50/50 transition-colors text-base">
+                                <td className="px-6 py-4 font-medium text-slate-700 text-right">סה"כ הכנסות</td>
+                                {summary.rows.map((row, index) => (
+                                    <td key={index} className="px-6 py-4 text-green-600 font-medium">
+                                        {row.income.toLocaleString()} {row.currency}
+                                    </td>
+                                ))}
+                            </tr>
+                            <tr className="hover:bg-slate-50/50 transition-colors text-base">
+                                <td className="px-6 py-4 font-medium text-slate-700 text-right">סה"כ הוצאות</td>
+                                {summary.rows.map((row, index) => (
+                                    <td key={index} className="px-6 py-4 text-red-500 font-medium">
+                                        {row.expenses.toLocaleString()} {row.currency}
+                                    </td>
+                                ))}
+                            </tr>
+                            <tr className="bg-slate-50/80 font-bold text-lg border-t-2 border-slate-200">
+                                <td className="px-6 py-6 text-slate-800 text-right">יתרה בקופה (ביעד)</td>
+                                {summary.rows.map((row, index) => {
+                                    const net = row.income - row.expenses;
+                                    return (
+                                        <td key={index} className="px-6 py-6">
                                             <span className={net >= 0 ? 'text-slate-800' : 'text-red-600'}>
                                                 {net.toLocaleString()} {row.currency}
                                             </span>
                                         </td>
-                                    </tr>
-                                );
-                            })}
-                            
-                            {/* Destination Value Row */}
-                            <tr className="bg-slate-50 border-t-2 border-slate-200">
-                                <td className="px-6 py-8 align-top font-bold text-slate-700 text-lg">שווי מוערך ביעד</td>
-                                <td className="px-6 py-6" colSpan="3">
-                                    <div className="flex flex-wrap justify-end gap-4">
-                                        <div className="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-4 shadow-sm min-w-[120px]">
-                                            <span className="text-slate-500 text-sm font-medium mb-1">יורו</span>
-                                            <span className="text-2xl font-bold text-slate-800">€{summary.destinationBalances.eur.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-4 shadow-sm min-w-[120px]">
-                                            <span className="text-slate-500 text-sm font-medium mb-1">שקל</span>
-                                            <span className="text-2xl font-bold text-slate-800">₪{summary.destinationBalances.shekel.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-4 shadow-sm min-w-[120px]">
-                                            <span className="text-slate-500 text-sm font-medium mb-1">דולר</span>
-                                            <span className="text-2xl font-bold text-slate-800">${summary.destinationBalances.usd.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </td>
+                                    );
+                                })}
                             </tr>
                         </tbody>
                     </table>
