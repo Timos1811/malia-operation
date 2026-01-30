@@ -85,8 +85,6 @@ export default function Layout({ children, currentPageName }) {
               <Landmark className="w-5 h-5" />
               <span>טבלת בנק</span>
             </Link>
-            <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
-
           </div>
         </div>
       </nav>
