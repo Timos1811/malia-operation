@@ -18,13 +18,15 @@ export default function ReturnedToIsrael() {
   const queryClient = useQueryClient();
 
   const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ['expenses'],
+    queryKey: ['returned_expenses'],
     queryFn: () => base44.entities.Expense.filter({ reason: 'יצא מהיעד' }, '-created_date'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['returned_expenses'] });
+      // Also invalidate main expenses list to keep it fresh
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
     onError: () => toast.error('שגיאה בעדכון הנתונים')
