@@ -138,7 +138,7 @@ export default function Table() {
     }
 
     // Auto-fetch when order number changes and has at least 5 digits
-    if (colKey === 'order_number' && value.trim().length >= 5) {
+    if (colKey === 'order_number' && value.trim().length >= 5 && !newData[rowIndex].customer) {
       fetchOrderDetails(rowIndex, value);
     }
   };
