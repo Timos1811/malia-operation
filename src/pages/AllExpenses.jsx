@@ -111,10 +111,14 @@ export default function AllExpenses() {
               <tbody>
                 {expenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
-                    {COLUMNS.map((col) => (
+                    {COLUMNS.map((col) => {
+                        const isRecipientSelect = col.key === 'recipient' && expense.reason === 'תשלום לספק';
+                        const isSelect = col.type === 'select' || isRecipientSelect;
+
+                        return (
                         <td key={col.key} className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0">
                             {editingCell?.row === expense.id && editingCell?.col === col.key ? (
-                                col.type === 'select' ? (
+                                isSelect ? (
                                     <Select 
                                         defaultValue={expense[col.key]} 
                                         onValueChange={(val) => {
@@ -133,6 +137,13 @@ export default function AllExpenses() {
                                             <SelectItem value="USD">$ USD</SelectItem>
                                             <SelectItem value="EUR">€ EUR</SelectItem>
                                           </>
+                                        ) : isRecipientSelect ? (
+                                            <>
+                                                <SelectItem value="מנוס">מנוס</SelectItem>
+                                                <SelectItem value="טמיס">טמיס</SelectItem>
+                                                <SelectItem value="מייק">מייק</SelectItem>
+                                                <SelectItem value="מגדה">מגדה</SelectItem>
+                                            </>
                                         ) : (
                                           col.options?.map(opt => (
                                             <SelectItem key={opt} value={opt}>{opt}</SelectItem>
@@ -167,7 +178,7 @@ export default function AllExpenses() {
                                 </div>
                             )}
                         </td>
-                    ))}
+                    );})}
                   </tr>
                 ))}
               </tbody>

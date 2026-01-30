@@ -126,11 +126,28 @@ export default function CreateExpense() {
                     </Select>
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
-                    <Input 
-                      value={row.recipient} 
-                      onChange={(e) => handleCellChange(rowIndex, 'recipient', e.target.value)}
-                      className="text-right h-10"
-                    />
+                    {row.reason === 'תשלום לספק' ? (
+                        <Select 
+                            value={row.recipient} 
+                            onValueChange={(val) => handleCellChange(rowIndex, 'recipient', val)}
+                        >
+                            <SelectTrigger className="w-full h-10 text-right" dir="rtl">
+                                <SelectValue placeholder="בחר ספק" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                                <SelectItem value="מנוס">מנוס</SelectItem>
+                                <SelectItem value="טמיס">טמיס</SelectItem>
+                                <SelectItem value="מייק">מייק</SelectItem>
+                                <SelectItem value="מגדה">מגדה</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <Input 
+                            value={row.recipient} 
+                            onChange={(e) => handleCellChange(rowIndex, 'recipient', e.target.value)}
+                            className="text-right h-10"
+                        />
+                    )}
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
                     <Input 
