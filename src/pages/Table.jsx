@@ -95,6 +95,14 @@ export default function Table() {
     }
 
     setTableData(newData);
+
+    // ניקוי שגיאה אם קיימת לשדה זה
+    if (missingFields[rowIndex]?.includes(colKey)) {
+      setMissingFields(prev => ({
+        ...prev,
+        [rowIndex]: prev[rowIndex].filter(field => field !== colKey)
+      }));
+    }
   };
 
   const handleCellBlur = (rowIndex, colKey, value) => {
@@ -105,29 +113,39 @@ export default function Table() {
   };
 
   const handleSaveAll = async () => {
-    // סינון שורות ריקות - שומרים רק שורות שיש בהן מספר הזמנה
-    const rowsToSave = tableData.filter(row => row.order_number?.trim().length > 0);
+    const newMissingFields = {};
+    let hasErrors = false;
+    const rowsToSave = [];
+
+    // בדיקת ולידציה לכל שורה שיש בה מספר הזמנה
+    tableData.forEach((row, index) => {
+      if (row.order_number?.trim().length > 0) {
+        rowsToSave.push(row);
+        
+        const required = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
+        const missing = required.filter(field => !row[field] || String(row[field]).trim() === '');
+        
+        const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount'].some(field => row[field] && String(row[field]).trim() !== '');
+        
+        if (missing.length > 0 || !hasCurrency) {
+          hasErrors = true;
+          newMissingFields[index] = [...missing];
+          if (!hasCurrency) {
+            newMissingFields[index].push('eur_amount', 'shekel_amount', 'dollar_amount');
+          }
+        }
+      }
+    });
 
     if (rowsToSave.length === 0) {
       toast.error('אין נתונים לשמירה');
       return;
     }
 
-    // בדיקת תקינות - שדות חובה ומטבעות
-    for (const row of rowsToSave) {
-      const requiredFields = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
-      const missingFields = requiredFields.filter(field => !row[field] || String(row[field]).trim() === '');
-      
-      if (missingFields.length > 0) {
-        toast.error(`חסרים שדות חובה להזמנה ${row.order_number}: ${missingFields.join(', ')}`);
-        return;
-      }
-
-      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount'].some(field => row[field] && String(row[field]).trim() !== '');
-      if (!hasCurrency) {
-        toast.error(`יש להזין לפחות סכום אחד (EUR, שקל או דולר) להזמנה ${row.order_number}`);
-        return;
-      }
+    if (hasErrors) {
+      setMissingFields(newMissingFields);
+      toast.error('אנא מלא את השדות המסומנים באדום');
+      return;
     }
 
     try {
