@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
-  'מספר הזמנה', 'לקוחות', 'לילות', 'מגדר', 'גיל', 'מלון', 
+  'מספר הזמנה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
   'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'סטטוס בEUR'
 ];
 
 const COLUMN_KEYS = [
-  'order_number', 'customer', 'nights', 'gender', 'age', 'hotel', 
+  'order_number', 'customer', 'nights', 'gender', 'hotel', 
   'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'eur_status'
 ];
 
@@ -111,6 +111,23 @@ export default function Table() {
     if (rowsToSave.length === 0) {
       toast.error('אין נתונים לשמירה');
       return;
+    }
+
+    // בדיקת תקינות - שדות חובה ומטבעות
+    for (const row of rowsToSave) {
+      const requiredFields = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
+      const missingFields = requiredFields.filter(field => !row[field] || String(row[field]).trim() === '');
+      
+      if (missingFields.length > 0) {
+        toast.error(`חסרים שדות חובה להזמנה ${row.order_number}: ${missingFields.join(', ')}`);
+        return;
+      }
+
+      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount'].some(field => row[field] && String(row[field]).trim() !== '');
+      if (!hasCurrency) {
+        toast.error(`יש להזין לפחות סכום אחד (EUR, שקל או דולר) להזמנה ${row.order_number}`);
+        return;
+      }
     }
 
     try {
