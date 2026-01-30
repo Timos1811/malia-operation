@@ -220,11 +220,12 @@ export default function AllExpenses() {
                                 ) : (
                                     <Input
                                         autoFocus
-                                        type={col.type === 'number' ? 'number' : 'text'}
-                                        defaultValue={expense[col.key]}
+                                        type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
+                                        defaultValue={cellValue}
                                         onBlur={(e) => {
                                             handleCellBlur(e);
-                                            if (e.target.value !== String(expense[col.key] || '')) {
+                                            const originalValue = cellValue || '';
+                                            if (e.target.value !== String(originalValue)) {
                                                 handleCellChange(expense.id, col.key, e.target.value);
                                             }
                                         }}
