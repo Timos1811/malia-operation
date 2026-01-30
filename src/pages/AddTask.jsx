@@ -64,25 +64,21 @@ export default function AddTask() {
     try {
       const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
       
-      if (response.data && response.data.checkInDate && response.data.nights) {
-        const parts = response.data.checkInDate.split(/[./-]/);
-        if (parts.length === 3) {
-           const day = parseInt(parts[0]);
-           const month = parseInt(parts[1]) - 1;
-           const year = parseInt(parts[2].length === 2 ? '20' + parts[2] : parts[2]);
-           
-           const date = new Date(year, month, day);
-           const nights = parseInt(response.data.nights) || 0;
-           
-           date.setDate(date.getDate() + nights);
-           
-           const departureStr = date.toLocaleDateString('he-IL');
-           setDepartureDate(departureStr);
-           toast.success(`נמצא תאריך עזיבה: ${departureStr}`);
+      if (response.data) {
+        // עדכון השדות הקיימים
+        setCustomerName(response.data.customer || '');
+        setHotelName(response.data.hotel || '');
+        
+        // עדכון תאריך העזיבה ישירות מהשדה החדש (עמודה B)
+        if (response.data.departureDate) {
+          setDepartureDate(response.data.departureDate);
         }
+        
+        toast.success("נתוני הזמנה נטענו");
       }
     } catch (error) {
-       console.error("Error fetching order:", error);
+       console.error("Fetch error:", error);
+       toast.error("שגיאה במשיכת נתונים");
     } finally {
        setIsFetchingOrder(false);
     }
