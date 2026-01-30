@@ -59,7 +59,7 @@ export default function BankTable() {
 
     return {
       rows: [
-        { label: 'שקל (מזומן/העברה)', ...totals.shekel, currency: '₪' },
+        { label: 'שקל (מזומן)', ...totals.shekel, currency: '₪' },
         { label: 'ביט', ...totals.bit, currency: '₪' },
         { label: 'דולר', ...totals.usd, currency: '$' },
         { label: 'יורו', ...totals.eur, currency: '€' },
