@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Loader2, Database } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 const COLUMNS = [
   'מספר הזמנה',
@@ -48,7 +49,35 @@ export default function SavedData() {
     },
   });
 
-  const handleCellChange = (rowId, colKey, value) => {
+  const handleCellChange = async (rowId, colKey, value) => {
+    // Auto-fill data from Google Sheets when order number is entered
+    if (colKey === 'order_number' && value.trim() !== '') {
+      try {
+        const response = await base44.functions.invoke('fetchOrderData', { orderNumber: value });
+        
+        if (response.data) {
+          updateMutation.mutate({
+            id: rowId,
+            data: {
+              order_number: value,
+              customer: response.data.customer,
+              nights: response.data.nights,
+              hotel: response.data.hotel,
+              gender: response.data.gender
+            }
+          });
+          toast.success('נתונים נמלאו מגוגל שיטס');
+          return;
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          toast.error('מספר הזמנה לא נמצא');
+        } else {
+          toast.error('שגיאה בטעינת נתונים');
+        }
+      }
+    }
+
     updateMutation.mutate({
       id: rowId,
       data: { [colKey]: value }
