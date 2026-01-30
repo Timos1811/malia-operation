@@ -215,6 +215,8 @@ export default function Table() {
                         }
                     }
 
+                    const isMissing = missingFields[rowIndex]?.includes(colKey);
+
                     return (
                       <td key={colKey} className="px-2 py-2 border-b border-slate-100">
                         {colKey === 'eur_status' ? (
@@ -227,7 +229,7 @@ export default function Table() {
                               value={row[colKey]}
                               onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
                               onBlur={(e) => handleCellBlur(rowIndex, colKey, e.target.value)}
-                              className="text-right h-10"
+                              className={`text-right h-10 ${isMissing ? 'border-red-500 ring-1 ring-red-500 bg-red-50' : ''}`}
                               disabled={isFetching}
                             />
                             {isFetching && (
