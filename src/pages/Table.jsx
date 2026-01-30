@@ -114,54 +114,70 @@ export default function Table() {
 
   const handleSaveAll = async () => {
     const newMissingFields = {};
-    let hasErrors = false;
-    const rowsToSave = [];
+    const validRowsIndices = [];
+    const rowsToCreate = [];
 
-    // בדיקת ולידציה לכל שורה שיש בה מספר הזמנה
+    // 1. בדיקת ולידציה - מיון שורות לתקינות ולא תקינות
     tableData.forEach((row, index) => {
-      if (row.order_number?.trim().length > 0) {
-        rowsToSave.push(row);
-        
-        const required = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
-        const missing = required.filter(field => !row[field] || String(row[field]).trim() === '');
-        
-        const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount'].some(field => row[field] && String(row[field]).trim() !== '');
-        
-        if (missing.length > 0 || !hasCurrency) {
-          hasErrors = true;
-          newMissingFields[index] = [...missing];
-          if (!hasCurrency) {
-            newMissingFields[index].push('eur_amount', 'shekel_amount', 'dollar_amount');
-          }
+      // דילוג על שורות ריקות לגמרי
+      if (!row.order_number?.trim()) return;
+
+      const required = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
+      const missing = required.filter(field => !row[field] || String(row[field]).trim() === '');
+      
+      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount'].some(field => row[field] && String(row[field]).trim() !== '');
+
+      if (missing.length > 0 || !hasCurrency) {
+        // שורה לא תקינה
+        newMissingFields[index] = [...missing];
+        if (!hasCurrency) {
+           newMissingFields[index].push('eur_amount', 'shekel_amount', 'dollar_amount');
         }
+      } else {
+        // שורה תקינה
+        validRowsIndices.push(index);
+        rowsToCreate.push(row);
       }
     });
 
-    if (rowsToSave.length === 0) {
+    if (rowsToCreate.length === 0 && Object.keys(newMissingFields).length === 0) {
       toast.error('אין נתונים לשמירה');
       return;
     }
 
-    if (hasErrors) {
-      setMissingFields(newMissingFields);
-      toast.error('אנא מלא את השדות המסומנים באדום');
-      return;
+    // 2. עדכון שגיאות לשורות הלא תקינות
+    setMissingFields(newMissingFields);
+
+    if (rowsToCreate.length === 0) {
+        toast.error('אנא מלא את השדות המסומנים באדום');
+        return;
     }
 
+    // 3. שמירת השורות התקינות בלבד
     try {
-      for (const row of rowsToSave) {
+      let savedCount = 0;
+      for (const row of rowsToCreate) {
         await base44.entities.TableData.create(row);
+        savedCount++;
       }
-      
-      toast.success('הנתונים נשמרו בטבלה הכללית!');
-      
-      // איפוס הטבלה לאחר שמירה מוצלחת
-      const emptyData = Array.from({ length: rowsCount }, () => 
-        COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})
-      );
-      setTableData(emptyData);
-      localStorage.removeItem('tableData');
+
+      toast.success(`${savedCount} שורות נשמרו בהצלחה!`);
+
+      // 4. ניקוי השורות שנשמרו מהטבלה (השארת השגויות והריקות)
+      setTableData(prevData => {
+         const newData = [...prevData];
+         validRowsIndices.forEach(index => {
+             newData[index] = COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {});
+         });
+         return newData;
+      });
+
+      if (Object.keys(newMissingFields).length > 0) {
+          toast.warning('חלק מהשורות לא נשמרו עקב נתונים חסרים');
+      }
+
     } catch (error) {
+      console.error(error);
       toast.error('שגיאה בשמירת הנתונים');
     }
   };
