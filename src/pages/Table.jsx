@@ -151,15 +151,40 @@ export default function Table() {
               {tableData.map((row, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors">
                   {COLUMN_KEYS.map((colKey) => {
-                    // חישוב סטטוס EUR (נשאר כפי שכתבת)
                     const isFetching = colKey === 'order_number' && fetchingRows.has(rowIndex);
+
+                    let eurStatus = '—';
+                    let eurStatusColor = 'bg-slate-100 text-slate-600';
+
+                    if (colKey === 'eur_status') {
+                        const eur = parseFloat(row.eur_amount) || 0;
+                        const nis = parseFloat(row.shekel_amount) || 0;
+                        const usd = parseFloat(row.dollar_amount) || 0;
+                        const req = parseFloat(row.requested_amount) || 0;
+
+                        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR
+                        const total = eur + (nis * 0.26) + (usd * 0.95);
+
+                        if (row.requested_amount) {
+                            const diff = total - req;
+                            if (Math.abs(diff) < 0.01) {
+                                eurStatus = 'מאוזן';
+                                eurStatusColor = 'bg-slate-100 text-slate-600';
+                            } else if (diff > 0) {
+                                eurStatus = `+${diff.toFixed(2)}`;
+                                eurStatusColor = 'bg-green-100 text-green-800';
+                            } else {
+                                eurStatus = diff.toFixed(2);
+                                eurStatusColor = 'bg-red-100 text-red-800';
+                            }
+                        }
+                    }
 
                     return (
                       <td key={colKey} className="px-2 py-2 border-b border-slate-100">
                         {colKey === 'eur_status' ? (
-                          <div className="px-4 py-2 bg-slate-100 rounded-lg text-center font-medium">
-                            {/* לוגיקת החישוב שלך כאן */}
-                            —
+                          <div className={`px-4 py-2 rounded-lg text-center font-medium ${eurStatusColor}`}>
+                            {eurStatus}
                           </div>
                         ) : (
                           <div className="relative">
