@@ -132,7 +132,7 @@ export default function AddTask() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="peopleCount">כמות אנשים להחזר</Label>
+                <Label htmlFor="peopleCount">כמות אנשים</Label>
                 <Input
                   id="peopleCount"
                   type="number"
