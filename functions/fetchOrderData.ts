@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const SPREADSHEET_ID = '1VQ9H-JDzOKuhVJCFWhjuSmGlydkIkZc-gBl1LE_n_eU';
-const SHEET_NAME = 'קשרי תעופה';
 
 Deno.serve(async (req) => {
     try {
