@@ -102,8 +102,11 @@ function TaskList() {
                     {task.people_count > 0 && (
                       <span className="font-medium bg-slate-100 px-2 py-0.5 rounded">כמות אנשים: {task.people_count}</span>
                     )}
-                  </div>
-                )}
+                    {task.departure_date && (
+                      <span className="font-medium bg-slate-100 px-2 py-0.5 rounded">עזיבה: {task.departure_date}</span>
+                    )}
+                    </div>
+                    )}
                 <div className="text-xs text-slate-400 mt-2">
                   {new Date(task.created_date).toLocaleDateString('he-IL')}
                 </div>

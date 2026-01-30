@@ -114,13 +114,9 @@ export default function AddTask() {
         return attr ? `${attr.name} (€${attr.price_eur})` : '';
       }).join(', ');
 
-      const description = departureDate 
-        ? `אירועים שנבחרו: ${eventNames}\nתאריך עזיבה: ${departureDate}`
-        : `אירועים שנבחרו: ${eventNames}`;
-
       await base44.entities.Task.create({
         title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'} - הזמנה ${orderNumber}`,
-        description: description,
+        description: `אירועים שנבחרו: ${eventNames}`,
         status: 'todo',
         task_type: 'refund',
         refund_type: refundType,
@@ -128,6 +124,7 @@ export default function AddTask() {
         currency: 'EUR',
         order_number: orderNumber,
         people_count: parseInt(peopleCount) || 0,
+        departure_date: departureDate || '',
         due_date: new Date().toISOString().split('T')[0]
       });
 
