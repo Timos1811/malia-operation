@@ -81,7 +81,8 @@ export default function AddTask() {
       });
 
       toast.success('הבקשה נשלחה בהצלחה');
-      navigate(createPageUrl('Tasks'));
+      setSelectedEvents(new Set());
+      setRefundType('partial');
     } catch (error) {
       console.error(error);
       toast.error('שגיאה ביצירת הבקשה');
