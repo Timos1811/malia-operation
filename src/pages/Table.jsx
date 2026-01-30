@@ -29,7 +29,6 @@ export default function Table() {
     );
   });
 
-  const [editingCell, setEditingCell] = useState(null);
   const [fetchingRows, setFetchingRows] = useState(new Set());
   const [missingFields, setMissingFields] = useState({});
 
@@ -38,16 +37,17 @@ export default function Table() {
     localStorage.setItem('tableData', JSON.stringify(tableData));
   }, [tableData]);
 
-  // פונקציית משיכת הנתונים מגוגל שיטס
+  // פונקציית משיכת הנתונים מגוגל שיטס - מעודכנת לעבוד עם הפונקציה החדשה ב-Base44
   const fetchOrderDetails = useCallback(async (rowIndex, orderNumber) => {
     const trimmedOrder = String(orderNumber).trim();
     
-    if (!trimmedOrder || trimmedOrder.length < 7 || fetchingRows.has(rowIndex)) return;
+    // בדיקה שמדובר במספר הזמנה תקין ושלא מושכים כרגע
+    if (!trimmedOrder || trimmedOrder.length < 5 || fetchingRows.has(rowIndex)) return;
 
     setFetchingRows(prev => new Set(prev).add(rowIndex));
 
     try {
-      // קריאה לפונקציית הענן שמחוברת לגוגל שיטס
+      // קריאה לפונקציית הענן המעודכנת
       const response = await base44.functions.invoke('fetchOrderData', { 
         orderNumber: trimmedOrder 
       });
@@ -57,22 +57,20 @@ export default function Table() {
           const newData = [...prevData];
           newData[rowIndex] = {
             ...newData[rowIndex],
-            customer: response.data.customer || '',
-            nights: response.data.nights || '',
-            hotel: response.data.hotel || '',
-            gender: response.data.gender || '',
-            // אם יש סכום מבוקש בשיטס, נמשוך גם אותו
-            requested_amount: response.data.requested_amount || newData[rowIndex].requested_amount
+            customer: response.data.customer || newData[rowIndex].customer,
+            nights: response.data.nights || newData[rowIndex].nights,
+            hotel: response.data.hotel || newData[rowIndex].hotel,
+            gender: response.data.gender || newData[rowIndex].gender,
           };
           return newData;
         });
-        toast.success(`נתוני הזמנה ${trimmedOrder} נטענו`);
+        toast.success(`נתוני הזמנה ${trimmedOrder} נטענו בהצלחה`);
       } else {
-        toast.error('הזמנה לא נמצאה בשיטס');
+        toast.error('הזמנה לא נמצאה בגיליון');
       }
     } catch (error) {
       console.error('Fetch error:', error);
-      toast.error('שגיאה בתקשורת עם גוגל שיטס');
+      toast.error('שגיאה במשיכת נתונים - וודא שהפונקציה מעודכנת ב-Base44');
     } finally {
       setFetchingRows(prev => {
         const newSet = new Set(prev);
@@ -96,7 +94,7 @@ export default function Table() {
 
     setTableData(newData);
 
-    // ניקוי שגיאה אם קיימת לשדה זה
+    // ניקוי שגיאה
     if (missingFields[rowIndex]?.includes(colKey)) {
       setMissingFields(prev => ({
         ...prev,
@@ -106,10 +104,9 @@ export default function Table() {
   };
 
   const handleCellBlur = (rowIndex, colKey, value) => {
-    if (colKey === 'order_number' && value.trim().length >= 7) {
+    if (colKey === 'order_number' && value.trim().length >= 5) {
       fetchOrderDetails(rowIndex, value);
     }
-    setEditingCell(null);
   };
 
   const handleSaveAll = async () => {
@@ -117,9 +114,7 @@ export default function Table() {
     const validRowsIndices = [];
     const rowsToCreate = [];
 
-    // 1. בדיקת ולידציה - מיון שורות לתקינות ולא תקינות
     tableData.forEach((row, index) => {
-      // דילוג על שורות ריקות לגמרי
       if (!row.order_number?.trim()) return;
 
       const required = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
@@ -128,13 +123,9 @@ export default function Table() {
       const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount'].some(field => row[field] && String(row[field]).trim() !== '');
 
       if (missing.length > 0 || !hasCurrency) {
-        // שורה לא תקינה
         newMissingFields[index] = [...missing];
-        if (!hasCurrency) {
-           newMissingFields[index].push('eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount');
-        }
+        if (!hasCurrency) newMissingFields[index].push('currency_fields');
       } else {
-        // שורה תקינה
         validRowsIndices.push(index);
         rowsToCreate.push(row);
       }
@@ -145,59 +136,30 @@ export default function Table() {
       return;
     }
 
-    // 2. עדכון שגיאות לשורות הלא תקינות
     setMissingFields(newMissingFields);
+    if (rowsToCreate.length === 0) return;
 
-    if (rowsToCreate.length === 0) {
-        toast.error('אנא מלא את השדות המסומנים באדום');
-        return;
-    }
-
-    // 3. שמירת השורות התקינות בלבד
     try {
-      let savedCount = 0;
       for (const row of rowsToCreate) {
-        // חישוב סטטוס EUR לפני שמירה
+        // חישוב סטטוס EUR
         const eur = parseFloat(row.eur_amount) || 0;
         const nis = parseFloat(row.shekel_amount) || 0;
         const usd = parseFloat(row.dollar_amount) || 0;
         const bit = parseFloat(row.bit_amount) || 0;
         const req = parseFloat(row.requested_amount) || 0;
-        
-        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR, Bit (ILS) = 0.26 EUR
         const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
         
         let calculatedStatus = '';
         if (row.requested_amount) {
             const diff = total - req;
-            if (Math.abs(diff) < 0.01) calculatedStatus = 'מאוזן';
-            else if (diff > 0) calculatedStatus = `+${diff.toFixed(2)}`;
-            else calculatedStatus = diff.toFixed(2);
+            calculatedStatus = Math.abs(diff) < 0.01 ? 'מאוזן' : diff.toFixed(2);
         }
 
-        // יצירת אובייקט נקי לשמירה
-        const rowToSave = {
-            order_number: row.order_number,
-            customer: row.customer,
-            nights: row.nights,
-            gender: row.gender,
-            hotel: row.hotel,
-            company: row.company,
-            requested_amount: row.requested_amount,
-            eur_amount: row.eur_amount,
-            shekel_amount: row.shekel_amount,
-            dollar_amount: row.dollar_amount,
-            bit_amount: row.bit_amount,
-            eur_status: calculatedStatus
-        };
-
-        await base44.entities.TableData.create(rowToSave);
-        savedCount++;
+        await base44.entities.TableData.create({ ...row, eur_status: calculatedStatus });
       }
 
-      toast.success(`${savedCount} שורות נשמרו בהצלחה!`);
+      toast.success(`${rowsToCreate.length} שורות נשמרו!`);
 
-      // 4. ניקוי השורות שנשמרו מהטבלה (השארת השגויות והריקות)
       setTableData(prevData => {
          const newData = [...prevData];
          validRowsIndices.forEach(index => {
@@ -205,14 +167,8 @@ export default function Table() {
          });
          return newData;
       });
-
-      if (Object.keys(newMissingFields).length > 0) {
-          toast.warning('חלק מהשורות לא נשמרו עקב נתונים חסרים');
-      }
-
     } catch (error) {
-      console.error(error);
-      toast.error('שגיאה בשמירת הנתונים');
+      toast.error('שגיאה בשמירה');
     }
   };
 
@@ -237,9 +193,7 @@ export default function Table() {
                 <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors">
                   {COLUMN_KEYS.map((colKey) => {
                     const isFetching = colKey === 'order_number' && fetchingRows.has(rowIndex);
-
-                    let eurStatus = '—';
-                    let eurStatusColor = 'bg-slate-100 text-slate-600';
+                    const isMissing = missingFields[rowIndex]?.includes(colKey) || (colKey.includes('amount') && missingFields[rowIndex]?.includes('currency_fields'));
 
                     if (colKey === 'eur_status') {
                         const eur = parseFloat(row.eur_amount) || 0;
@@ -247,47 +201,31 @@ export default function Table() {
                         const usd = parseFloat(row.dollar_amount) || 0;
                         const bit = parseFloat(row.bit_amount) || 0;
                         const req = parseFloat(row.requested_amount) || 0;
-
-                        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR, Bit (ILS) = 0.26 EUR
                         const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
-
+                        
+                        let status = '—';
+                        let color = 'bg-slate-100 text-slate-600';
                         if (row.requested_amount) {
                             const diff = total - req;
-                            if (Math.abs(diff) < 0.01) {
-                                eurStatus = 'מאוזן';
-                                eurStatusColor = 'bg-slate-100 text-slate-600';
-                            } else if (diff > 0) {
-                                eurStatus = `+${diff.toFixed(2)}`;
-                                eurStatusColor = 'bg-green-100 text-green-800';
-                            } else {
-                                eurStatus = diff.toFixed(2);
-                                eurStatusColor = 'bg-red-100 text-red-800';
-                            }
+                            if (Math.abs(diff) < 0.01) { status = 'מאוזן'; color = 'bg-blue-100 text-blue-700'; }
+                            else if (diff > 0) { status = `+${diff.toFixed(2)}`; color = 'bg-green-100 text-green-800'; }
+                            else { status = diff.toFixed(2); color = 'bg-red-100 text-red-800'; }
                         }
+                        return <td key={colKey} className="px-2 py-2 border-b"><div className={`px-4 py-2 rounded-lg text-center font-medium ${color}`}>{status}</div></td>
                     }
 
-                    const isMissing = missingFields[rowIndex]?.includes(colKey);
-
                     return (
-                      <td key={colKey} className="px-2 py-2 border-b border-slate-100">
-                        {colKey === 'eur_status' ? (
-                          <div className={`px-4 py-2 rounded-lg text-center font-medium ${eurStatusColor}`}>
-                            {eurStatus}
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <Input
-                              value={row[colKey]}
-                              onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
-                              onBlur={(e) => handleCellBlur(rowIndex, colKey, e.target.value)}
-                              className={`text-right h-10 ${isMissing ? 'border-red-500 ring-1 ring-red-500 bg-red-50' : ''}`}
-                              disabled={isFetching}
-                            />
-                            {isFetching && (
-                              <Loader2 className="absolute left-2 top-2.5 h-5 w-5 animate-spin text-slate-400" />
-                            )}
-                          </div>
-                        )}
+                      <td key={colKey} className="px-2 py-2 border-b">
+                        <div className="relative">
+                          <Input
+                            value={row[colKey]}
+                            onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
+                            onBlur={(e) => handleCellBlur(rowIndex, colKey, e.target.value)}
+                            className={`text-right h-10 ${isMissing ? 'border-red-500 bg-red-50' : ''}`}
+                            disabled={isFetching}
+                          />
+                          {isFetching && <Loader2 className="absolute left-2 top-2.5 h-5 w-5 animate-spin text-slate-400" />}
+                        </div>
                       </td>
                     );
                   })}
