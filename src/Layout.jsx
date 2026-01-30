@@ -17,6 +17,18 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex gap-2 flex-wrap">
             <Link
+              to={createPageUrl('ReturnedToIsrael')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                isReturnedToIsraelPage
+                  ? 'bg-slate-900 text-white shadow-lg'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Plane className="w-5 h-5 transform rotate-180" />
+              <span>חזר לארץ</span>
+            </Link>
+            <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
+            <Link
               to={createPageUrl('Table')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
                 isTablePage
@@ -74,17 +86,7 @@ export default function Layout({ children, currentPageName }) {
               <span>טבלת בנק</span>
             </Link>
             <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
-            <Link
-              to={createPageUrl('ReturnedToIsrael')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                isReturnedToIsraelPage
-                  ? 'bg-slate-900 text-white shadow-lg'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Plane className="w-5 h-5 transform rotate-180" />
-              <span>חזר לארץ</span>
-            </Link>
+
           </div>
         </div>
       </nav>
