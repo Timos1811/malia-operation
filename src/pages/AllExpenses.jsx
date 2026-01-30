@@ -248,7 +248,7 @@ export default function AllExpenses() {
                         </td>
                     );})}
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           )}
