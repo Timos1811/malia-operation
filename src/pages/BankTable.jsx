@@ -51,12 +51,6 @@ export default function BankTable() {
         return amount;
     };
 
-    const totalEurValue = 
-        toEur(getNet('shekel'), 'ILS') +
-        toEur(getNet('bit'), 'BIT') +
-        toEur(getNet('usd'), 'USD') +
-        toEur(getNet('eur'), 'EUR');
-
     const destinationBalances = {
         eur: getNet('eur'),
         shekel: getNet('shekel'),
@@ -70,7 +64,6 @@ export default function BankTable() {
         { label: 'ביט', ...totals.bit, currency: '₪' },
         { label: 'דולר', ...totals.usd, currency: '$' },
       ],
-      totalEurValue,
       destinationBalances
     };
   }, [incomeData, expenseData]);
