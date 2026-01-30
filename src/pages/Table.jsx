@@ -38,12 +38,24 @@ const COLUMN_KEYS = [
 export default function Table() {
     const rows = 5;
 
-    const [tableData, setTableData] = useState(
-      Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {}))
-    );
+    const [tableData, setTableData] = useState(() => {
+      const saved = localStorage.getItem('tableData');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {}));
+        }
+      }
+      return Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {}));
+    });
     const [editingCell, setEditingCell] = useState(null);
     const [fetchingRows, setFetchingRows] = useState(new Set());
     const [missingFields, setMissingFields] = useState({});
+
+    React.useEffect(() => {
+      localStorage.setItem('tableData', JSON.stringify(tableData));
+    }, [tableData]);
 
   const fetchOrderDetails = async (rowIndex, orderNumber) => {
     const trimmedOrderNumber = orderNumber.trim();
@@ -208,7 +220,9 @@ export default function Table() {
     }
 
     // Reset the table and clear errors
-    setTableData(Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})));
+    const emptyData = Array.from({ length: rows }, () => COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {}));
+    setTableData(emptyData);
+    localStorage.setItem('tableData', JSON.stringify(emptyData));
     setMissingFields({});
     toast.success('הנתונים נשמרו בהצלחה!');
   };
