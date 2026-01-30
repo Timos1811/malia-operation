@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Loader2, Plane } from "lucide-react";
@@ -21,6 +21,15 @@ export default function ReturnedToIsrael() {
     queryKey: ['returned_expenses'],
     queryFn: () => base44.entities.Expense.filter({ reason: 'יצא מהיעד' }, '-created_date'),
   });
+
+  const totals = useMemo(() => {
+    return expenses.reduce((acc, curr) => {
+      const amount = parseFloat(curr.amount) || 0;
+      const currency = curr.currency || 'ILS';
+      acc[currency] = (acc[currency] || 0) + amount;
+      return acc;
+    }, { ILS: 0, USD: 0, EUR: 0 });
+  }, [expenses]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
@@ -137,6 +146,18 @@ export default function ReturnedToIsrael() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-200">
+                <tr>
+                  <td className="px-4 py-4 text-slate-700">סה"כ:</td>
+                  <td className="px-4 py-4" colSpan={4}>
+                    <div className="flex gap-8">
+                      <span className="text-slate-700">₪ {totals.ILS.toLocaleString()}</span>
+                      <span className="text-green-700">$ {totals.USD.toLocaleString()}</span>
+                      <span className="text-blue-700">€ {totals.EUR.toLocaleString()}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           )}
         </div>
