@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket } from 'lucide-react';
+import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
   const isTablePage = currentPageName === 'Table';
@@ -96,6 +96,18 @@ export default function Layout({ children, currentPageName }) {
             >
               <Ticket className="w-5 h-5" />
               <span>אירועים ואטרקציות</span>
+            </Link>
+            <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
+            <Link
+              to={createPageUrl('Tasks')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                currentPageName === 'Tasks'
+                  ? 'bg-slate-900 text-white shadow-lg'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <CheckSquare className="w-5 h-5" />
+              <span>משימות</span>
             </Link>
           </div>
         </div>
