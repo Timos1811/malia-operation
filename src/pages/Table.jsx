@@ -7,12 +7,12 @@ import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
   'מספר הזמנה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'סטטוס בEUR'
+  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'eur_status'
+  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status'
 ];
 
 export default function Table() {
@@ -125,13 +125,13 @@ export default function Table() {
       const required = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
       const missing = required.filter(field => !row[field] || String(row[field]).trim() === '');
       
-      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount'].some(field => row[field] && String(row[field]).trim() !== '');
+      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount'].some(field => row[field] && String(row[field]).trim() !== '');
 
       if (missing.length > 0 || !hasCurrency) {
         // שורה לא תקינה
         newMissingFields[index] = [...missing];
         if (!hasCurrency) {
-           newMissingFields[index].push('eur_amount', 'shekel_amount', 'dollar_amount');
+           newMissingFields[index].push('eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount');
         }
       } else {
         // שורה תקינה
@@ -161,10 +161,11 @@ export default function Table() {
         const eur = parseFloat(row.eur_amount) || 0;
         const nis = parseFloat(row.shekel_amount) || 0;
         const usd = parseFloat(row.dollar_amount) || 0;
+        const bit = parseFloat(row.bit_amount) || 0;
         const req = parseFloat(row.requested_amount) || 0;
         
-        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR
-        const total = eur + (nis * 0.26) + (usd * 0.95);
+        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR, Bit (ILS) = 0.26 EUR
+        const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
         
         let calculatedStatus = '';
         if (row.requested_amount) {
@@ -186,6 +187,7 @@ export default function Table() {
             eur_amount: row.eur_amount,
             shekel_amount: row.shekel_amount,
             dollar_amount: row.dollar_amount,
+            bit_amount: row.bit_amount,
             eur_status: calculatedStatus
         };
 
@@ -243,10 +245,11 @@ export default function Table() {
                         const eur = parseFloat(row.eur_amount) || 0;
                         const nis = parseFloat(row.shekel_amount) || 0;
                         const usd = parseFloat(row.dollar_amount) || 0;
+                        const bit = parseFloat(row.bit_amount) || 0;
                         const req = parseFloat(row.requested_amount) || 0;
 
-                        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR
-                        const total = eur + (nis * 0.26) + (usd * 0.95);
+                        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR, Bit (ILS) = 0.26 EUR
+                        const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
 
                         if (row.requested_amount) {
                             const diff = total - req;

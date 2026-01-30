@@ -16,6 +16,7 @@ const COLUMNS = [
   'EUR',
   'שקל',
   'דולר',
+  'ביט',
   'סטטוס בEUR'
 ];
 
@@ -30,6 +31,7 @@ const COLUMN_KEYS = [
   'eur_amount',
   'shekel_amount',
   'dollar_amount',
+  'bit_amount',
   'eur_status'
 ];
 
@@ -216,8 +218,9 @@ export default function SavedData() {
                   const eurAmount = parseFloat(row.eur_amount) || 0;
                   const shekelAmount = parseFloat(row.shekel_amount) || 0;
                   const dollarAmount = parseFloat(row.dollar_amount) || 0;
+                  const bitAmount = parseFloat(row.bit_amount) || 0;
                   const requestedAmount = parseFloat(row.requested_amount) || 0;
-                  const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95);
+                  const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26);
                   const isNegative = totalInEur && requestedAmount && (totalInEur - requestedAmount) < 0;
 
                   return (
@@ -233,10 +236,11 @@ export default function SavedData() {
                         const eurAmount = parseFloat(row.eur_amount) || 0;
                         const shekelAmount = parseFloat(row.shekel_amount) || 0;
                         const dollarAmount = parseFloat(row.dollar_amount) || 0;
+                        const bitAmount = parseFloat(row.bit_amount) || 0;
                         const requestedAmount = parseFloat(row.requested_amount) || 0;
 
-                        // Convert to EUR: 1 Shekel = 0.26 EUR, 1 Dollar = 0.95 EUR
-                        const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95);
+                        // Convert to EUR: 1 Shekel = 0.26 EUR, 1 Dollar = 0.95 EUR, 1 Bit = 0.26 EUR
+                        const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26);
 
                         if (totalInEur && requestedAmount) {
                           const diff = totalInEur - requestedAmount;
