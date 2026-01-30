@@ -50,11 +50,12 @@
 import AllExpenses from './pages/AllExpenses';
 import BankTable from './pages/BankTable';
 import CreateExpense from './pages/CreateExpense';
+import EventsAndAttractions from './pages/EventsAndAttractions';
+import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
-import ReturnedToIsrael from './pages/ReturnedToIsrael';
-import EventsAndAttractions from './pages/EventsAndAttractions';
 import Tasks from './pages/Tasks';
+import AddTask from './pages/AddTask';
 import __Layout from './Layout.jsx';
 
 
@@ -62,11 +63,12 @@ export const PAGES = {
     "AllExpenses": AllExpenses,
     "BankTable": BankTable,
     "CreateExpense": CreateExpense,
+    "EventsAndAttractions": EventsAndAttractions,
+    "ReturnedToIsrael": ReturnedToIsrael,
     "SavedData": SavedData,
     "Table": Table,
-    "ReturnedToIsrael": ReturnedToIsrael,
-    "EventsAndAttractions": EventsAndAttractions,
     "Tasks": Tasks,
+    "AddTask": AddTask,
 }
 
 export const pagesConfig = {
