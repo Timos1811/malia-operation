@@ -195,42 +195,71 @@ export default function SavedData() {
                     key={row.id} 
                     className="hover:bg-slate-50/50 transition-colors duration-200"
                   >
-                    {COLUMN_KEYS.map((colKey) => (
-                      <td 
-                        key={colKey} 
-                        className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0"
-                      >
-                        {editingCell?.row === row.id && editingCell?.col === colKey ? (
-                          <Input
-                            autoFocus
-                            defaultValue={row[colKey]}
-                            onChange={(e) => {
-                              if (colKey === 'order_number' && e.target.value.trim().length >= 5) {
-                                handleCellChange(row.id, colKey, e.target.value);
-                              }
-                            }}
-                            onBlur={(e) => {
-                              handleCellBlur(e);
-                              if (colKey !== 'order_number') {
-                                handleCellChange(row.id, colKey, e.target.value);
-                              }
-                            }}
-                            onKeyDown={(e) => handleKeyDown(e, row.id, colKey, e.target.value)}
-                            className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
-                          />
-                        ) : (
-                          <div 
-                            className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              setEditingCell({ row: row.id, col: colKey });
-                            }}
-                          >
-                            {row[colKey] || <span className="text-slate-400">—</span>}
-                          </div>
-                        )}
-                      </td>
-                    ))}
+                    {COLUMN_KEYS.map((colKey) => {
+                      // Calculate EUR status
+                      let eurStatus = '';
+                      let eurStatusColor = '';
+                      if (colKey === 'eur_status') {
+                        const eurAmount = parseFloat(row.eur_amount) || 0;
+                        const requestedAmount = parseFloat(row.requested_amount) || 0;
+                        if (eurAmount && requestedAmount) {
+                          const diff = eurAmount - requestedAmount;
+                          if (diff > 0) {
+                            eurStatus = `+${diff.toFixed(2)}`;
+                            eurStatusColor = 'bg-green-100 text-green-800';
+                          } else if (diff < 0) {
+                            eurStatus = diff.toFixed(2);
+                            eurStatusColor = 'bg-red-100 text-red-800';
+                          } else {
+                            eurStatus = 'מאוזן';
+                            eurStatusColor = 'bg-slate-100 text-slate-600';
+                          }
+                        }
+                      }
+
+                      return (
+                        <td 
+                          key={colKey} 
+                          className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0"
+                        >
+                          {colKey === 'eur_status' ? (
+                            <div 
+                              className={`px-4 py-2 min-h-[36px] rounded-lg flex items-center justify-center font-medium ${eurStatusColor}`}
+                            >
+                              {eurStatus || <span className="text-slate-400">—</span>}
+                            </div>
+                          ) : editingCell?.row === row.id && editingCell?.col === colKey ? (
+                            <Input
+                              autoFocus
+                              defaultValue={row[colKey]}
+                              onChange={(e) => {
+                                if (colKey === 'order_number' && e.target.value.trim().length >= 5) {
+                                  handleCellChange(row.id, colKey, e.target.value);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                handleCellBlur(e);
+                                if (colKey !== 'order_number') {
+                                  handleCellChange(row.id, colKey, e.target.value);
+                                }
+                              }}
+                              onKeyDown={(e) => handleKeyDown(e, row.id, colKey, e.target.value)}
+                              className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
+                            />
+                          ) : (
+                            <div 
+                              className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setEditingCell({ row: row.id, col: colKey });
+                              }}
+                            >
+                              {row[colKey] || <span className="text-slate-400">—</span>}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
