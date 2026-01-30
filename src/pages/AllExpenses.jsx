@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 
 const COLUMNS = [
-  { key: 'reason', label: 'סיבת הוצאה', type: 'text' },
+  { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן'] },
   { key: 'recipient', label: 'למי הועבר', type: 'text' },
   { key: 'amount', label: 'סכום', type: 'number' },
   { key: 'currency', label: 'מטבע', type: 'select' },
@@ -114,22 +114,30 @@ export default function AllExpenses() {
                     {COLUMNS.map((col) => (
                         <td key={col.key} className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0">
                             {editingCell?.row === expense.id && editingCell?.col === col.key ? (
-                                col.key === 'currency' ? (
+                                col.type === 'select' ? (
                                     <Select 
-                                        defaultValue={expense.currency} 
+                                        defaultValue={expense[col.key]} 
                                         onValueChange={(val) => {
-                                            handleCellChange(expense.id, 'currency', val);
+                                            handleCellChange(expense.id, col.key, val);
                                             setEditingCell(null);
                                         }}
                                         defaultOpen={true}
                                     >
-                                      <SelectTrigger className="h-9 w-full border-slate-300 focus:border-slate-500 focus:ring-slate-500">
+                                      <SelectTrigger className="h-9 w-full border-slate-300 focus:border-slate-500 focus:ring-slate-500" dir="rtl">
                                         <SelectValue />
                                       </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="ILS">₪ ILS</SelectItem>
-                                        <SelectItem value="USD">$ USD</SelectItem>
-                                        <SelectItem value="EUR">€ EUR</SelectItem>
+                                      <SelectContent dir="rtl">
+                                        {col.key === 'currency' ? (
+                                          <>
+                                            <SelectItem value="ILS">₪ ILS</SelectItem>
+                                            <SelectItem value="USD">$ USD</SelectItem>
+                                            <SelectItem value="EUR">€ EUR</SelectItem>
+                                          </>
+                                        ) : (
+                                          col.options?.map(opt => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                          ))
+                                        )}
                                       </SelectContent>
                                     </Select>
                                 ) : (

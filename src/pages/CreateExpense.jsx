@@ -105,11 +105,25 @@ export default function CreateExpense() {
               {tableData.map((row, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-2 py-2 border-b border-slate-100">
-                    <Input 
-                      value={row.reason} 
-                      onChange={(e) => handleCellChange(rowIndex, 'reason', e.target.value)}
-                      className="text-right h-10"
-                    />
+                    <Select 
+                        value={row.reason} 
+                        onValueChange={(val) => handleCellChange(rowIndex, 'reason', val)}
+                    >
+                      <SelectTrigger className="w-full h-10 text-right" dir="rtl">
+                        <SelectValue placeholder="בחר סיבה" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="יצא מהיעד">יצא מהיעד</SelectItem>
+                        <SelectItem value="החזר מלא">החזר מלא</SelectItem>
+                        <SelectItem value="החזר חלקי">החזר חלקי</SelectItem>
+                        <SelectItem value="רכב">רכב</SelectItem>
+                        <SelectItem value="אחר">אחר</SelectItem>
+                        <SelectItem value="משיכה לאדם">משיכה לאדם</SelectItem>
+                        <SelectItem value="תשלום לספק">תשלום לספק</SelectItem>
+                        <SelectItem value="פיצוי קשרי תעופה">פיצוי קשרי תעופה</SelectItem>
+                        <SelectItem value="פיצוי נטו פאן">פיצוי נטו פאן</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
                     <Input 
