@@ -309,7 +309,6 @@ export default function CreateExpense() {
                 </table>
             </div>
         </div>
-        </div>
 
         <div className="mt-8 flex justify-center gap-4">
           <Button onClick={handleSaveAll} className="bg-slate-800 hover:bg-slate-900 text-white px-10 py-6 rounded-xl shadow-lg">
