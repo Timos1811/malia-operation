@@ -157,7 +157,39 @@ export default function Table() {
     try {
       let savedCount = 0;
       for (const row of rowsToCreate) {
-        await base44.entities.TableData.create(row);
+        // חישוב סטטוס EUR לפני שמירה
+        const eur = parseFloat(row.eur_amount) || 0;
+        const nis = parseFloat(row.shekel_amount) || 0;
+        const usd = parseFloat(row.dollar_amount) || 0;
+        const req = parseFloat(row.requested_amount) || 0;
+        
+        // 1 NIS = 0.26 EUR, 1 USD = 0.95 EUR
+        const total = eur + (nis * 0.26) + (usd * 0.95);
+        
+        let calculatedStatus = '';
+        if (row.requested_amount) {
+            const diff = total - req;
+            if (Math.abs(diff) < 0.01) calculatedStatus = 'מאוזן';
+            else if (diff > 0) calculatedStatus = `+${diff.toFixed(2)}`;
+            else calculatedStatus = diff.toFixed(2);
+        }
+
+        // יצירת אובייקט נקי לשמירה
+        const rowToSave = {
+            order_number: row.order_number,
+            customer: row.customer,
+            nights: row.nights,
+            gender: row.gender,
+            hotel: row.hotel,
+            company: row.company,
+            requested_amount: row.requested_amount,
+            eur_amount: row.eur_amount,
+            shekel_amount: row.shekel_amount,
+            dollar_amount: row.dollar_amount,
+            eur_status: calculatedStatus
+        };
+
+        await base44.entities.TableData.create(rowToSave);
         savedCount++;
       }
 
