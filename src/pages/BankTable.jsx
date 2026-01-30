@@ -59,10 +59,10 @@ export default function BankTable() {
 
     return {
       rows: [
+        { label: 'יורו', ...totals.eur, currency: '€' },
         { label: 'שקל (מזומן)', ...totals.shekel, currency: '₪' },
         { label: 'ביט', ...totals.bit, currency: '₪' },
         { label: 'דולר', ...totals.usd, currency: '$' },
-        { label: 'יורו', ...totals.eur, currency: '€' },
       ],
       totalEurValue
     };
