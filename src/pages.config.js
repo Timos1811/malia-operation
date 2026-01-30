@@ -53,6 +53,7 @@ import CreateExpense from './pages/CreateExpense';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
+import EventsAndAttractions from './pages/EventsAndAttractions';
 import __Layout from './Layout.jsx';
 
 
@@ -63,6 +64,7 @@ export const PAGES = {
     "SavedData": SavedData,
     "Table": Table,
     "ReturnedToIsrael": ReturnedToIsrael,
+    "EventsAndAttractions": EventsAndAttractions,
 }
 
 export const pagesConfig = {
