@@ -116,16 +116,14 @@ export default function CreateExpense() {
                     <Input 
                       value={row.supplier} 
                       onChange={(e) => handleCellChange(rowIndex, 'supplier', e.target.value)}
-                      placeholder="שם הספק"
-                      className="text-right"
+                      className="text-right h-10"
                     />
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
                     <Input 
                       value={row.description} 
                       onChange={(e) => handleCellChange(rowIndex, 'description', e.target.value)}
-                      placeholder="תיאור"
-                      className="text-right"
+                      className="text-right h-10"
                     />
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
@@ -133,8 +131,7 @@ export default function CreateExpense() {
                       type="number"
                       value={row.amount} 
                       onChange={(e) => handleCellChange(rowIndex, 'amount', e.target.value)}
-                      placeholder="0.00"
-                      className="text-right"
+                      className="text-right h-10"
                     />
                   </td>
                   <td className="px-2 py-2 border-b border-slate-100">
@@ -142,7 +139,7 @@ export default function CreateExpense() {
                         value={row.currency} 
                         onValueChange={(val) => handleCellChange(rowIndex, 'currency', val)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -157,7 +154,7 @@ export default function CreateExpense() {
                       type="date"
                       value={row.expense_date} 
                       onChange={(e) => handleCellChange(rowIndex, 'expense_date', e.target.value)}
-                      className="text-right"
+                      className="text-right h-10"
                     />
                   </td>
                 </tr>
