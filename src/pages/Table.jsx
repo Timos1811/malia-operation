@@ -165,7 +165,9 @@ export default function Table() {
 
   const handleAddRow = async () => {
     // Validate that all required fields are filled
-    const requiredFields = COLUMN_KEYS.filter(key => key !== 'eur_status');
+    const requiredFields = COLUMN_KEYS.filter(key => 
+      key !== 'eur_status' && key !== 'eur_amount' && key !== 'shekel_amount' && key !== 'dollar_amount'
+    );
     const newMissingFields = {};
     let hasErrors = false;
 
@@ -180,12 +182,20 @@ export default function Table() {
           newMissingFields[rowIndex] = missing;
           hasErrors = true;
         }
+
+        // Check if at least one currency field is filled
+        const hasAnyCurrency = row.eur_amount?.trim() || row.shekel_amount?.trim() || row.dollar_amount?.trim();
+        if (!hasAnyCurrency) {
+          if (!newMissingFields[rowIndex]) newMissingFields[rowIndex] = [];
+          newMissingFields[rowIndex].push('eur_amount', 'shekel_amount', 'dollar_amount');
+          hasErrors = true;
+        }
       }
     }
 
     if (hasErrors) {
       setMissingFields(newMissingFields);
-      toast.error('יש למלא את כל השדות לפני ההוספה');
+      toast.error('יש למלא את כל השדות החובה ולפחות מטבע אחד');
       return;
     }
 
