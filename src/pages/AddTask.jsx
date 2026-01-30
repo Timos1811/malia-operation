@@ -21,6 +21,8 @@ export default function AddTask() {
   const [calculatedAmount, setCalculatedAmount] = useState(0);
   const [orderNumber, setOrderNumber] = useState('');
   const [peopleCount, setPeopleCount] = useState('');
+  const [departureDate, setDepartureDate] = useState('');
+  const [isFetchingOrder, setIsFetchingOrder] = useState(false);
 
   // Fetch attractions/events
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
@@ -55,6 +57,37 @@ export default function AddTask() {
     setSelectedEvents(newSelected);
   };
 
+  const handleOrderBlur = async () => {
+    if (!orderNumber || orderNumber.length < 5) return;
+    
+    setIsFetchingOrder(true);
+    try {
+      const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
+      
+      if (response.data && response.data.checkInDate && response.data.nights) {
+        const parts = response.data.checkInDate.split(/[./-]/);
+        if (parts.length === 3) {
+           const day = parseInt(parts[0]);
+           const month = parseInt(parts[1]) - 1;
+           const year = parseInt(parts[2].length === 2 ? '20' + parts[2] : parts[2]);
+           
+           const date = new Date(year, month, day);
+           const nights = parseInt(response.data.nights) || 0;
+           
+           date.setDate(date.getDate() + nights);
+           
+           const departureStr = date.toLocaleDateString('he-IL');
+           setDepartureDate(departureStr);
+           toast.success(`נמצא תאריך עזיבה: ${departureStr}`);
+        }
+      }
+    } catch (error) {
+       console.error("Error fetching order:", error);
+    } finally {
+       setIsFetchingOrder(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -81,9 +114,13 @@ export default function AddTask() {
         return attr ? `${attr.name} (€${attr.price_eur})` : '';
       }).join(', ');
 
+      const description = departureDate 
+        ? `אירועים שנבחרו: ${eventNames}\nתאריך עזיבה: ${departureDate}`
+        : `אירועים שנבחרו: ${eventNames}`;
+
       await base44.entities.Task.create({
         title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'} - הזמנה ${orderNumber}`,
-        description: `אירועים שנבחרו: ${eventNames}`,
+        description: description,
         status: 'todo',
         task_type: 'refund',
         refund_type: refundType,
@@ -99,7 +136,8 @@ export default function AddTask() {
       setRefundType('partial');
       setOrderNumber('');
       setPeopleCount('');
-    } catch (error) {
+      setDepartureDate('');
+      } catch (error) {
       console.error(error);
       toast.error('שגיאה ביצירת הבקשה');
     } finally {
@@ -123,13 +161,18 @@ export default function AddTask() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="orderNumber">מספר הזמנה</Label>
-                <Input
-                  id="orderNumber"
-                  value={orderNumber}
-                  onChange={(e) => setOrderNumber(e.target.value)}
-                  placeholder="הזן מספר הזמנה"
-                  className="text-right"
-                />
+                <div className="relative">
+                  <Input
+                    id="orderNumber"
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                    onBlur={handleOrderBlur}
+                    placeholder="הזן מספר הזמנה"
+                    className="text-right"
+                  />
+                  {isFetchingOrder && <Loader2 className="absolute left-2 top-2.5 h-4 w-4 animate-spin text-slate-400" />}
+                  {departureDate && <p className="text-xs text-green-600 mt-1">תאריך עזיבה: {departureDate}</p>}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="peopleCount">כמות אנשים</Label>
