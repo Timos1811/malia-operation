@@ -53,16 +53,6 @@ export default function Table() {
       const response = await base44.functions.invoke('fetchOrderData', { orderNumber: trimmedOrderNumber });
 
       if (response.data) {
-        // Determine company based on first digit
-        let company = '';
-        if (trimmedOrderNumber.startsWith('5')) {
-          company = 'קשרי תעופה';
-        } else if (trimmedOrderNumber.startsWith('1')) {
-          company = 'נטו פאן';
-        } else if (trimmedOrderNumber.length > 0) {
-          company = 'כספר';
-        }
-
         setTableData(prevData => {
           const newData = [...prevData];
           newData[rowIndex] = {
@@ -70,8 +60,7 @@ export default function Table() {
             customer: response.data.customer,
             nights: response.data.nights,
             hotel: response.data.hotel,
-            gender: response.data.gender,
-            company: company
+            gender: response.data.gender
           };
           return newData;
         });
@@ -95,6 +84,19 @@ export default function Table() {
   const handleCellChange = (rowIndex, colKey, value) => {
     const newData = [...tableData];
     newData[rowIndex][colKey] = value;
+
+    // Determine company based on first digit when order number changes
+    if (colKey === 'order_number') {
+      const trimmedOrderNumber = value.trim();
+      if (trimmedOrderNumber.startsWith('5')) {
+        newData[rowIndex]['company'] = 'קשרי תעופה';
+      } else if (trimmedOrderNumber.startsWith('1')) {
+        newData[rowIndex]['company'] = 'נטו פאן';
+      } else if (trimmedOrderNumber.length > 0) {
+        newData[rowIndex]['company'] = 'כספר';
+      }
+    }
+
     setTableData(newData);
 
     // Auto-fetch when order number changes and has at least 5 digits

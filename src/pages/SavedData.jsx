@@ -61,25 +61,13 @@ export default function SavedData() {
       const response = await base44.functions.invoke('fetchOrderData', { orderNumber: trimmedOrderNumber });
 
       if (response.data) {
-        // Determine company based on first digit
-        let company = '';
-        if (trimmedOrderNumber.startsWith('5')) {
-          company = 'קשרי תעופה';
-        } else if (trimmedOrderNumber.startsWith('1')) {
-          company = 'נטו פאן';
-        } else if (trimmedOrderNumber.length > 0) {
-          company = 'כספר';
-        }
-
         updateMutation.mutate({
           id: rowId,
           data: {
-            order_number: trimmedOrderNumber,
             customer: response.data.customer,
             nights: response.data.nights,
             hotel: response.data.hotel,
-            gender: response.data.gender,
-            company: company
+            gender: response.data.gender
           }
         });
         toast.success('נתונים נמלאו מגוגל שיטס');
@@ -100,9 +88,28 @@ export default function SavedData() {
   };
 
   const handleCellChange = async (rowId, colKey, value) => {
-    // Auto-fill data from Google Sheets when order number is entered
-    if (colKey === 'order_number' && value.trim().length >= 5) {
-      await fetchAndUpdateOrder(rowId, value);
+    // Determine company based on first digit when order number changes
+    if (colKey === 'order_number') {
+      const trimmedOrderNumber = value.trim();
+      let company = '';
+      if (trimmedOrderNumber.startsWith('5')) {
+        company = 'קשרי תעופה';
+      } else if (trimmedOrderNumber.startsWith('1')) {
+        company = 'נטו פאן';
+      } else if (trimmedOrderNumber.length > 0) {
+        company = 'כספר';
+      }
+
+      // Update order number and company first
+      updateMutation.mutate({
+        id: rowId,
+        data: { order_number: trimmedOrderNumber, company: company }
+      });
+
+      // Then fetch additional data from Google Sheets
+      if (trimmedOrderNumber.length >= 5) {
+        await fetchAndUpdateOrder(rowId, trimmedOrderNumber);
+      }
       return;
     }
 
