@@ -39,6 +39,9 @@ Deno.serve(async (req) => {
         const data = await response.json();
         const rows = data.values || [];
 
+        console.log(`Searching for order: ${orderNumber}`);
+        console.log(`Found ${rows.length} rows in sheet`);
+
         // Find the row with matching order number (column I = index 8)
         // Convert both to strings and trim to handle any formatting differences
         const matchingRow = rows.find(row => 
@@ -46,8 +49,11 @@ Deno.serve(async (req) => {
         );
 
         if (!matchingRow) {
+            console.log(`Order ${orderNumber} not found in sheet`);
             return Response.json({ error: 'Order number not found' }, { status: 404 });
         }
+
+        console.log(`Found matching row for order ${orderNumber}`);
 
         // Extract data from the matching row
         // H=7 (לקוחות), C=2 (לילות), J=9 (מלון), K=10 (מגדר)
