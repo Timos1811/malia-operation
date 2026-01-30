@@ -93,10 +93,13 @@ export default function Table() {
         toast.success('נתונים נמלאו מגוגל שיטס');
       }
     } catch (error) {
-      if (error.response?.status === 404) {
+      console.error('Fetch error:', error);
+      if (error.response?.status === 401) {
+        toast.error('יש להתחבר למערכת כדי לטעון נתונים');
+      } else if (error.response?.status === 404) {
         toast.error('מספר הזמנה לא נמצא');
       } else {
-        toast.error('שגיאה בטעינת נתונים');
+        toast.error('שגיאה בטעינת נתונים: ' + (error.response?.data?.error || error.message));
       }
     } finally {
       setFetchingRows(prev => {
