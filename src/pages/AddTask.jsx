@@ -1,47 +1,88 @@
 import React, { useState, useEffect } from 'react';
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Calendar, Hotel, User, Hash } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { Loader2 } from "lucide-react";
 
 export default function AddTask() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [refundType, setRefundType] = useState('partial'); // 'full' or 'partial'
+  const [selectedEvents, setSelectedEvents] = useState(new Set());
+  const [calculatedAmount, setCalculatedAmount] = useState(0);
   const [orderNumber, setOrderNumber] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [hotelName, setHotelName] = useState('');
+  const [peopleCount, setPeopleCount] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // פונקציה למשיכת נתונים בעת עזיבת שדה מספר ההזמנה
+  // Fetch attractions/events
+  const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
+    queryKey: ['attractions'],
+    queryFn: () => base44.entities.Attraction.list(),
+  });
+
+  // Calculate total whenever selection or refund type changes
+  useEffect(() => {
+    let total = 0;
+    selectedEvents.forEach(eventId => {
+      const event = attractions.find(a => a.id === eventId);
+      if (event && event.price_eur) {
+        total += parseFloat(event.price_eur);
+      }
+    });
+
+    if (refundType === 'partial') {
+      total = total * 0.4;
+    }
+
+    setCalculatedAmount(total);
+  }, [selectedEvents, refundType, attractions]);
+
+  const handleEventToggle = (eventId) => {
+    const newSelected = new Set(selectedEvents);
+    if (newSelected.has(eventId)) {
+      newSelected.delete(eventId);
+    } else {
+      newSelected.add(eventId);
+    }
+    setSelectedEvents(newSelected);
+  };
+
   const handleOrderBlur = async () => {
     if (!orderNumber || orderNumber.length < 5) return;
     
     setIsFetchingOrder(true);
     try {
-      // קריאה לפונקציית הענן המעודכנת
       const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
       
-      if (response.data) {
-        // עדכון השדות מהנתונים שחזרו מהשיטס
-        setCustomerName(response.data.customer || '');
-        setHotelName(response.data.hotel || '');
-        
-        // כאן אנחנו לוקחים את תאריך העזיבה ישירות מעמודה B
-        if (response.data.departureDate) {
-          setDepartureDate(response.data.departureDate);
-          toast.success("נתוני הזמנה ותאריך עזיבה נטענו");
-        } else {
-          toast.warning("הזמנה נמצאה, אך חסר תאריך עזיבה בגיליון");
+      if (response.data && response.data.checkInDate && response.data.nights) {
+        const parts = response.data.checkInDate.split(/[./-]/);
+        if (parts.length === 3) {
+           const day = parseInt(parts[0]);
+           const month = parseInt(parts[1]) - 1;
+           const year = parseInt(parts[2].length === 2 ? '20' + parts[2] : parts[2]);
+           
+           const date = new Date(year, month, day);
+           const nights = parseInt(response.data.nights) || 0;
+           
+           date.setDate(date.getDate() + nights);
+           
+           const departureStr = date.toLocaleDateString('he-IL');
+           setDepartureDate(departureStr);
+           toast.success(`נמצא תאריך עזיבה: ${departureStr}`);
         }
-      } else {
-        toast.error("מספר הזמנה לא נמצא בגיליון");
       }
     } catch (error) {
        console.error("Error fetching order:", error);
-       toast.error("שגיאה במשיכת נתונים מהשרת");
     } finally {
        setIsFetchingOrder(false);
     }
@@ -49,105 +90,173 @@ export default function AddTask() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!orderNumber || !departureDate) {
-      toast.error("חובה למלא מספר הזמנה ותאריך עזיבה");
+    
+    if (selectedEvents.size === 0) {
+      toast.error('יש לבחור לפחות אירוע אחד');
       return;
     }
 
-    setIsSubmitting(true);
+    if (!orderNumber) {
+      toast.error('יש להזין מספר הזמנה');
+      return;
+    }
+
+    if (!peopleCount) {
+      toast.error('יש להזין כמות אנשים');
+      return;
+    }
+
+    setLoading(true);
     try {
-      await base44.entities.Tasks.create({
+      // Create description string from selected events
+      const eventNames = Array.from(selectedEvents).map(id => {
+        const attr = attractions.find(a => a.id === id);
+        return attr ? `${attr.name} (€${attr.price_eur})` : '';
+      }).join(', ');
+
+      await base44.entities.Task.create({
+        title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'} - הזמנה ${orderNumber}`,
+        description: `אירועים שנבחרו: ${eventNames}`,
+        status: 'todo',
+        task_type: 'refund',
+        refund_type: refundType,
+        amount: parseFloat(calculatedAmount.toFixed(2)),
+        currency: 'EUR',
         order_number: orderNumber,
-        customer_name: customerName,
-        hotel_name: hotelName,
-        departure_date: departureDate,
-        status: 'pending'
+        people_count: parseInt(peopleCount) || 0,
+        departure_date: departureDate || '',
+        due_date: new Date().toISOString().split('T')[0]
       });
-      
-      toast.success("המשימה נוספה בהצלחה!");
-      // ניקוי טופס
+
+      toast.success('הבקשה נשלחה בהצלחה');
+      setSelectedEvents(new Set());
+      setRefundType('partial');
       setOrderNumber('');
-      setCustomerName('');
-      setHotelName('');
+      setPeopleCount('');
       setDepartureDate('');
-    } catch (error) {
-      toast.error("שגיאה בשמירת המשימה");
+      } catch (error) {
+      console.error(error);
+      toast.error('שגיאה ביצירת הבקשה');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
+  if (isLoadingAttractions) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  }
+
   return (
-    <div className="p-4 max-w-2xl mx-auto" dir="rtl">
-      <Card>
+    <div className="min-h-screen bg-slate-50 p-8 flex items-center justify-center" dir="rtl">
+      <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">הוספת משימה חדשה</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">בקשת החזר חדשה</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             
-            <div className="space-y-2">
-              <Label htmlFor="orderNumber">מספר הזמנה</Label>
-              <div className="relative">
-                <Input 
-                  id="orderNumber"
-                  value={orderNumber}
-                  onChange={(e) => setOrderNumber(e.target.value)}
-                  onBlur={handleOrderBlur}
-                  placeholder="הזן מספר הזמנה..."
-                  className="pr-10"
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="orderNumber">מספר הזמנה</Label>
+                <div className="relative">
+                  <Input
+                    id="orderNumber"
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                    onBlur={handleOrderBlur}
+                    placeholder="הזן מספר הזמנה"
+                    className="text-right"
+                  />
+                  {isFetchingOrder && <Loader2 className="absolute left-2 top-2.5 h-4 w-4 animate-spin text-slate-400" />}
+                  {departureDate && <p className="text-xs text-green-600 mt-1">תאריך עזיבה: {departureDate}</p>}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="peopleCount">כמות אנשים</Label>
+                <Input
+                  id="peopleCount"
+                  type="number"
+                  value={peopleCount}
+                  onChange={(e) => setPeopleCount(e.target.value)}
+                  placeholder="0"
+                  className="text-right"
+                  min="1"
                 />
-                <Hash className="absolute right-3 top-2.5 h-5 w-5 text-slate-400" />
-                {isFetchingOrder && (
-                  <Loader2 className="absolute left-3 top-2.5 h-5 w-5 animate-spin text-blue-500" />
+              </div>
+            </div>
+
+            {/* Refund Type Selection */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold">סוג החזר</Label>
+              <RadioGroup 
+                value={refundType} 
+                onValueChange={setRefundType}
+                className="flex gap-6"
+                dir="rtl"
+              >
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <RadioGroupItem value="partial" id="partial" />
+                  <Label htmlFor="partial" className="cursor-pointer">החזר חלקי (40%)</Label>
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <RadioGroupItem value="full" id="full" />
+                  <Label htmlFor="full" className="cursor-pointer">החזר מלא (100%)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Events Selection */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold">בחירת אירועים</Label>
+              <div className="border rounded-lg p-4 space-y-3 max-h-[300px] overflow-y-auto bg-white">
+                {attractions.length === 0 ? (
+                  <p className="text-slate-500 text-center py-4">אין אירועים זמינים</p>
+                ) : (
+                  attractions.map((event) => (
+                    <div key={event.id} className="flex items-center space-x-3 space-x-reverse p-2 hover:bg-slate-50 rounded-md transition-colors">
+                      <Checkbox 
+                        id={event.id} 
+                        checked={selectedEvents.has(event.id)}
+                        onCheckedChange={() => handleEventToggle(event.id)}
+                      />
+                      <Label htmlFor={event.id} className="flex-1 cursor-pointer flex justify-between">
+                        <span>{event.name}</span>
+                        <span className="text-slate-500">€{event.price_eur}</span>
+                      </Label>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="customerName">שם הלקוח</Label>
-              <div className="relative">
-                <Input 
-                  id="customerName"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="pr-10"
-                />
-                <User className="absolute right-3 top-2.5 h-5 w-5 text-slate-400" />
+            {/* Calculation Result */}
+            <div className="bg-slate-100 p-6 rounded-xl flex flex-col items-center justify-center space-y-2">
+              <span className="text-slate-600 font-medium">סכום להחזר</span>
+              <div className="text-4xl font-bold text-slate-900">
+                €{calculatedAmount.toFixed(2)}
               </div>
+              <span className="text-sm text-slate-500">
+                {refundType === 'partial' ? 'חישוב לפי 40% מערך האירועים' : 'חישוב לפי מחיר מלא'}
+              </span>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hotelName">מלון</Label>
-              <div className="relative">
-                <Input 
-                  id="hotelName"
-                  value={hotelName}
-                  onChange={(e) => setHotelName(e.target.value)}
-                  className="pr-10"
-                />
-                <Hotel className="absolute right-3 top-2.5 h-5 w-5 text-slate-400" />
-              </div>
+            <div className="flex gap-3 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1 h-12"
+                onClick={() => navigate(createPageUrl('Tasks'))}
+              >
+                ביטול
+              </Button>
+              <Button 
+                type="submit" 
+                className="flex-1 h-12 bg-slate-900 text-white hover:bg-slate-800 text-lg"
+                disabled={loading || selectedEvents.size === 0}
+              >
+                {loading ? 'שולח...' : 'שלח בקשה'}
+              </Button>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="departureDate">תאריך עזיבה (מעמודה B)</Label>
-              <div className="relative">
-                <Input 
-                  id="departureDate"
-                  value={departureDate}
-                  onChange={(e) => setDepartureDate(e.target.value)}
-                  placeholder="DD/MM/YYYY"
-                  className="pr-10"
-                />
-                <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-slate-400" />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "שמור משימה"}
-            </Button>
-
           </form>
         </CardContent>
       </Card>
