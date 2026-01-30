@@ -40,7 +40,10 @@ Deno.serve(async (req) => {
         const rows = data.values || [];
 
         // Find the row with matching order number (column I = index 8)
-        const matchingRow = rows.find(row => row[8] === orderNumber);
+        // Convert both to strings and trim to handle any formatting differences
+        const matchingRow = rows.find(row => 
+            row[8] && String(row[8]).trim() === String(orderNumber).trim()
+        );
 
         if (!matchingRow) {
             return Response.json({ error: 'Order number not found' }, { status: 404 });
