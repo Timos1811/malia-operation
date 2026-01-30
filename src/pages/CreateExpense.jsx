@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +19,11 @@ const COLUMNS = [
 export default function CreateExpense() {
   const queryClient = useQueryClient();
   const rowsCount = 5;
+
+  const { data: attractions = [] } = useQuery({
+    queryKey: ['attractions'],
+    queryFn: () => base44.entities.Attraction.list(),
+  });
 
   const [tableData, setTableData] = useState(() => {
     const saved = localStorage.getItem('expenseTableData');
@@ -277,9 +282,17 @@ export default function CreateExpense() {
                                                 <SelectValue placeholder="-" />
                                             </SelectTrigger>
                                             <SelectContent dir="rtl">
-                                                <SelectItem value="קודו">קודו</SelectItem>
-                                                <SelectItem value="קנדי">קנדי</SelectItem>
-                                                <SelectItem value="הסעות">הסעות</SelectItem>
+                                                {attractions.length > 0 ? (
+                                                    attractions.map(attr => (
+                                                        <SelectItem key={attr.id} value={attr.name}>{attr.name}</SelectItem>
+                                                    ))
+                                                ) : (
+                                                    <>
+                                                        <SelectItem value="קודו">קודו</SelectItem>
+                                                        <SelectItem value="קנדי">קנדי</SelectItem>
+                                                        <SelectItem value="הסעות">הסעות</SelectItem>
+                                                    </>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </td>
