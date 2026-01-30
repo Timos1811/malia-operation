@@ -11,18 +11,39 @@ const COLUMNS = [
   { key: 'recipient', label: 'למי הועבר', type: 'text' },
   { key: 'amount', label: 'סכום', type: 'number' },
   { key: 'currency', label: 'מטבע', type: 'select' },
+  { key: 'event_name', label: 'אירוע', type: 'select', options: ['קודו', 'קנדי', 'הסעות'] },
+  { key: 'event_date', label: 'תאריך אירוע', type: 'date' },
+  { key: 'buyers_count', label: 'קונים', type: 'number' },
+  { key: 'scanned_count', label: 'נסרקים', type: 'number' },
 ];
 
 export default function AllExpenses() {
   const [editingCell, setEditingCell] = useState(null);
   const queryClient = useQueryClient();
 
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expenses = [], isLoading: isLoadingExpenses } = useQuery({
     queryKey: ['expenses'],
     queryFn: () => base44.entities.Expense.list('-created_date'),
   });
 
-  const updateMutation = useMutation({
+  const { data: events = [], isLoading: isLoadingEvents } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => base44.entities.ExpenseEvent.list(),
+  });
+
+  const isLoading = isLoadingExpenses || isLoadingEvents;
+
+  // Map events to expenses (1-to-1 assumption per UI)
+  const eventsMap = React.useMemo(() => {
+    const map = {};
+    events.forEach(event => {
+        // If there are duplicates, last one wins or we could handle arrays, but 1-to-1 is preferred here
+        map[event.expense_id] = event;
+    });
+    return map;
+  }, [events]);
+
+  const updateExpenseMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
@@ -30,9 +51,39 @@ export default function AllExpenses() {
     onError: () => toast.error('שגיאה בעדכון ההוצאה')
   });
 
-  const handleCellChange = (id, field, value) => {
-    const finalValue = field === 'amount' ? parseFloat(value) : value;
-    updateMutation.mutate({ id, data: { [field]: finalValue } });
+  const updateEventMutation = useMutation({
+    mutationFn: async ({ expenseId, eventId, data }) => {
+        if (eventId) {
+            return base44.entities.ExpenseEvent.update(eventId, data);
+        } else {
+            return base44.entities.ExpenseEvent.create({ ...data, expense_id: expenseId });
+        }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+    onError: () => toast.error('שגיאה בעדכון פרטי אירוע')
+  });
+
+  const handleCellChange = (expenseId, field, value) => {
+    // Check if field belongs to Expense or ExpenseEvent
+    const isEventField = ['event_name', 'event_date', 'buyers_count', 'scanned_count'].includes(field);
+    
+    if (isEventField) {
+        const event = eventsMap[expenseId];
+        const eventId = event?.id;
+        
+        // Parse numbers
+        let finalValue = value;
+        if (field === 'buyers_count' || field === 'scanned_count') {
+            finalValue = parseInt(value) || 0;
+        }
+
+        updateEventMutation.mutate({ expenseId, eventId, data: { [field]: finalValue } });
+    } else {
+        const finalValue = field === 'amount' ? parseFloat(value) : value;
+        updateExpenseMutation.mutate({ id: expenseId, data: { [field]: finalValue } });
+    }
   };
 
   const handleCellBlur = (e) => {
@@ -70,10 +121,18 @@ export default function AllExpenses() {
   };
 
   const renderCellContent = (expense, col) => {
-      if (col.key === 'currency') {
-          return expense[col.key] || <span className="text-slate-400">—</span>;
+      const isEventField = ['event_name', 'event_date', 'buyers_count', 'scanned_count'].includes(col.key);
+      let value = expense[col.key];
+      
+      if (isEventField) {
+          const event = eventsMap[expense.id];
+          value = event ? event[col.key] : null;
       }
-      return expense[col.key] || <span className="text-slate-400">—</span>;
+
+      if (value === null || value === undefined || value === '') {
+          return <span className="text-slate-400">—</span>;
+      }
+      return value;
   };
 
   return (
@@ -109,19 +168,25 @@ export default function AllExpenses() {
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((expense) => (
+                {expenses.map((expense) => {
+                  const event = eventsMap[expense.id] || {};
+
+                  return (
                   <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
                     {COLUMNS.map((col) => {
                         const isRecipientSelect = col.key === 'recipient' && expense.reason === 'תשלום לספק';
                         const isSelect = col.type === 'select' || isRecipientSelect;
                         const isEditable = true;
 
+                        const isEventField = ['event_name', 'event_date', 'buyers_count', 'scanned_count'].includes(col.key);
+                        const cellValue = isEventField ? event[col.key] : expense[col.key];
+
                         return (
                         <td key={col.key} className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0">
                             {editingCell?.row === expense.id && editingCell?.col === col.key && isEditable ? (
                                 isSelect ? (
                                     <Select 
-                                        defaultValue={expense[col.key]} 
+                                        defaultValue={cellValue} 
                                         onValueChange={(val) => {
                                             handleCellChange(expense.id, col.key, val);
                                             setEditingCell(null);
