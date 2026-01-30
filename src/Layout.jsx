@@ -1,13 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Table2, Database, Receipt, PlusCircle } from 'lucide-react';
+import { Table2, Database, Receipt, PlusCircle, Landmark } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
   const isTablePage = currentPageName === 'Table';
   const isSavedDataPage = currentPageName === 'SavedData';
   const isCreateExpensePage = currentPageName === 'CreateExpense';
   const isAllExpensesPage = currentPageName === 'AllExpenses';
+  const isBankTablePage = currentPageName === 'BankTable';
 
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -58,6 +59,18 @@ export default function Layout({ children, currentPageName }) {
             >
               <Receipt className="w-5 h-5" />
               <span>כל ההוצאות</span>
+            </Link>
+            <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
+            <Link
+              to={createPageUrl('BankTable')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                isBankTablePage
+                  ? 'bg-slate-900 text-white shadow-lg'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Landmark className="w-5 h-5" />
+              <span>טבלת בנק</span>
             </Link>
           </div>
         </div>
