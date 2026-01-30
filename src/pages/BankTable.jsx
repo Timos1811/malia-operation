@@ -19,9 +19,11 @@ export default function BankTable() {
     // Initialize totals
     const totals = {
       shekel: { income: 0, expenses: 0 },
-      bit: { income: 0, expenses: 0 }, // Expenses in ILS usually go to Shekel, but keeping structure
+      bit: { income: 0, expenses: 0 }, 
       usd: { income: 0, expenses: 0 },
       eur: { income: 0, expenses: 0 },
+      bitKishrei: 0,
+      bitNeto: 0
     };
 
     // Calculate Income
@@ -30,6 +32,10 @@ export default function BankTable() {
       totals.bit.income += parseFloat(row.bit_amount) || 0;
       totals.usd.income += parseFloat(row.dollar_amount) || 0;
       totals.eur.income += parseFloat(row.eur_amount) || 0;
+      
+      const bitAmount = parseFloat(row.bit_amount) || 0;
+      if (row.company === 'קשרי תעופה') totals.bitKishrei += bitAmount;
+      else if (row.company === 'נטו פאן') totals.bitNeto += bitAmount;
     });
 
     // Calculate Expenses
@@ -61,9 +67,13 @@ export default function BankTable() {
       rows: [
         { label: 'יורו', ...totals.eur, currency: '€' },
         { label: 'שקל (מזומן)', ...totals.shekel, currency: '₪' },
-        { label: 'ביט', ...totals.bit, currency: '₪' },
         { label: 'דולר', ...totals.usd, currency: '$' },
       ],
+      bitTotals: {
+          kishrei: totals.bitKishrei,
+          neto: totals.bitNeto,
+          total: totals.bit.income
+      },
       destinationBalances
     };
   }, [incomeData, expenseData]);
@@ -125,6 +135,25 @@ export default function BankTable() {
                                         </td>
                                     );
                                 })}
+                            </tr>
+                            <tr className="bg-blue-50/50 border-t-2 border-slate-200">
+                                <td className="px-6 py-6 text-slate-800 font-bold text-right align-middle">
+                                    סיכום ביט
+                                    <div className="text-xs font-normal text-slate-500 mt-1">סה"כ: ₪{summary.bitTotals.total.toLocaleString()}</div>
+                                </td>
+                                <td colSpan={summary.rows.length} className="px-6 py-4">
+                                    <div className="flex justify-around items-center">
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-sm text-slate-500 mb-1">קשרי תעופה</span>
+                                            <span className="text-lg font-bold text-slate-800">₪{summary.bitTotals.kishrei.toLocaleString()}</span>
+                                        </div>
+                                        <div className="h-8 w-px bg-slate-300"></div>
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-sm text-slate-500 mb-1">נטו פאן</span>
+                                            <span className="text-lg font-bold text-slate-800">₪{summary.bitTotals.neto.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
