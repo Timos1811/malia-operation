@@ -45,6 +45,17 @@ export default function SavedData() {
     queryFn: () => base44.entities.TableData.list('-created_date'),
   });
 
+  React.useEffect(() => {
+    // Auto-fetch order details on mount for existing order numbers
+    if (savedRows && savedRows.length > 0) {
+      savedRows.forEach((row) => {
+        if (row.order_number?.trim() && row.order_number.trim().length >= 5 && !row.customer) {
+          fetchAndUpdateOrder(row.id, row.order_number);
+        }
+      });
+    }
+  }, [savedRows]);
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.TableData.update(id, data),
     onSuccess: () => {
