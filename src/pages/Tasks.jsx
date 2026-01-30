@@ -58,7 +58,7 @@ function TaskList() {
                     </Badge>
                   )}
                   {task.amount > 0 && (
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="text-lg font-bold px-3 py-1">
                       €{parseFloat((task.amount * (task.people_count || 1)).toFixed(2))}
                     </Badge>
                   )}
