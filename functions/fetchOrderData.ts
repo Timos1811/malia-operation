@@ -4,17 +4,18 @@ const SPREADSHEET_ID = '1VQ9H-JDzOKuhVJCFWhjuSmGlydkIkZc-gBl1LE_n_eU';
 
 Deno.serve(async (req) => {
     try {
-        const base44 = createClientFromRequest(req);
-        let user = null;
-        try {
-            user = await base44.auth.me();
-        } catch (e) {
-            console.log("Auth check failed (user likely not logged in):", e.message);
-        }
+        // מוחקים או מנטרלים את הבדיקה הזו:
+/*
+const base44 = createClientFromRequest(req);
+let user = null;
+try {
+  user = await base44.auth.me();
+} catch (e) { ... }
 
-        if (!user) {
-            return Response.json({ error: 'Unauthorized: Please log in' }, { status: 401 });
-        }
+if (!user) {
+  return Response.json({ error: 'Unauthorized' }, { status: 401 });
+}
+*/
 
         const { orderNumber } = await req.json();
 
