@@ -57,8 +57,10 @@ export default function Table() {
         let company = '';
         if (trimmedOrderNumber.startsWith('5')) {
           company = 'קשרי תעופה';
-        } else if (trimmedOrderNumber.length > 0) {
+        } else if (trimmedOrderNumber.startsWith('1')) {
           company = 'נטו פאן';
+        } else if (trimmedOrderNumber.length > 0) {
+          company = 'כספר';
         }
 
         setTableData(prevData => {
