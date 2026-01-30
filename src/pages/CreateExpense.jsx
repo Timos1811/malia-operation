@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ const COLUMNS = [
 ];
 
 export default function CreateExpense() {
+  const queryClient = useQueryClient();
   const rowsCount = 5;
 
   const [tableData, setTableData] = useState(() => {
@@ -116,6 +118,11 @@ export default function CreateExpense() {
 
       toast.success(`${savedCount} הוצאות נשמרו בהצלחה!`);
       
+      // Invalidate queries to update Bank Table and other lists
+      queryClient.invalidateQueries({ queryKey: ['expensesAll'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['returned_expenses'] });
+
       const emptyRow = {
         reason: '',
         recipient: '',
