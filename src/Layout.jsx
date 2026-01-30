@@ -21,7 +21,7 @@ export default function Layout({ children, currentPageName }) {
               }`}
             >
               <Table2 className="w-5 h-5" />
-              <span>טבלת נתונים</span>
+              <span>צור הכנסה</span>
             </Link>
             <Link
               to={createPageUrl('SavedData')}
