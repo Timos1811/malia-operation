@@ -41,46 +41,55 @@ export default function Table() {
   );
   const [editingCell, setEditingCell] = useState(null);
 
-  const handleCellChange = async (rowIndex, colKey, value) => {
+  const handleCellChange = (rowIndex, colKey, value) => {
     const newData = [...tableData];
     newData[rowIndex][colKey] = value;
     setTableData(newData);
+  };
 
-    // Auto-fill data from Google Sheets when order number is entered
-    if (colKey === 'order_number' && value.trim() !== '') {
-      try {
-        const response = await base44.functions.invoke('fetchOrderData', { orderNumber: value });
-        
-        if (response.data) {
-          newData[rowIndex] = {
-            ...newData[rowIndex],
-            customer: response.data.customer,
-            nights: response.data.nights,
-            hotel: response.data.hotel,
-            gender: response.data.gender
-          };
-          setTableData([...newData]);
-          toast.success('נתונים נמלאו מגוגל שיטס');
-        }
-      } catch (error) {
-        if (error.response?.status === 404) {
-          toast.error('מספר הזמנה לא נמצא');
-        } else {
-          toast.error('שגיאה בטעינת נתונים');
-        }
+  const fetchOrderDetails = async (rowIndex, orderNumber) => {
+    try {
+      const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
+
+      if (response.data) {
+        const newData = [...tableData];
+        newData[rowIndex] = {
+          ...newData[rowIndex],
+          customer: response.data.customer,
+          nights: response.data.nights,
+          hotel: response.data.hotel,
+          gender: response.data.gender
+        };
+        setTableData(newData);
+        toast.success('נתונים נמלאו מגוגל שיטס');
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        toast.error('מספר הזמנה לא נמצא');
+      } else {
+        toast.error('שגיאה בטעינת נתונים');
       }
     }
   };
 
-  const handleCellBlur = (e) => {
+  const handleCellBlur = async (e, rowIndex, colKey, value) => {
+    // Fetch order details when leaving order_number cell
+    if (colKey === 'order_number' && value.trim() !== '') {
+      await fetchOrderDetails(rowIndex, value);
+    }
+
     // Only blur if we're not clicking on another cell
     if (!e.relatedTarget || !e.relatedTarget.closest('td')) {
       setTimeout(() => setEditingCell(null), 0);
     }
   };
 
-  const handleKeyDown = (e, rowIndex, colKey) => {
+  const handleKeyDown = async (e, rowIndex, colKey, value) => {
     if (e.key === 'Enter') {
+      // Fetch order details when pressing Enter on order_number cell
+      if (colKey === 'order_number' && value.trim() !== '') {
+        await fetchOrderDetails(rowIndex, value);
+      }
       setEditingCell(null);
     } else if (e.key === 'Tab') {
       e.preventDefault();
@@ -154,8 +163,8 @@ export default function Table() {
                           autoFocus
                           value={row[colKey]}
                           onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
-                          onBlur={handleCellBlur}
-                          onKeyDown={(e) => handleKeyDown(e, rowIndex, colKey)}
+                          onBlur={(e) => handleCellBlur(e, rowIndex, colKey, row[colKey])}
+                          onKeyDown={(e) => handleKeyDown(e, rowIndex, colKey, row[colKey])}
                           className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
                         />
                       ) : (
