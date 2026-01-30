@@ -32,7 +32,7 @@ export default function Layout({ children, currentPageName }) {
               }`}
             >
               <Database className="w-5 h-5" />
-              <span>נתונים שמורים</span>
+              <span>כל ההכנסות</span>
             </Link>
           </div>
         </div>
