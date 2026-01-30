@@ -121,6 +121,10 @@ export default function AllExpenses() {
   };
 
   const renderCellContent = (expense, col) => {
+      if (col.key === 'created_date') {
+          return <span className="text-slate-600 font-medium">{new Date(expense.created_date).toLocaleDateString('he-IL')}</span>;
+      }
+
       const isEventField = ['event_name', 'event_date', 'buyers_count', 'scanned_count'].includes(col.key);
       let value = expense[col.key];
       
@@ -176,7 +180,7 @@ export default function AllExpenses() {
                     {COLUMNS.map((col) => {
                         const isRecipientSelect = col.key === 'recipient' && expense.reason === 'תשלום לספק';
                         const isSelect = col.type === 'select' || isRecipientSelect;
-                        const isEditable = true;
+                        const isEditable = col.type !== 'readonly';
 
                         const isEventField = ['event_name', 'event_date', 'buyers_count', 'scanned_count'].includes(col.key);
                         const cellValue = isEventField ? event[col.key] : expense[col.key];

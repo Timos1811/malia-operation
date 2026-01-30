@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Trash2 } from "lucide-react";
 
 const COLUMNS = [
-  { key: 'expense_date', label: 'תאריך' },
   { key: 'reason', label: 'סיבת הוצאה' },
   { key: 'recipient', label: 'למי הועבר' },
   { key: 'amount', label: 'סכום' },
@@ -70,17 +69,17 @@ export default function CreateExpense() {
         const row = tableData[i];
         const detail = eventDetails[i];
 
-        // If supplier payment, event details are mandatory (except date which comes from main table)
+        // If supplier payment, event details are mandatory
         if (row.reason === 'תשלום לספק' && row.recipient && row.amount) {
-            if (!detail || !detail.event_name || !detail.buyers_count || !detail.scanned_count) {
-                toast.error(`בשורה ${i + 1}: חובה להזין את כל פרטי האירוע (אירוע, קונים, נסרקים) עבור תשלום לספק`);
+            if (!detail || !detail.event_name || !detail.event_date || !detail.buyers_count || !detail.scanned_count) {
+                toast.error(`בשורה ${i + 1}: חובה להזין את כל פרטי האירוע (כולל תאריך אירוע) עבור תשלום לספק`);
                 return;
             }
         }
         
         // If not supplier payment but partially filled, validate completeness
-        if (detail && (detail.event_name || detail.buyers_count || detail.scanned_count)) {
-             if (!detail.event_name || !detail.buyers_count || !detail.scanned_count) {
+        if (detail && (detail.event_name || detail.event_date || detail.buyers_count || detail.scanned_count)) {
+             if (!detail.event_name || !detail.event_date || !detail.buyers_count || !detail.scanned_count) {
                  toast.error(`בשורה ${i + 1}: הוחל במילוי פרטי אירוע, יש להשלים את כל השדות`);
                  return;
              }
@@ -98,16 +97,15 @@ export default function CreateExpense() {
           recipient: row.recipient,
           amount: parseFloat(row.amount),
           currency: row.currency,
-          expense_date: row.expense_date
+          expense_date: new Date().toISOString() // Automatic date (now)
         });
 
         const detail = eventDetails[i];
-        // Create event if details exist (use row.expense_date for event_date)
-        if (detail && detail.event_name && detail.buyers_count && detail.scanned_count) {
+        if (detail && detail.event_name && detail.event_date && detail.buyers_count && detail.scanned_count) {
             await base44.entities.ExpenseEvent.create({
                 expense_id: expense.id,
                 event_name: detail.event_name,
-                event_date: row.expense_date, // Use main expense date
+                event_date: detail.event_date,
                 buyers_count: parseInt(detail.buyers_count) || 0,
                 scanned_count: parseInt(detail.scanned_count) || 0
             });
@@ -167,14 +165,6 @@ export default function CreateExpense() {
                     <tbody>
                         {tableData.map((row, rowIndex) => (
                             <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors h-16 border-b border-slate-100 last:border-0">
-                                <td className="px-2 py-2">
-                                    <Input 
-                                        type="date"
-                                        value={row.expense_date} 
-                                        onChange={(e) => handleCellChange(rowIndex, 'expense_date', e.target.value)}
-                                        className="text-right h-10"
-                                    />
-                                </td>
                                 <td className="px-2 py-2">
                                     <Select 
                                         value={row.reason} 
@@ -258,6 +248,7 @@ export default function CreateExpense() {
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
                             <th className="px-2 py-3 text-xs font-semibold text-slate-500 h-10">אירוע</th>
+                            <th className="px-2 py-3 text-xs font-semibold text-slate-500 h-10">תאריך אירוע</th>
                             <th className="px-2 py-3 text-xs font-semibold text-slate-500 h-10">קונים</th>
                             <th className="px-2 py-3 text-xs font-semibold text-slate-500 h-10">נסרקים</th>
                         </tr>
@@ -266,8 +257,6 @@ export default function CreateExpense() {
                         {tableData.map((row, rowIndex) => {
                             const detail = eventDetails[rowIndex] || {};
                             const isRequired = row.reason === 'תשלום לספק';
-                            // Use row.expense_date instead of detail.event_date for visibility/opacity logic if needed, 
-                            // but here we focus on the event specific fields. 
                             const opacityClass = isRequired || detail.event_name ? 'opacity-100' : 'opacity-60 hover:opacity-100 transition-opacity';
 
                             return (
@@ -286,6 +275,14 @@ export default function CreateExpense() {
                                                 <SelectItem value="הסעות">הסעות</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </td>
+                                    <td className="px-2 py-2">
+                                        <Input 
+                                            type="date" 
+                                            value={detail.event_date || ''} 
+                                            onChange={(e) => handleEventDetailChange(rowIndex, 'event_date', e.target.value)}
+                                            className={`h-10 text-right w-full px-1 text-xs ${isRequired && !detail.event_date ? 'border-red-300 bg-red-50' : ''}`}
+                                        />
                                     </td>
                                     <td className="px-2 py-2">
                                         <Input 
