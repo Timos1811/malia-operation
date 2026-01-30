@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
-  'מספר הזמנה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
+  'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
   'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR'
 ];
 
 const COLUMN_KEYS = [
-  'order_number', 'customer', 'nights', 'gender', 'hotel', 
+  'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
   'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status'
 ];
 
@@ -61,6 +61,7 @@ export default function Table() {
             nights: response.data.nights || newData[rowIndex].nights,
             hotel: response.data.hotel || newData[rowIndex].hotel,
             gender: response.data.gender || newData[rowIndex].gender,
+            departure_date: response.data.departureDate || newData[rowIndex].departure_date,
           };
           return newData;
         });

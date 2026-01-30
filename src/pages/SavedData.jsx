@@ -8,6 +8,7 @@ import { toast } from "sonner";
 const COLUMNS = [
   'תאריך הכנסה',
   'מספר הזמנה',
+  'תאריך עזיבה',
   'לקוחות',
   'לילות',
   'מגדר',
@@ -24,6 +25,7 @@ const COLUMNS = [
 const COLUMN_KEYS = [
   'created_date',
   'order_number',
+  'departure_date',
   'customer',
   'nights',
   'gender',
@@ -89,7 +91,8 @@ export default function SavedData() {
             customer: response.data.customer,
             nights: response.data.nights,
             hotel: response.data.hotel,
-            gender: response.data.gender
+            gender: response.data.gender,
+            departure_date: response.data.departureDate
           }
         });
         toast.success('נתונים נמלאו מגוגל שיטס');
