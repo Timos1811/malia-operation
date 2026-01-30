@@ -57,6 +57,15 @@ export default function Table() {
       localStorage.setItem('tableData', JSON.stringify(tableData));
     }, [tableData]);
 
+    React.useEffect(() => {
+      // Auto-fetch order details on mount for existing order numbers
+      tableData.forEach((row, index) => {
+        if (row.order_number?.trim() && row.order_number.trim().length >= 5 && !row.customer) {
+          fetchOrderDetails(index, row.order_number);
+        }
+      });
+    }, []);
+
   const fetchOrderDetails = async (rowIndex, orderNumber) => {
     const trimmedOrderNumber = orderNumber.trim();
 
