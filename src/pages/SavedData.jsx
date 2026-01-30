@@ -12,7 +12,6 @@ const COLUMNS = [
   'מגדר',
   'גיל',
   'מלון',
-  'חדר',
   'חברה',
   'סכום מבוקש',
   'EUR',
@@ -26,7 +25,6 @@ const COLUMN_KEYS = [
   'gender',
   'age',
   'hotel',
-  'room',
   'company',
   'requested_amount',
   'eur_amount',
@@ -63,6 +61,14 @@ export default function SavedData() {
       const response = await base44.functions.invoke('fetchOrderData', { orderNumber: trimmedOrderNumber });
 
       if (response.data) {
+        // Determine company based on first digit
+        let company = '';
+        if (trimmedOrderNumber.startsWith('5')) {
+          company = 'קשרי תעופה';
+        } else if (trimmedOrderNumber.length > 0) {
+          company = 'נטו פאן';
+        }
+
         updateMutation.mutate({
           id: rowId,
           data: {
@@ -70,7 +76,8 @@ export default function SavedData() {
             customer: response.data.customer,
             nights: response.data.nights,
             hotel: response.data.hotel,
-            gender: response.data.gender
+            gender: response.data.gender,
+            company: company
           }
         });
         toast.success('נתונים נמלאו מגוגל שיטס');
