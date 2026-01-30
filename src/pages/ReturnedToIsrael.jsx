@@ -19,7 +19,7 @@ export default function ReturnedToIsrael() {
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses'],
-    queryFn: () => base44.entities.Expense.list('-created_date'),
+    queryFn: () => base44.entities.Expense.filter({ reason: 'יצא מהיעד' }, '-created_date'),
   });
 
   const updateMutation = useMutation({
@@ -99,7 +99,10 @@ export default function ReturnedToIsrael() {
               </thead>
               <tbody>
                 {expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
+                  <tr 
+                    key={expense.id} 
+                    className={`${!expense.returned_to_in_israel ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50/50'} transition-colors border-b border-slate-100 last:border-0`}
+                  >
                     {COLUMNS.map((col) => (
                         <td key={col.key} className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0">
                             {col.editable && editingCell === expense.id ? (
