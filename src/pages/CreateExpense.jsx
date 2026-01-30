@@ -177,184 +177,195 @@ export default function CreateExpense() {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-slate-800 mb-8">הוספת הוצאה חדשה</h1>
         
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead>
-              <tr className="bg-slate-50">
-                {COLUMNS.map((col) => (
-                  <th key={col.key} className="px-4 py-4 text-xs font-semibold text-slate-500 border-b">
-                    {col.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.map((row, rowIndex) => (
-                <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-2 py-2 border-b border-slate-100">
-                    <Select 
-                        value={row.reason} 
-                        onValueChange={(val) => handleCellChange(rowIndex, 'reason', val)}
+        <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="bg-slate-50">
+                    {COLUMNS.map((col) => (
+                      <th key={col.key} className="px-4 py-4 text-xs font-semibold text-slate-500 border-b">
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.map((row, rowIndex) => (
+                    <tr 
+                        key={rowIndex} 
+                        className={`transition-colors cursor-pointer ${activeRowIndex === rowIndex ? 'bg-blue-50/50 ring-1 ring-blue-200' : 'hover:bg-slate-50/50'}`}
+                        onClick={() => setActiveRowIndex(rowIndex)}
                     >
-                      <SelectTrigger className="w-full h-10 text-right" dir="rtl">
-                        <SelectValue placeholder="בחר סיבה" />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl">
-                        <SelectItem value="יצא מהיעד">יצא מהיעד</SelectItem>
-                        <SelectItem value="החזר מלא">החזר מלא</SelectItem>
-                        <SelectItem value="החזר חלקי">החזר חלקי</SelectItem>
-                        <SelectItem value="רכב">רכב</SelectItem>
-                        <SelectItem value="אחר">אחר</SelectItem>
-                        <SelectItem value="משיכה לאדם">משיכה לאדם</SelectItem>
-                        <SelectItem value="תשלום לספק">תשלום לספק</SelectItem>
-                        <SelectItem value="פיצוי קשרי תעופה">פיצוי קשרי תעופה</SelectItem>
-                        <SelectItem value="פיצוי נטו פאן">פיצוי נטו פאן</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-2 py-2 border-b border-slate-100">
-                    {row.reason === 'תשלום לספק' ? (
+                      <td className="px-2 py-2 border-b border-slate-100">
                         <Select 
-                            value={row.recipient} 
-                            onValueChange={(val) => handleCellChange(rowIndex, 'recipient', val)}
+                            value={row.reason} 
+                            onValueChange={(val) => handleCellChange(rowIndex, 'reason', val)}
                         >
-                            <SelectTrigger className="w-full h-10 text-right" dir="rtl">
-                                <SelectValue placeholder="בחר ספק" />
-                            </SelectTrigger>
-                            <SelectContent dir="rtl">
-                                <SelectItem value="מנוס">מנוס</SelectItem>
-                                <SelectItem value="טמיס">טמיס</SelectItem>
-                                <SelectItem value="מייק">מייק</SelectItem>
-                                <SelectItem value="מגדה">מגדה</SelectItem>
-                            </SelectContent>
+                          <SelectTrigger className="w-full h-10 text-right" dir="rtl">
+                            <SelectValue placeholder="בחר סיבה" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl">
+                            <SelectItem value="יצא מהיעד">יצא מהיעד</SelectItem>
+                            <SelectItem value="החזר מלא">החזר מלא</SelectItem>
+                            <SelectItem value="החזר חלקי">החזר חלקי</SelectItem>
+                            <SelectItem value="רכב">רכב</SelectItem>
+                            <SelectItem value="אחר">אחר</SelectItem>
+                            <SelectItem value="משיכה לאדם">משיכה לאדם</SelectItem>
+                            <SelectItem value="תשלום לספק">תשלום לספק</SelectItem>
+                            <SelectItem value="פיצוי קשרי תעופה">פיצוי קשרי תעופה</SelectItem>
+                            <SelectItem value="פיצוי נטו פאן">פיצוי נטו פאן</SelectItem>
+                          </SelectContent>
                         </Select>
-                    ) : (
+                      </td>
+                      <td className="px-2 py-2 border-b border-slate-100">
+                        {row.reason === 'תשלום לספק' ? (
+                            <Select 
+                                value={row.recipient} 
+                                onValueChange={(val) => handleCellChange(rowIndex, 'recipient', val)}
+                            >
+                                <SelectTrigger className="w-full h-10 text-right" dir="rtl">
+                                    <SelectValue placeholder="בחר ספק" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    <SelectItem value="מנוס">מנוס</SelectItem>
+                                    <SelectItem value="טמיס">טמיס</SelectItem>
+                                    <SelectItem value="מייק">מייק</SelectItem>
+                                    <SelectItem value="מגדה">מגדה</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Input 
+                                value={row.recipient} 
+                                onChange={(e) => handleCellChange(rowIndex, 'recipient', e.target.value)}
+                                className="text-right h-10"
+                                onFocus={() => setActiveRowIndex(rowIndex)}
+                            />
+                        )}
+                      </td>
+                      <td className="px-2 py-2 border-b border-slate-100">
                         <Input 
-                            value={row.recipient} 
-                            onChange={(e) => handleCellChange(rowIndex, 'recipient', e.target.value)}
-                            className="text-right h-10"
+                          type="number"
+                          value={row.amount} 
+                          onChange={(e) => handleCellChange(rowIndex, 'amount', e.target.value)}
+                          className="text-right h-10"
+                          onFocus={() => setActiveRowIndex(rowIndex)}
                         />
-                    )}
-                  </td>
-                  <td className="px-2 py-2 border-b border-slate-100">
-                      {row.reason === 'תשלום לספק' && (
-                          <Sheet open={openSheetIndex === rowIndex} onOpenChange={(open) => setOpenSheetIndex(open ? rowIndex : null)}>
-                              <SheetTrigger asChild>
-                                  <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
-                                      {eventDetails[rowIndex]?.length > 0 
-                                          ? `פרטי אירועים (${eventDetails[rowIndex].length})`
-                                          : 'הוסף פרטי אירוע (חובה)'}
-                                  </Button>
-                              </SheetTrigger>
-                              <SheetContent side="left" className="w-[600px] sm:w-[540px] overflow-y-auto">
-                                  <SheetHeader className="mb-6 text-right">
-                                      <SheetTitle>פרטי אירועים לתשלום ספק</SheetTitle>
-                                  </SheetHeader>
-                                  
-                                  <div className="space-y-4">
-                                      <Table dir="rtl">
-                                          <TableHeader>
-                                              <TableRow>
-                                                  <TableHead className="text-right">אירוע</TableHead>
-                                                  <TableHead className="text-right">תאריך</TableHead>
-                                                  <TableHead className="text-right">קונים</TableHead>
-                                                  <TableHead className="text-right">נסרקים</TableHead>
-                                                  <TableHead></TableHead>
-                                              </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                              {eventDetails[rowIndex]?.map((detail, dIndex) => (
-                                                  <TableRow key={dIndex}>
-                                                      <TableCell className="p-1">
-                                                          <Select 
-                                                              value={detail.event_name} 
-                                                              onValueChange={(v) => handleEventDetailChange(rowIndex, dIndex, 'event_name', v)}
-                                                          >
-                                                              <SelectTrigger className="h-8">
-                                                                  <SelectValue />
-                                                              </SelectTrigger>
-                                                              <SelectContent>
-                                                                  <SelectItem value="קודו">קודו</SelectItem>
-                                                                  <SelectItem value="קנדי">קנדי</SelectItem>
-                                                                  <SelectItem value="הסעות">הסעות</SelectItem>
-                                                              </SelectContent>
-                                                          </Select>
-                                                      </TableCell>
-                                                      <TableCell className="p-1">
-                                                          <Input 
-                                                              type="date" 
-                                                              value={detail.event_date} 
-                                                              onChange={(e) => handleEventDetailChange(rowIndex, dIndex, 'event_date', e.target.value)}
-                                                              className="h-8"
-                                                          />
-                                                      </TableCell>
-                                                      <TableCell className="p-1">
-                                                          <Input 
-                                                              type="number" 
-                                                              placeholder="0"
-                                                              value={detail.buyers_count} 
-                                                              onChange={(e) => handleEventDetailChange(rowIndex, dIndex, 'buyers_count', e.target.value)}
-                                                              className="h-8"
-                                                          />
-                                                      </TableCell>
-                                                      <TableCell className="p-1">
-                                                          <Input 
-                                                              type="number" 
-                                                              placeholder="0"
-                                                              value={detail.scanned_count} 
-                                                              onChange={(e) => handleEventDetailChange(rowIndex, dIndex, 'scanned_count', e.target.value)}
-                                                              className="h-8"
-                                                          />
-                                                      </TableCell>
-                                                      <TableCell className="p-1">
-                                                          <Button variant="ghost" size="icon" onClick={() => removeEventRow(rowIndex, dIndex)} className="h-8 w-8 text-red-500">
-                                                              <Trash2 className="h-4 w-4" />
-                                                          </Button>
-                                                      </TableCell>
-                                                  </TableRow>
-                                              ))}
-                                          </TableBody>
-                                      </Table>
-                                      
-                                      <Button onClick={() => addEventRow(rowIndex)} className="w-full gap-2" variant="secondary">
-                                          <Plus className="h-4 w-4" /> הוסף שורה
-                                      </Button>
-                                      
-                                      <Button onClick={() => setOpenSheetIndex(null)} className="w-full mt-4">
-                                          סיום ועבור לטבלה
-                                      </Button>
-                                  </div>
-                              </SheetContent>
-                          </Sheet>
-                      )}
-                  </td>
-                  <td className="px-2 py-2 border-b border-slate-100">
-                    <Input 
-                      type="number"
-                      value={row.amount} 
-                      onChange={(e) => handleCellChange(rowIndex, 'amount', e.target.value)}
-                      className="text-right h-10"
-                    />
-                  </td>
-                  <td className="px-2 py-2 border-b border-slate-100">
-                    <Select 
-                        value={row.currency} 
-                        onValueChange={(val) => handleCellChange(rowIndex, 'currency', val)}
-                    >
-                      <SelectTrigger className="w-full h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ILS">₪ (ILS)</SelectItem>
-                        <SelectItem value="USD">$ (USD)</SelectItem>
-                        <SelectItem value="EUR">€ (EUR)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-2 py-2 border-b border-slate-100">
+                        <Select 
+                            value={row.currency} 
+                            onValueChange={(val) => handleCellChange(rowIndex, 'currency', val)}
+                        >
+                          <SelectTrigger className="w-full h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ILS">₪ (ILS)</SelectItem>
+                            <SelectItem value="USD">$ (USD)</SelectItem>
+                            <SelectItem value="EUR">€ (EUR)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Side Table for Event Details */}
+            {activeRowIndex !== null && tableData[activeRowIndex]?.reason === 'תשלום לספק' && (
+                <div className="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-blue-200 p-4 animate-in fade-in slide-in-from-right-4 h-fit">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-lg text-slate-800">פרטי אירועים (שורה {activeRowIndex + 1})</h3>
+                        <div className="text-sm text-slate-500">
+                            {eventDetails[activeRowIndex]?.length || 0} רשומות
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div className="border rounded-lg overflow-hidden">
+                            <Table dir="rtl">
+                                <TableHeader className="bg-slate-50">
+                                    <TableRow>
+                                        <TableHead className="text-right h-9 p-2">אירוע</TableHead>
+                                        <TableHead className="text-right h-9 p-2">תאריך</TableHead>
+                                        <TableHead className="text-right h-9 p-2">קונים</TableHead>
+                                        <TableHead className="text-right h-9 p-2">נסרקים</TableHead>
+                                        <TableHead className="h-9 p-2 w-8"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {eventDetails[activeRowIndex]?.map((detail, dIndex) => (
+                                        <TableRow key={dIndex}>
+                                            <TableCell className="p-2">
+                                                <Select 
+                                                    value={detail.event_name} 
+                                                    onValueChange={(v) => handleEventDetailChange(activeRowIndex, dIndex, 'event_name', v)}
+                                                >
+                                                    <SelectTrigger className="h-8 text-xs px-2">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="קודו">קודו</SelectItem>
+                                                        <SelectItem value="קנדי">קנדי</SelectItem>
+                                                        <SelectItem value="הסעות">הסעות</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell className="p-2">
+                                                <Input 
+                                                    type="date" 
+                                                    value={detail.event_date} 
+                                                    onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'event_date', e.target.value)}
+                                                    className="h-8 text-xs px-2"
+                                                />
+                                            </TableCell>
+                                            <TableCell className="p-2">
+                                                <Input 
+                                                    type="number" 
+                                                    placeholder="0"
+                                                    value={detail.buyers_count} 
+                                                    onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'buyers_count', e.target.value)}
+                                                    className="h-8 text-xs px-2"
+                                                />
+                                            </TableCell>
+                                            <TableCell className="p-2">
+                                                <Input 
+                                                    type="number" 
+                                                    placeholder="0"
+                                                    value={detail.scanned_count} 
+                                                    onChange={(e) => handleEventDetailChange(activeRowIndex, dIndex, 'scanned_count', e.target.value)}
+                                                    className="h-8 text-xs px-2"
+                                                />
+                                            </TableCell>
+                                            <TableCell className="p-2">
+                                                <Button variant="ghost" size="icon" onClick={() => removeEventRow(activeRowIndex, dIndex)} className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50">
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {(!eventDetails[activeRowIndex] || eventDetails[activeRowIndex].length === 0) && (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center text-slate-400 py-4 text-sm">
+                                                אין אירועים מוזנים
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        
+                        <Button onClick={() => addEventRow(activeRowIndex)} className="w-full gap-2 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200" variant="outline">
+                            <Plus className="h-4 w-4" /> הוסף שורת אירוע
+                        </Button>
+                        
+                        <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                           יש למלא את כל השדות בטבלה זו לפני שמירת ההוצאה.
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
 
         <div className="mt-8 flex justify-center gap-4">
