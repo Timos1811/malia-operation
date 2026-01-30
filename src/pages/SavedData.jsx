@@ -47,13 +47,18 @@ export default function SavedData() {
 
   React.useEffect(() => {
     // Auto-fetch order details on mount for existing order numbers
-    if (savedRows && savedRows.length > 0) {
-      savedRows.forEach((row) => {
-        if (row.order_number?.trim() && row.order_number.trim().length >= 7 && !row.customer) {
-          fetchAndUpdateOrder(row.id, row.order_number);
+    const processRows = async () => {
+      if (savedRows && savedRows.length > 0) {
+        for (const row of savedRows) {
+          if (row.order_number?.trim() && row.order_number.trim().length >= 7 && !row.customer) {
+            await fetchAndUpdateOrder(row.id, row.order_number);
+            // Add a small delay between requests to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
-      });
-    }
+      }
+    };
+    processRows();
   }, [savedRows]);
 
   const updateMutation = useMutation({
@@ -88,10 +93,13 @@ export default function SavedData() {
         toast.success('נתונים נמלאו מגוגל שיטס');
       }
     } catch (error) {
-      if (error.response?.status === 404) {
+      console.error('Fetch error:', error);
+      if (error.response?.status === 401) {
+        toast.error('יש להתחבר למערכת כדי לטעון נתונים');
+      } else if (error.response?.status === 404) {
         toast.error('מספר הזמנה לא נמצא');
       } else {
-        toast.error('שגיאה בטעינת נתונים');
+        toast.error('שגיאה בטעינת נתונים: ' + (error.response?.data?.error || error.message));
       }
     } finally {
       setFetchingRows(prev => {
