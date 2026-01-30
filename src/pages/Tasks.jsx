@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckSquare, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from './utils';
+import { createPageUrl } from '../utils';
 import { Button } from "@/components/ui/button";
 
 export default function Tasks() {
