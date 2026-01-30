@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 const COLUMNS = [
+  'תאריך הכנסה',
   'מספר הזמנה',
   'לקוחות',
   'לילות',
@@ -21,6 +22,7 @@ const COLUMNS = [
 ];
 
 const COLUMN_KEYS = [
+  'created_date',
   'order_number',
   'customer',
   'nights',
@@ -262,7 +264,11 @@ export default function SavedData() {
                           key={colKey} 
                           className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0"
                         >
-                          {colKey === 'eur_status' ? (
+                          {colKey === 'created_date' ? (
+                            <div className="px-4 py-2 min-h-[36px] flex items-center text-slate-600 font-medium cursor-default">
+                              {row.created_date ? new Date(row.created_date).toLocaleDateString('he-IL') : '-'}
+                            </div>
+                          ) : colKey === 'eur_status' ? (
                             <div 
                               className={`px-4 py-2 min-h-[36px] rounded-lg flex items-center justify-center font-medium ${eurStatusColor}`}
                             >
