@@ -1,16 +1,34 @@
 import React, { useMemo } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Users } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Live() {
+  const queryClient = useQueryClient();
   const { data: tableData = [], isLoading } = useQuery({
     queryKey: ['tableData'],
     queryFn: () => base44.entities.TableData.list('-created_date', 100), // Get recent 100 or all if needed
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, departure_sent }) => base44.entities.TableData.update(id, { departure_sent }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tableData'] });
+      toast.success('סטטוס עזיבה עודכן');
+    },
+    onError: () => {
+      toast.error('שגיאה בעדכון סטטוס');
+    }
+  });
+
+  const handleDepartureSentChange = (id, checked) => {
+    updateMutation.mutate({ id, departure_sent: checked });
+  };
 
   const liveGroups = useMemo(() => {
     const today = new Date();
@@ -87,6 +105,7 @@ export default function Live() {
                         <TableHead className="text-right">מגדר</TableHead>
                         <TableHead className="text-right">מלון</TableHead>
                         <TableHead className="text-right">חברה</TableHead>
+                        <TableHead className="text-center">נשלחה עזיבה</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -103,6 +122,14 @@ export default function Live() {
                         <TableCell>{group.gender}</TableCell>
                         <TableCell>{group.hotel}</TableCell>
                         <TableCell>{group.company}</TableCell>
+                        <TableCell className="text-center">
+                            <div className="flex justify-center">
+                                <Checkbox 
+                                    checked={group.departure_sent || false}
+                                    onCheckedChange={(checked) => handleDepartureSentChange(group.id, checked)}
+                                />
+                            </div>
+                        </TableCell>
                         </TableRow>
                     ))}
                     </TableBody>
