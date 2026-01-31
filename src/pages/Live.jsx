@@ -34,38 +34,33 @@ export default function Live() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return tableData.filter(row => {
-      if (!row.departure_date || !row.order_number) return false;
-      
-      let departureDate = null;
-      const dateStr = row.departure_date.trim();
-
-      // Try parsing DD/MM or DD/MM/YYYY
-      const parts = dateStr.split('/');
-      if (parts.length >= 2) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        let year = today.getFullYear();
+    return tableData
+      .map(row => {
+        if (!row.departure_date || !row.order_number) return null;
         
-        if (parts.length === 3) {
-           year = parseInt(parts[2], 10);
-           if (year < 100) year += 2000; // Handle 2-digit year
+        let departureDate = null;
+        const dateStr = row.departure_date.trim();
+
+        const parts = dateStr.split('/');
+        if (parts.length >= 2) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          let year = today.getFullYear();
+          
+          if (parts.length === 3) {
+             year = parseInt(parts[2], 10);
+             if (year < 100) year += 2000;
+          }
+
+          departureDate = new Date(year, month, day);
+          if (isNaN(departureDate.getTime())) return null;
         }
 
-        departureDate = new Date(year, month, day);
-        
-        // If date is invalid, skip
-        if (isNaN(departureDate.getTime())) return false;
+        if (!departureDate) return null;
 
-        // If strict DD/MM format without year, and we need to handle year crossing (e.g. Dec to Jan)
-        // For now assuming current year is fine for simple "Live" view of current operations
-      }
-
-      if (!departureDate) return false;
-
-      // Show if today is before or same as departure date (Group is still here)
-      return today <= departureDate;
-    });
+        return { ...row, parsedDepartureDate: departureDate };
+      })
+      .filter(row => row && today <= row.parsedDepartureDate);
   }, [tableData]);
 
   if (isLoading) {
@@ -109,8 +104,16 @@ export default function Live() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {liveGroups.map((group) => (
-                        <TableRow key={group.id}>
+                    {liveGroups.map((group) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        // Calculate days difference
+                        const timeDiff = group.parsedDepartureDate.getTime() - today.getTime();
+                        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                        const isUrgent = daysDiff <= 1; // Today (0) or Tomorrow (1)
+
+                        return (
+                        <TableRow key={group.id} className={isUrgent ? "bg-red-100 hover:bg-red-200" : ""}>
                         <TableCell className="font-medium">{group.order_number}</TableCell>
                         <TableCell>
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -131,7 +134,8 @@ export default function Live() {
                             </div>
                         </TableCell>
                         </TableRow>
-                    ))}
+                        );
+                    })}
                     </TableBody>
                 </Table>
                 </div>
