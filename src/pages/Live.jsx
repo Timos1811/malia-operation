@@ -110,7 +110,7 @@ export default function Live() {
                         // Calculate days difference
                         const timeDiff = group.parsedDepartureDate.getTime() - today.getTime();
                         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-                        const isUrgent = daysDiff <= 1; // Today (0) or Tomorrow (1)
+                        const isUrgent = daysDiff <= 1 && !group.departure_sent;
 
                         return (
                         <TableRow key={group.id} className={isUrgent ? "bg-red-100 hover:bg-red-200" : ""}>
