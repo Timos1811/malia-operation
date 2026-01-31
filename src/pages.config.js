@@ -56,6 +56,7 @@ import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
+import Live from './pages/Live';
 import __Layout from './Layout.jsx';
 
 
@@ -69,6 +70,7 @@ export const PAGES = {
     "SavedData": SavedData,
     "Table": Table,
     "Tasks": Tasks,
+    "Live": Live,
 }
 
 export const pagesConfig = {
