@@ -64,13 +64,20 @@ export default function Live() {
   }, [tableData]);
 
   const stats = useMemo(() => {
+    let totalCustomers = 0;
     const genderDist = {};
+    
     liveGroups.forEach(g => {
+      // Calculate customers count based on names separator
+      const names = g.customer ? g.customer.split(/,|\+|&|\n| ו/).filter(n => n.trim().length > 1) : [];
+      totalCustomers += Math.max(names.length, 1);
+
       const gender = g.gender ? g.gender.trim() : 'לא צוין';
       genderDist[gender] = (genderDist[gender] || 0) + 1;
     });
+
     return {
-      total: liveGroups.length,
+      total: totalCustomers,
       genderDist
     };
   }, [liveGroups]);
@@ -94,7 +101,7 @@ export default function Live() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-500">סה״כ קבוצות ביעד</CardTitle>
+                    <CardTitle className="text-sm font-medium text-slate-500">סה״כ לקוחות ביעד</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="text-4xl font-bold text-slate-800">{stats.total}</div>
