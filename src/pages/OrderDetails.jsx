@@ -19,13 +19,11 @@ export default function OrderDetails() {
       
       try {
         setLoading(true);
-        // Try to fetch from backend function first (Google Sheets)
-        const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
-        if (response.data) {
-          setData(response.data);
+        const results = await base44.entities.TableData.filter({ order_number: orderNumber });
+        if (results && results.length > 0) {
+          setData(results[0]);
         } else {
-            // If not found in sheets, maybe check local DB if needed, but fetchOrderData seems to be the source of truth
-            setError('ההזמנה לא נמצאה');
+          setError('ההזמנה לא נמצאה בנתונים השמורים');
         }
       } catch (err) {
         console.error(err);
@@ -82,16 +80,7 @@ export default function OrderDetails() {
     );
   }
 
-  // Determine company based on order number prefix
-  const getCompany = (num) => {
-    const s = String(num).trim();
-    if (s.startsWith('5')) return 'קשרי תעופה';
-    if (s.startsWith('1')) return 'נטו פאן';
-    if (s.length > 0) return 'כספר';
-    return '-';
-  };
-  
-  const companyName = getCompany(orderNumber);
+
 
   // Helper to render a detail row
   const DetailRow = ({ icon: Icon, label, value }) => (
@@ -138,10 +127,10 @@ export default function OrderDetails() {
                     <DetailRow icon={Hash} label="מספר הזמנה" value={orderNumber} />
                     <DetailRow icon={Users} label="הרכב" value={data.customer} />
                     <DetailRow icon={User} label="מגדר" value={data.gender} />
-                    <DetailRow icon={Calendar} label="תאריך עזיבה" value={data.departureDate} />
+                    <DetailRow icon={Calendar} label="תאריך עזיבה" value={data.departure_date} />
                     <DetailRow icon={Calendar} label="לילות" value={data.nights} />
                     <DetailRow icon={Building2} label="מלון" value={data.hotel} />
-                    <DetailRow icon={Briefcase} label="חברה" value={companyName} />
+                    <DetailRow icon={Briefcase} label="חברה" value={data.company} />
                 </CardContent>
             </Card>
 
@@ -153,8 +142,12 @@ export default function OrderDetails() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 grid gap-4 md:grid-cols-3">
-                    <DetailRow icon={CreditCard} label="סכום מבוקש" value={data.requestedAmount} />
-                    {/* Add more fields if available in the fetched data object */}
+                    <DetailRow icon={CreditCard} label="סכום מבוקש" value={data.requested_amount} />
+                    <DetailRow icon={CreditCard} label="EUR" value={data.eur_amount} />
+                    <DetailRow icon={CreditCard} label="שקל" value={data.shekel_amount} />
+                    <DetailRow icon={CreditCard} label="דולר" value={data.dollar_amount} />
+                    <DetailRow icon={CreditCard} label="ביט" value={data.bit_amount} />
+                    <DetailRow icon={CreditCard} label="סטטוס בEUR" value={data.eur_status} />
                 </CardContent>
             </Card>
         </div>
