@@ -98,7 +98,12 @@ function TaskList() {
                 <p className="text-slate-600 text-sm whitespace-pre-wrap">{task.description}</p>
                 {task.order_number && (
                   <div className="flex gap-4 text-sm mt-2 text-slate-700">
-                    <span className="font-medium bg-slate-100 px-2 py-0.5 rounded">הזמנה: {task.order_number}</span>
+                    <Link 
+                      to={`${createPageUrl('OrderDetails')}?orderNumber=${task.order_number}`}
+                      className="font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-100 hover:underline transition-colors"
+                    >
+                      הזמנה: {task.order_number}
+                    </Link>
                     {task.people_count > 0 && (
                       <span className="font-medium bg-slate-100 px-2 py-0.5 rounded">כמות אנשים: {task.people_count}</span>
                     )}

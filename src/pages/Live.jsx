@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -159,7 +161,14 @@ export default function Live() {
 
                         return (
                         <TableRow key={group.id} className={isUrgent ? "bg-red-100 hover:bg-red-200" : ""}>
-                        <TableCell className="font-medium">{group.order_number}</TableCell>
+                        <TableCell className="font-medium">
+                            <Link 
+                                to={`${createPageUrl('OrderDetails')}?orderNumber=${group.order_number}`}
+                                className="text-blue-600 hover:underline"
+                            >
+                                {group.order_number}
+                            </Link>
+                        </TableCell>
                         <TableCell>
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                                 {group.departure_date}

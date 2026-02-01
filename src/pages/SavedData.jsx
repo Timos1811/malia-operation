@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
-import { Loader2, Database } from "lucide-react";
+import { Loader2, Database, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -303,7 +305,18 @@ export default function SavedData() {
                                 setEditingCell({ row: row.id, col: colKey });
                               }}
                             >
-                              {row[colKey] || <span className="text-slate-400">—</span>}
+                              {colKey === 'order_number' && row[colKey] ? (
+                                <Link 
+                                  to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                >
+                                  {row[colKey]}
+                                  <ExternalLink className="w-3 h-3 opacity-50" />
+                                </Link>
+                              ) : (
+                                row[colKey] || <span className="text-slate-400">—</span>
+                              )}
                             </div>
                           )}
                         </td>
