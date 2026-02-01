@@ -12,7 +12,7 @@ export default function Layout({ children, currentPageName }) {
   const isReturnedToIsraelPage = currentPageName === 'ReturnedToIsrael';
   const isLivePage = currentPageName === 'Live';
 
-  if (currentPageName === 'AddTask') {
+  if (currentPageName === 'AddTask' || currentPageName === 'NewSale' || currentPageName === 'OrderSuccess') {
     return (
       <div dir="rtl" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
         {children}
