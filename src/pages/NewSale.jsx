@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Calendar, Users, Hotel, Moon, Hash, User, PartyPopper, Radio } from "lucide-react";
+import { Loader2, Save, Calendar, Users, Hotel, Moon, Hash, User, PartyPopper, Radio, Check } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from '../utils';
 
@@ -24,6 +24,7 @@ export default function NewSale() {
   });
   const [selectedAttractions, setSelectedAttractions] = useState(new Set());
   const [isScanning, setIsScanning] = useState(false);
+  const [scannedCount, setScannedCount] = useState(0);
 
   // טעינת מסיבות
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
@@ -66,7 +67,17 @@ export default function NewSale() {
             allowed_events: selectedNames // נשלח כמערך של מחרוזות
           });
 
-          toast.success(`צמיד ${nfcId} שויך בהצלחה!`);
+          setScannedCount(prev => {
+            const newCount = prev + 1;
+            const total = parseInt(formData.customerCount) || 1;
+            if (newCount < total) {
+              toast.info(`צמיד נקלט (${newCount}/${total}). נא לסרוק את הצמיד הבא.`);
+            } else {
+              toast.success(`כל הצמידים שוייכו בהצלחה! (${newCount}/${total})`);
+            }
+            return newCount;
+          });
+          
           setIsScanning(false);
         } catch (dbError) {
           console.error("Database Save Error:", dbError);
@@ -96,8 +107,19 @@ export default function NewSale() {
   const createSaleMutation = useMutation({
     mutationFn: (data) => base44.entities.TableData.create(data),
     onSuccess: () => {
-      toast.success('ההזמנה נשמרה בהצלחה!');
-      navigate(createPageUrl('SavedData'));
+      toast.success('ההזמנה נשמרה בהצלחה! המסך אופס.');
+      // איפוס הטופס והסטייט במקום ניווט
+      setFormData({
+        orderNumber: '',
+        departureDate: '',
+        customerCount: '1',
+        nights: '',
+        gender: '',
+        hotel: ''
+      });
+      setSelectedAttractions(new Set());
+      setScannedCount(0);
+      setIsScanning(false);
     },
     onError: (err) => toast.error('שגיאה בשמירת הזמנה: ' + err.message)
   });
@@ -190,11 +212,30 @@ export default function NewSale() {
           
           <Button 
             variant="outline"
-            className={`w-full py-8 text-lg border-2 ${isScanning ? 'border-green-500 bg-green-50 animate-pulse' : 'border-indigo-200 text-indigo-700'}`}
+            className={`w-full py-8 text-lg border-2 relative ${
+              isScanning 
+                ? 'border-green-500 bg-green-50 animate-pulse' 
+                : scannedCount > 0
+                  ? 'border-green-600 text-green-700 bg-green-50'
+                  : 'border-indigo-200 text-indigo-700'
+            }`}
             onClick={() => handleNFCScan()}
             disabled={isScanning}
           >
-            {isScanning ? "ממתין לסריקה..." : "1. סרוק וצמד צמיד"}
+            {isScanning ? (
+              "ממתין לסריקה..."
+            ) : scannedCount > 0 ? (
+              <div className="flex items-center gap-2">
+                 <Check className="w-6 h-6" />
+                 <span>
+                   {scannedCount < (parseInt(formData.customerCount) || 1) 
+                     ? `צמיד ${scannedCount} נקלט - לחץ לסרוק את הבא` 
+                     : `כל ${scannedCount} הצמידים צומדו בהצלחה!`}
+                 </span>
+              </div>
+            ) : (
+              "1. סרוק וצמד צמיד"
+            )}
           </Button>
 
           <div className="flex justify-between items-center px-4 py-2 bg-slate-50 rounded border">
