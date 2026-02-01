@@ -238,6 +238,7 @@ export default function NewSale() {
                         <Checkbox 
                           checked={selectedAttractions.has(attraction.id)}
                           onCheckedChange={() => handleToggleAttraction(attraction.id)}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <span className="font-medium text-slate-700">{attraction.name}</span>
                       </div>
