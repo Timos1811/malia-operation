@@ -30,8 +30,8 @@ export default function NewSale() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
-  // Calculate total price: (Sum of selected attractions) * Customer Count
-  const totalPrice = useMemo(() => {
+  // Calculate prices
+  const { totalPrice, pricePerPerson } = useMemo(() => {
     const customerCount = parseInt(formData.customerCount) || 0;
     let attractionsSum = 0;
     
@@ -42,7 +42,10 @@ export default function NewSale() {
       }
     });
 
-    return attractionsSum * customerCount;
+    return {
+      totalPrice: attractionsSum * customerCount,
+      pricePerPerson: attractionsSum
+    };
   }, [selectedAttractions, formData.customerCount, attractions]);
 
   const createSaleMutation = useMutation({
@@ -262,11 +265,17 @@ export default function NewSale() {
       {/* Sticky Bottom Footer for Total & Submit */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto flex flex-col gap-3">
-          <div className="flex justify-between items-center px-2">
-            <div className="text-sm text-slate-500">סה"כ לתשלום:</div>
-            <div className="text-2xl font-bold text-indigo-600 flex items-center gap-1">
-              <span>€</span>
-              {totalPrice.toFixed(2)}
+          <div className="space-y-2 px-2">
+            <div className="flex justify-between items-center text-slate-600">
+              <div className="text-sm">מחיר לאדם:</div>
+              <div className="font-medium">€{pricePerPerson.toFixed(2)}</div>
+            </div>
+            <div className="flex justify-between items-center border-t border-slate-100 pt-2">
+              <div className="text-sm font-medium text-slate-900">סה"כ לתשלום:</div>
+              <div className="text-2xl font-bold text-indigo-600 flex items-center gap-1">
+                <span>€</span>
+                {totalPrice.toFixed(2)}
+              </div>
             </div>
           </div>
           <div className="text-xs text-slate-400 text-center mb-1">
