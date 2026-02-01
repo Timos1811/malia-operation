@@ -291,16 +291,10 @@ export default function SavedData() {
                             <Input
                               autoFocus
                               defaultValue={row[colKey]}
-                              onChange={(e) => {
-                                if (colKey === 'order_number' && e.target.value.trim().length >= 5) {
-                                  handleCellChange(row.id, colKey, e.target.value);
-                                }
-                              }}
                               onBlur={(e) => {
                                 handleCellBlur(e);
-                                if (colKey !== 'order_number') {
-                                  handleCellChange(row.id, colKey, e.target.value);
-                                }
+                                // Trigger update on blur for all fields including order_number
+                                handleCellChange(row.id, colKey, e.target.value);
                               }}
                               onKeyDown={(e) => handleKeyDown(e, row.id, colKey, e.target.value)}
                               className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
