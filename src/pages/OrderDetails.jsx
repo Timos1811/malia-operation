@@ -21,7 +21,19 @@ export default function OrderDetails() {
       
       try {
         setLoading(true);
-        const results = await base44.entities.TableData.filter({ order_number: trimmedOrderNumber });
+        // Try filtering first
+        let results = await base44.entities.TableData.filter({ order_number: trimmedOrderNumber });
+        
+        // Fallback: if not found via filter, try listing recent items and searching (in case of indexing delay or format mismatch)
+        if (!results || results.length === 0) {
+            console.log('Filter failed, trying list fallback for:', trimmedOrderNumber);
+            const allItems = await base44.entities.TableData.list('-created_date', 1000);
+            const found = allItems.find(item => String(item.order_number).trim() === trimmedOrderNumber);
+            if (found) {
+                results = [found];
+            }
+        }
+
         if (results && results.length > 0) {
           setData(results[0]);
         } else {
