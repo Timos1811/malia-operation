@@ -59,6 +59,14 @@ export default function NewSale() {
           .filter(Boolean);
 
         try {
+          // בדיקה אם הצמיד כבר קיים במערכת
+          const existingWristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId });
+          if (existingWristbands && existingWristbands.length > 0) {
+            toast.error(`צמיד ${nfcId} כבר קיים במערכת!`);
+            setIsScanning(false);
+            return;
+          }
+
           // שים לב: שיניתי ל-Wristband (בדיוק לפי ה-Schema שלך)
           await base44.entities.Wristband.create({
             nfc_id: nfcId,
@@ -114,20 +122,7 @@ export default function NewSale() {
       return base44.entities.TableData.create(data);
     },
     onSuccess: () => {
-      toast.success('ההזמנה נשמרה בהצלחה! המסך אופס.');
-      // איפוס הטופס והסטייט במקום ניווט
-      setFormData({
-        orderNumber: '',
-        departureDate: '',
-        customerCount: '1',
-        nights: '',
-        gender: '',
-        hotel: ''
-      });
-      setSelectedAttractions(new Set());
-      setScannedCount(0);
-      setIsScanning(false);
-      window.scrollTo(0, 0);
+      navigate(createPageUrl('OrderSuccess'));
     },
     onError: (err) => toast.error('שגיאה בשמירת הזמנה: ' + err.message)
   });
