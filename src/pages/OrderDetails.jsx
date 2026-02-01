@@ -82,6 +82,17 @@ export default function OrderDetails() {
     );
   }
 
+  // Determine company based on order number prefix
+  const getCompany = (num) => {
+    const s = String(num).trim();
+    if (s.startsWith('5')) return 'קשרי תעופה';
+    if (s.startsWith('1')) return 'נטו פאן';
+    if (s.length > 0) return 'כספר';
+    return '-';
+  };
+  
+  const companyName = getCompany(orderNumber);
+
   // Helper to render a detail row
   const DetailRow = ({ icon: Icon, label, value }) => (
     <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
@@ -124,13 +135,13 @@ export default function OrderDetails() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 grid gap-4 md:grid-cols-2">
-                    <DetailRow icon={User} label="שם הלקוח" value={data.customer} />
                     <DetailRow icon={Hash} label="מספר הזמנה" value={orderNumber} />
-                    <DetailRow icon={Users} label="הרכב" value={data.gender} />
+                    <DetailRow icon={Users} label="הרכב" value={data.customer} />
+                    <DetailRow icon={User} label="מגדר" value={data.gender} />
                     <DetailRow icon={Calendar} label="תאריך יציאה" value={data.departureDate} />
                     <DetailRow icon={Calendar} label="לילות" value={data.nights} />
                     <DetailRow icon={Building2} label="מלון" value={data.hotel} />
-                    <DetailRow icon={Briefcase} label="חברה" value={data.company} />
+                    <DetailRow icon={Briefcase} label="חברה" value={companyName} />
                 </CardContent>
             </Card>
 
