@@ -138,7 +138,7 @@ export default function OrderDetails() {
                     <DetailRow icon={Hash} label="מספר הזמנה" value={orderNumber} />
                     <DetailRow icon={Users} label="הרכב" value={data.customer} />
                     <DetailRow icon={User} label="מגדר" value={data.gender} />
-                    <DetailRow icon={Calendar} label="תאריך יציאה" value={data.departureDate} />
+                    <DetailRow icon={Calendar} label="תאריך עזיבה" value={data.departureDate} />
                     <DetailRow icon={Calendar} label="לילות" value={data.nights} />
                     <DetailRow icon={Building2} label="מלון" value={data.hotel} />
                     <DetailRow icon={Briefcase} label="חברה" value={companyName} />
