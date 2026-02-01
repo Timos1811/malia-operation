@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Calculator, Save, Calendar, Users, Hotel, Moon, Hash, User, PartyPopper } from "lucide-react";
+import { Loader2, Save, Calendar, Users, Hotel, Moon, Hash, User, PartyPopper, Radio } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from '../utils';
 
@@ -23,12 +23,57 @@ export default function NewSale() {
     hotel: ''
   });
   const [selectedAttractions, setSelectedAttractions] = useState(new Set());
+  const [isScanning, setIsScanning] = useState(false);
 
   // Fetch available attractions (parties)
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
     queryKey: ['attractions'],
     queryFn: () => base44.entities.Attraction.list(),
   });
+
+  // --- לוגיקת NFC ---
+  const handleNFCScan = async () => {
+    if (!('NDEFReader' in window)) {
+      toast.error("NFC לא נתמך בדפדפן זה. השתמש בכרום באנדרואיד.");
+      return;
+    }
+
+    if (!formData.orderNumber) {
+      toast.error("נא להזין מספר הזמנה לפני סריקת צמיד");
+      return;
+    }
+
+    setIsScanning(true);
+    try {
+      const ndef = new NDEFReader();
+      await ndef.scan();
+      toast.info("הסורק פעיל. קרב צמיד לגב המכשיר...");
+
+      ndef.onreading = async (event) => {
+        const nfcId = event.serialNumber;
+
+        // שליפת שמות המסיבות שנבחרו מתוך רשימת ה-Attractions
+        const selectedNames = Array.from(selectedAttractions)
+          .map(id => attractions.find(a => a.id === id)?.name)
+          .filter(Boolean);
+
+        // שמירה לישות Wristbands
+        await base44.entities.Wristbands.create({
+          nfc_id: nfcId,
+          order_number: formData.orderNumber,
+          customer_name: `הזמנה ${formData.orderNumber}`,
+          allowed_events: selectedNames,
+          created_at: new Date().toISOString()
+        });
+
+        toast.success(`צמיד ${nfcId} שויך בהצלחה!`);
+      };
+    } catch (error) {
+      console.error(error);
+      toast.error("שגיאה בסריקה: " + error.message);
+      setIsScanning(false);
+    }
+  };
 
   // Calculate prices
   const { totalPrice, pricePerPerson } = useMemo(() => {
@@ -70,45 +115,37 @@ export default function NewSale() {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     
     if (!formData.orderNumber || !formData.departureDate) {
       toast.error('נא למלא שדות חובה');
       return;
     }
 
-    // Determine company based on order number prefix (logic copied from SavedData)
     let company = '';
     const trimmedOrder = formData.orderNumber.trim();
     if (trimmedOrder.startsWith('5')) company = 'קשרי תעופה';
     else if (trimmedOrder.startsWith('1')) company = 'נטו פאן';
     else if (trimmedOrder.length > 0) company = 'כספר';
 
-    // Construct the description of selected parties
-    const selectedNames = Array.from(selectedAttractions)
-      .map(id => attractions.find(a => a.id === id)?.name)
-      .filter(Boolean)
-      .join(', ');
-
     const payload = {
       order_number: trimmedOrder,
       departure_date: formData.departureDate,
-      customer: formData.customerCount, // Saving count as customer string
+      customer: formData.customerCount,
       nights: formData.nights,
       gender: formData.gender,
       hotel: formData.hotel,
       company: company,
       requested_amount: totalPrice.toString(),
-      eur_amount: totalPrice.toString(), // Assuming payment is in EUR for parties
-      eur_status: "0" // Initial status
+      eur_amount: totalPrice.toString(),
+      eur_status: "0"
     };
 
     createSaleMutation.mutate(payload);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-72" dir="rtl">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-50 pb-80" dir="rtl">
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-4 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
           <PartyPopper className="w-5 h-5 text-indigo-600" />
@@ -117,15 +154,12 @@ export default function NewSale() {
       </div>
 
       <div className="p-4 max-w-md mx-auto space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* Order Details Card */}
+        <form className="space-y-6">
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="pb-3 bg-slate-50/50 border-b border-slate-100">
               <CardTitle className="text-lg text-slate-700">פרטי הזמנה</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
-              
               <div className="space-y-2">
                 <Label htmlFor="orderNumber" className="flex items-center gap-1">
                   <Hash className="w-4 h-4 text-slate-400" /> מספר הזמנה
@@ -152,19 +186,18 @@ export default function NewSale() {
                     onChange={(e) => setFormData({...formData, departureDate: e.target.value})}
                   />
                 </div>
-
                 <div className="space-y-2">
-                    <Label htmlFor="customerCount" className="flex items-center gap-1">
-                      <Users className="w-4 h-4 text-slate-400" /> כמות לקוחות
-                    </Label>
-                    <Input
-                      id="customerCount"
-                      type="number"
-                      min="1"
-                      value={formData.customerCount}
-                      onChange={(e) => setFormData({...formData, customerCount: e.target.value})}
-                    />
-                  </div>
+                  <Label htmlFor="customerCount" className="flex items-center gap-1">
+                    <Users className="w-4 h-4 text-slate-400" /> כמות לקוחות
+                  </Label>
+                  <Input
+                    id="customerCount"
+                    type="number"
+                    min="1"
+                    value={formData.customerCount}
+                    onChange={(e) => setFormData({...formData, customerCount: e.target.value})}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -179,7 +212,6 @@ export default function NewSale() {
                     onChange={(e) => setFormData({...formData, nights: e.target.value})}
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="gender" className="flex items-center gap-1">
                     <User className="w-4 h-4 text-slate-400" /> מגדר
@@ -188,9 +220,7 @@ export default function NewSale() {
                     value={formData.gender} 
                     onValueChange={(value) => setFormData({...formData, gender: value})}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="בחר..." />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="בחר..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="גברים">גברים</SelectItem>
                       <SelectItem value="נשים">נשים</SelectItem>
@@ -211,11 +241,9 @@ export default function NewSale() {
                   onChange={(e) => setFormData({...formData, hotel: e.target.value})}
                 />
               </div>
-
             </CardContent>
           </Card>
 
-          {/* Attractions Selection */}
           <Card className="border-slate-200 shadow-sm">
              <CardHeader className="pb-3 bg-slate-50/50 border-b border-slate-100">
               <CardTitle className="text-lg text-slate-700">בחירת מסיבות / אירועים</CardTitle>
@@ -251,40 +279,50 @@ export default function NewSale() {
                       </div>
                     </div>
                   ))}
-                  {attractions.length === 0 && (
-                     <p className="text-center text-slate-500 py-2">לא נמצאו מסיבות במערכת</p>
-                  )}
                 </div>
               )}
             </CardContent>
           </Card>
-
         </form>
       </div>
 
-      {/* Sticky Bottom Footer for Total & Submit */}
+      {/* Footer עם לוגיקת סריקה ושמירה */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="max-w-md mx-auto flex flex-col gap-3">
-          <div className="space-y-2 px-2">
-            <div className="flex justify-between items-center text-slate-600">
-              <div className="text-sm">מחיר לאדם:</div>
-              <div className="font-medium">€{pricePerPerson.toFixed(2)}</div>
-            </div>
-            <div className="flex justify-between items-center border-t border-slate-100 pt-2">
-              <div className="text-sm font-medium text-slate-900">סה"כ לתשלום:</div>
-              <div className="text-2xl font-bold text-indigo-600 flex items-center gap-1">
-                <span>€</span>
-                {totalPrice.toFixed(2)}
-              </div>
+          
+          {/* כפתור סריקה חדש */}
+          <Button 
+            type="button"
+            variant="outline"
+            size="lg"
+            className={`w-full py-6 border-2 transition-all ${isScanning ? 'border-green-500 bg-green-50' : 'border-indigo-200 text-indigo-700'}`}
+            onClick={() => handleNFCScan()}
+            disabled={isScanning}
+          >
+            {isScanning ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin ml-2 text-green-600" />
+                <span className="text-green-700 font-bold">הצמד צמיד כעת...</span>
+              </>
+            ) : (
+              <>
+                <Radio className="w-5 h-5 ml-2" />
+                צימוד צמיד NFC
+              </>
+            )}
+          </Button>
+
+          <div className="flex justify-between items-center border-t border-slate-100 pt-2 px-2">
+            <div className="text-sm font-medium text-slate-900">סה"כ לתשלום:</div>
+            <div className="text-2xl font-bold text-indigo-600 flex items-center gap-1">
+              <span>€</span>{totalPrice.toFixed(2)}
             </div>
           </div>
-          <div className="text-xs text-slate-400 text-center mb-1">
-            ( {selectedAttractions.size} מסיבות × {formData.customerCount || 0} לקוחות )
-          </div>
+
           <Button 
             size="lg" 
             className="w-full bg-slate-900 hover:bg-slate-800 text-lg py-6 shadow-lg"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={createSaleMutation.isPending}
           >
             {createSaleMutation.isPending ? (
@@ -296,7 +334,6 @@ export default function NewSale() {
           </Button>
         </div>
       </div>
-
     </div>
   );
 }
