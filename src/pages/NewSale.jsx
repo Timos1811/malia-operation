@@ -107,7 +107,7 @@ export default function NewSale() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
+    <div className="min-h-screen bg-slate-50 pb-72" dir="rtl">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-4 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
