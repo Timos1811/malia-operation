@@ -25,21 +25,21 @@ export default function NewSale() {
   const [selectedAttractions, setSelectedAttractions] = useState(new Set());
   const [isScanning, setIsScanning] = useState(false);
 
-  // Fetch available attractions (parties)
+  // שליפת המסיבות הקיימות
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
     queryKey: ['attractions'],
     queryFn: () => base44.entities.Attraction.list(),
   });
 
-  // --- לוגיקת NFC ---
+  // --- פונקציית סריקה עם הגנות ודיבוג ---
   const handleNFCScan = async () => {
     if (!('NDEFReader' in window)) {
-      toast.error("NFC לא נתמך בדפדפן זה. השתמש בכרום באנדרואיד.");
+      alert("NFC לא נתמך בדפדפן זה. חובה להשתמש בכרום באנדרואיד!");
       return;
     }
 
     if (!formData.orderNumber) {
-      toast.error("נא להזין מספר הזמנה לפני סריקת צמיד");
+      toast.error("נא להזין מספר הזמנה לפני הסריקה");
       return;
     }
 
@@ -47,101 +47,87 @@ export default function NewSale() {
     try {
       const ndef = new NDEFReader();
       await ndef.scan();
-      toast.info("הסורק פעיל. קרב צמיד לגב המכשיר...");
+      toast.info("הסורק פעיל. קרב את הצמיד לגב הטלפון...");
 
       ndef.onreading = async (event) => {
         const nfcId = event.serialNumber;
+        // alert("צמיד זוהה! מספר: " + nfcId); // הודעת בדיקה
 
-        // שליפת שמות המסיבות שנבחרו מתוך רשימת ה-Attractions
         const selectedNames = Array.from(selectedAttractions)
           .map(id => attractions.find(a => a.id === id)?.name)
           .filter(Boolean);
 
-        // שמירה לישות Wristbands
-        await base44.entities.Wristbands.create({
-          nfc_id: nfcId,
-          order_number: formData.orderNumber,
-          customer_name: `הזמנה ${formData.orderNumber}`,
-          allowed_events: selectedNames,
-          created_at: new Date().toISOString()
-        });
+        try {
+          // שים לב: וודא ב-Base44 שהישות נקראת Wristbands (W גדולה)
+          // ושהשדות הם nfc_id, order_number (אותיות קטנות עם קו תחתון)
+          await base44.entities.Wristbands.create({
+            nfc_id: nfcId,
+            order_number: formData.orderNumber,
+            customer_name: `הזמנה ${formData.orderNumber}`,
+            allowed_events: selectedNames,
+            created_at: new Date().toISOString()
+          });
 
-        toast.success(`צמיד ${nfcId} שויך בהצלחה!`);
+          toast.success(`צמיד ${nfcId} שויך בהצלחה!`);
+          setIsScanning(false);
+        } catch (saveError) {
+          console.error("Save error:", saveError);
+          alert("שגיאה בשמירה ל-DB: " + saveError.message);
+          setIsScanning(false);
+        }
       };
     } catch (error) {
       console.error(error);
-      toast.error("שגיאה בסריקה: " + error.message);
+      toast.error("שגיאה בהפעלת הסורק: " + error.message);
       setIsScanning(false);
     }
   };
 
-  // Calculate prices
   const { totalPrice, pricePerPerson } = useMemo(() => {
     const customerCount = parseInt(formData.customerCount) || 0;
     let attractionsSum = 0;
-    
-    selectedAttractions.forEach(attractionId => {
-      const attraction = attractions.find(a => a.id === attractionId);
-      if (attraction) {
-        attractionsSum += (attraction.price_eur || 0);
-      }
+    selectedAttractions.forEach(id => {
+      const att = attractions.find(a => a.id === id);
+      if (att) attractionsSum += (att.price_eur || 0);
     });
-
-    return {
-      totalPrice: attractionsSum * customerCount,
-      pricePerPerson: attractionsSum
-    };
+    return { totalPrice: attractionsSum * customerCount, pricePerPerson: attractionsSum };
   }, [selectedAttractions, formData.customerCount, attractions]);
 
   const createSaleMutation = useMutation({
     mutationFn: (data) => base44.entities.TableData.create(data),
     onSuccess: () => {
-      toast.success('ההזמנה נוצרה בהצלחה!');
+      toast.success('ההזמנה נשמרה בטבלת המכירות!');
       navigate(createPageUrl('SavedData'));
     },
-    onError: (error) => {
-      toast.error('שגיאה ביצירת ההזמנה: ' + error.message);
-    }
+    onError: (err) => toast.error('שגיאה בשמירת המכירה: ' + err.message)
   });
 
-  const handleToggleAttraction = (attractionId) => {
-    const newSelected = new Set(selectedAttractions);
-    if (newSelected.has(attractionId)) {
-      newSelected.delete(attractionId);
-    } else {
-      newSelected.add(attractionId);
-    }
-    setSelectedAttractions(newSelected);
+  const handleToggleAttraction = (id) => {
+    const next = new Set(selectedAttractions);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedAttractions(next);
   };
 
-  const handleSubmit = (e) => {
-    if (e) e.preventDefault();
-    
+  const handleSubmit = () => {
     if (!formData.orderNumber || !formData.departureDate) {
       toast.error('נא למלא שדות חובה');
       return;
     }
-
-    let company = '';
     const trimmedOrder = formData.orderNumber.trim();
-    if (trimmedOrder.startsWith('5')) company = 'קשרי תעופה';
-    else if (trimmedOrder.startsWith('1')) company = 'נטו פאן';
-    else if (trimmedOrder.length > 0) company = 'כספר';
+    let company = trimmedOrder.startsWith('5') ? 'קשרי תעופה' : trimmedOrder.startsWith('1') ? 'נטו פאן' : 'כספר';
 
-    const payload = {
+    createSaleMutation.mutate({
       order_number: trimmedOrder,
       departure_date: formData.departureDate,
       customer: formData.customerCount,
       nights: formData.nights,
       gender: formData.gender,
       hotel: formData.hotel,
-      company: company,
+      company,
       requested_amount: totalPrice.toString(),
       eur_amount: totalPrice.toString(),
       eur_status: "0"
-    };
-
-    createSaleMutation.mutate(payload);
+    });
   };
 
   return (
@@ -149,188 +135,86 @@ export default function NewSale() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-4 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
           <PartyPopper className="w-5 h-5 text-indigo-600" />
-          מכירה חדשה
+          מכירה וצימוד צמידים
         </h1>
       </div>
 
       <div className="p-4 max-w-md mx-auto space-y-6">
-        <form className="space-y-6">
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="pb-3 bg-slate-50/50 border-b border-slate-100">
-              <CardTitle className="text-lg text-slate-700">פרטי הזמנה</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="pb-3 bg-slate-50/50 border-b border-slate-100">
+            <CardTitle className="text-lg text-slate-700">פרטי הזמנה</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="space-y-2">
+              <Label><Hash className="w-4 h-4 inline ml-1" /> מספר הזמנה</Label>
+              <Input
+                type="number"
+                value={formData.orderNumber}
+                onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
+                placeholder="הכנס מספר הזמנה..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="orderNumber" className="flex items-center gap-1">
-                  <Hash className="w-4 h-4 text-slate-400" /> מספר הזמנה
-                </Label>
-                <Input
-                  id="orderNumber"
-                  type="number"
-                  placeholder="הכנס מספר הזמנה..."
-                  value={formData.orderNumber}
-                  onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
-                  className="text-lg"
-                />
+                <Label><Calendar className="w-4 h-4 inline ml-1" /> תאריך עזיבה</Label>
+                <Input type="date" value={formData.departureDate} onChange={(e) => setFormData({...formData, departureDate: e.target.value})} />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="departureDate" className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4 text-slate-400" /> תאריך עזיבה
-                  </Label>
-                  <Input
-                    id="departureDate"
-                    type="date"
-                    value={formData.departureDate}
-                    onChange={(e) => setFormData({...formData, departureDate: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customerCount" className="flex items-center gap-1">
-                    <Users className="w-4 h-4 text-slate-400" /> כמות לקוחות
-                  </Label>
-                  <Input
-                    id="customerCount"
-                    type="number"
-                    min="1"
-                    value={formData.customerCount}
-                    onChange={(e) => setFormData({...formData, customerCount: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nights" className="flex items-center gap-1">
-                    <Moon className="w-4 h-4 text-slate-400" /> לילות
-                  </Label>
-                  <Input
-                    id="nights"
-                    type="number"
-                    value={formData.nights}
-                    onChange={(e) => setFormData({...formData, nights: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gender" className="flex items-center gap-1">
-                    <User className="w-4 h-4 text-slate-400" /> מגדר
-                  </Label>
-                  <Select 
-                    value={formData.gender} 
-                    onValueChange={(value) => setFormData({...formData, gender: value})}
-                  >
-                    <SelectTrigger><SelectValue placeholder="בחר..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="גברים">גברים</SelectItem>
-                      <SelectItem value="נשים">נשים</SelectItem>
-                      <SelectItem value="מעורב">מעורב</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <Label htmlFor="hotel" className="flex items-center gap-1">
-                  <Hotel className="w-4 h-4 text-slate-400" /> מלון
-                </Label>
-                <Input
-                  id="hotel"
-                  placeholder="שם המלון..."
-                  value={formData.hotel}
-                  onChange={(e) => setFormData({...formData, hotel: e.target.value})}
-                />
+                <Label><Users className="w-4 h-4 inline ml-1" /> לקוחות</Label>
+                <Input type="number" value={formData.customerCount} onChange={(e) => setFormData({...formData, customerCount: e.target.value})} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="space-y-2">
+              <Label><Hotel className="w-4 h-4 inline ml-1" /> מלון</Label>
+              <Input placeholder="שם המלון..." value={formData.hotel} onChange={(e) => setFormData({...formData, hotel: e.target.value})} />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="border-slate-200 shadow-sm">
-             <CardHeader className="pb-3 bg-slate-50/50 border-b border-slate-100">
-              <CardTitle className="text-lg text-slate-700">בחירת מסיבות / אירועים</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              {isLoadingAttractions ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="pb-3 bg-slate-50/50 border-b border-slate-100">
+            <CardTitle className="text-lg text-slate-700">בחירת מסיבות</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {isLoadingAttractions ? <Loader2 className="animate-spin mx-auto" /> : 
+              attractions.map(att => (
+                <div key={att.id} className={`flex items-center gap-3 p-3 rounded-lg border ${selectedAttractions.has(att.id) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200'}`}>
+                  <Checkbox checked={selectedAttractions.has(att.id)} onCheckedChange={() => handleToggleAttraction(att.id)} />
+                  <div className="flex-1 flex justify-between cursor-pointer" onClick={() => handleToggleAttraction(att.id)}>
+                    <span className="font-medium">{att.name}</span>
+                    <span className="font-bold">€{att.price_eur}</span>
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {attractions.map((attraction) => (
-                    <div 
-                      key={attraction.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                        selectedAttractions.has(attraction.id) 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <Checkbox 
-                        checked={selectedAttractions.has(attraction.id)}
-                        onCheckedChange={() => handleToggleAttraction(attraction.id)}
-                      />
-                      <div 
-                        className="flex items-center justify-between flex-1 cursor-pointer"
-                        onClick={() => handleToggleAttraction(attraction.id)}
-                      >
-                        <span className="font-medium text-slate-700">{attraction.name}</span>
-                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-sm font-semibold">
-                          €{attraction.price_eur}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </form>
+              ))
+            }
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Footer עם לוגיקת סריקה ושמירה */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="max-w-md mx-auto flex flex-col gap-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
+        <div className="max-w-md mx-auto space-y-3">
           
-          {/* כפתור סריקה חדש */}
+          {/* כפתור ה-NFC - וודא שאתה לוחץ עליו לפני הצמדת הצמיד */}
           <Button 
-            type="button"
             variant="outline"
-            size="lg"
-            className={`w-full py-6 border-2 transition-all ${isScanning ? 'border-green-500 bg-green-50' : 'border-indigo-200 text-indigo-700'}`}
-            onClick={() => handleNFCScan()}
+            className={`w-full py-8 text-lg border-2 ${isScanning ? 'border-green-500 bg-green-50 animate-pulse' : 'border-indigo-200'}`}
+            onClick={handleNFCScan}
             disabled={isScanning}
           >
-            {isScanning ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin ml-2 text-green-600" />
-                <span className="text-green-700 font-bold">הצמד צמיד כעת...</span>
-              </>
-            ) : (
-              <>
-                <Radio className="w-5 h-5 ml-2" />
-                צימוד צמיד NFC
-              </>
-            )}
+            {isScanning ? "ממתין לסריקה... הצמד צמיד" : "שלב 1: צימוד צמיד NFC"}
           </Button>
 
-          <div className="flex justify-between items-center border-t border-slate-100 pt-2 px-2">
-            <div className="text-sm font-medium text-slate-900">סה"כ לתשלום:</div>
-            <div className="text-2xl font-bold text-indigo-600 flex items-center gap-1">
-              <span>€</span>{totalPrice.toFixed(2)}
-            </div>
+          <div className="flex justify-between items-center px-2 py-1 bg-slate-50 rounded border">
+            <span className="text-sm font-bold">סה"כ לתשלום:</span>
+            <span className="text-xl font-black text-indigo-600">€{totalPrice.toFixed(2)}</span>
           </div>
 
           <Button 
-            size="lg" 
-            className="w-full bg-slate-900 hover:bg-slate-800 text-lg py-6 shadow-lg"
-            onClick={() => handleSubmit()}
+            className="w-full bg-slate-900 py-6 text-lg"
+            onClick={handleSubmit}
             disabled={createSaleMutation.isPending}
           >
-            {createSaleMutation.isPending ? (
-              <Loader2 className="w-5 h-5 animate-spin ml-2" />
-            ) : (
-              <Save className="w-5 h-5 ml-2" />
-            )}
-            שמור הזמנה
+            שלב 2: שמור הזמנה במערכת
           </Button>
         </div>
       </div>
