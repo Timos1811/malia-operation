@@ -25,11 +25,15 @@ export default function AllExpenses() {
   const { data: expenses = [], isLoading: isLoadingExpenses } = useQuery({
     queryKey: ['expenses'],
     queryFn: () => base44.entities.Expense.list('-created_date'),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery({
     queryKey: ['events'],
     queryFn: () => base44.entities.ExpenseEvent.list(),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = isLoadingExpenses || isLoadingEvents;

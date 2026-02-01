@@ -15,6 +15,8 @@ export default function Live() {
   const { data: tableData = [], isLoading } = useQuery({
     queryKey: ['tableData'],
     queryFn: () => base44.entities.TableData.list('-created_date', 100), // Get recent 100 or all if needed
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const updateMutation = useMutation({

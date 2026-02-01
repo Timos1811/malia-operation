@@ -8,11 +8,15 @@ export default function BankTable() {
   const { data: incomeData = [], isLoading: isLoadingIncome } = useQuery({
     queryKey: ['tableDataAll'],
     queryFn: () => base44.entities.TableData.list('-created_date', 1000),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: expenseData = [], isLoading: isLoadingExpenses } = useQuery({
     queryKey: ['expensesAll'],
     queryFn: () => base44.entities.Expense.list('-expense_date', 1000),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const summary = useMemo(() => {
