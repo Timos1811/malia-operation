@@ -105,7 +105,14 @@ export default function NewSale() {
 
   // שמירת ההזמנה הכללית (TableData)
   const createSaleMutation = useMutation({
-    mutationFn: (data) => base44.entities.TableData.create(data),
+    mutationFn: async (data) => {
+      // בדיקה אם ההזמנה כבר קיימת (למנוע כפילויות)
+      const existing = await base44.entities.TableData.filter({ order_number: data.order_number });
+      if (existing && existing.length > 0) {
+        throw new Error("מספר הזמנה זה כבר קיים במערכת!");
+      }
+      return base44.entities.TableData.create(data);
+    },
     onSuccess: () => {
       toast.success('ההזמנה נשמרה בהצלחה! המסך אופס.');
       // איפוס הטופס והסטייט במקום ניווט
@@ -120,6 +127,7 @@ export default function NewSale() {
       setSelectedAttractions(new Set());
       setScannedCount(0);
       setIsScanning(false);
+      window.scrollTo(0, 0);
     },
     onError: (err) => toast.error('שגיאה בשמירת הזמנה: ' + err.message)
   });
