@@ -227,24 +227,25 @@ export default function NewSale() {
                   {attractions.map((attraction) => (
                     <div 
                       key={attraction.id}
-                      onClick={() => handleToggleAttraction(attraction.id)}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
                         selectedAttractions.has(attraction.id) 
                           ? 'border-indigo-500 bg-indigo-50' 
                           : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Checkbox 
-                          checked={selectedAttractions.has(attraction.id)}
-                          onCheckedChange={() => handleToggleAttraction(attraction.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                      <Checkbox 
+                        checked={selectedAttractions.has(attraction.id)}
+                        onCheckedChange={() => handleToggleAttraction(attraction.id)}
+                      />
+                      <div 
+                        className="flex items-center justify-between flex-1 cursor-pointer"
+                        onClick={() => handleToggleAttraction(attraction.id)}
+                      >
                         <span className="font-medium text-slate-700">{attraction.name}</span>
+                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-sm font-semibold">
+                          €{attraction.price_eur}
+                        </span>
                       </div>
-                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-sm font-semibold">
-                        €{attraction.price_eur}
-                      </span>
                     </div>
                   ))}
                   {attractions.length === 0 && (

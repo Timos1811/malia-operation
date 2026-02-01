@@ -133,6 +133,7 @@ export default function Layout({ children, currentPageName }) {
             <div className="w-px h-8 bg-slate-200 mx-2 self-center" />
             <Link
               to={createPageUrl('NewSale')}
+              target="_blank"
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
                 currentPageName === 'NewSale'
                   ? 'bg-slate-900 text-white shadow-lg'
