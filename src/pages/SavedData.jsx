@@ -44,6 +44,7 @@ const COLUMN_KEYS = [
 export default function SavedData() {
     const [editingCell, setEditingCell] = useState(null);
     const [fetchingRows, setFetchingRows] = useState(new Set());
+    const attemptedRows = useRef(new Set());
     const queryClient = useQueryClient();
   
   const { data: savedRows = [], isLoading } = useQuery({
@@ -56,7 +57,14 @@ export default function SavedData() {
     const processRows = async () => {
       if (savedRows && savedRows.length > 0) {
         for (const row of savedRows) {
-          if (row.order_number?.trim() && row.order_number.trim().length >= 7 && !row.customer) {
+          // Check if we already attempted to fetch this row in this session to avoid loops
+          const shouldFetch = row.order_number?.trim() && 
+                            row.order_number.trim().length >= 7 && 
+                            !row.customer && 
+                            !attemptedRows.current.has(row.id);
+
+          if (shouldFetch) {
+            attemptedRows.current.add(row.id);
             await fetchAndUpdateOrder(row.id, row.order_number);
             // Add a small delay between requests to avoid rate limits
             await new Promise(resolve => setTimeout(resolve, 500));
