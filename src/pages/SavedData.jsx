@@ -309,6 +309,7 @@ export default function SavedData() {
                                 <Link 
                                   to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`}
                                   onClick={(e) => e.stopPropagation()}
+                                  onMouseDown={(e) => e.stopPropagation()}
                                   className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
                                 >
                                   {row[colKey]}
