@@ -17,13 +17,16 @@ export default function OrderDetails() {
     async function fetchData() {
       if (!orderNumber) return;
       
+      const trimmedOrderNumber = orderNumber.trim();
+      
       try {
         setLoading(true);
-        const results = await base44.entities.TableData.filter({ order_number: orderNumber });
+        const results = await base44.entities.TableData.filter({ order_number: trimmedOrderNumber });
         if (results && results.length > 0) {
           setData(results[0]);
         } else {
-          setError('ההזמנה לא נמצאה בנתונים השמורים');
+          console.log('Order not found:', trimmedOrderNumber);
+          setError(`הזמנה ${trimmedOrderNumber} לא נמצאה בנתונים השמורים`);
         }
       } catch (err) {
         console.error(err);
