@@ -63,6 +63,18 @@ export default function Live() {
       .filter(row => row && today <= row.parsedDepartureDate);
   }, [tableData]);
 
+  const stats = useMemo(() => {
+    const genderDist = {};
+    liveGroups.forEach(g => {
+      const gender = g.gender ? g.gender.trim() : 'לא צוין';
+      genderDist[gender] = (genderDist[gender] || 0) + 1;
+    });
+    return {
+      total: liveGroups.length,
+      genderDist
+    };
+  }, [liveGroups]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -77,6 +89,32 @@ export default function Live() {
         <div className="flex items-center gap-3">
             <Users className="w-8 h-8 text-slate-600" />
             <h1 className="text-3xl font-bold text-slate-800">לייב - קבוצות ביעד</h1>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-500">סה״כ קבוצות ביעד</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-4xl font-bold text-slate-800">{stats.total}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-500">התפלגות מגדר</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        {Object.entries(stats.genderDist).map(([gender, count]) => (
+                            <div key={gender} className="flex justify-between items-center text-sm border-b border-slate-100 last:border-0 pb-1 last:pb-0">
+                                <span className="text-slate-600">{gender}</span>
+                                <Badge variant="secondary" className="font-mono">{count}</Badge>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
         <Card>

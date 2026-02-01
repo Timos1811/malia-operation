@@ -52,11 +52,11 @@ import AllExpenses from './pages/AllExpenses';
 import BankTable from './pages/BankTable';
 import CreateExpense from './pages/CreateExpense';
 import EventsAndAttractions from './pages/EventsAndAttractions';
+import Live from './pages/Live';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import Live from './pages/Live';
 import __Layout from './Layout.jsx';
 
 
@@ -66,11 +66,11 @@ export const PAGES = {
     "BankTable": BankTable,
     "CreateExpense": CreateExpense,
     "EventsAndAttractions": EventsAndAttractions,
+    "Live": Live,
     "ReturnedToIsrael": ReturnedToIsrael,
     "SavedData": SavedData,
     "Table": Table,
     "Tasks": Tasks,
-    "Live": Live,
 }
 
 export const pagesConfig = {
