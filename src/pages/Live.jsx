@@ -68,12 +68,12 @@ export default function Live() {
     const genderDist = {};
     
     liveGroups.forEach(g => {
-      // Calculate customers count based on names separator
-      const names = g.customer ? g.customer.split(/,|\+|&|\n| ו/).filter(n => n.trim().length > 1) : [];
-      totalCustomers += Math.max(names.length, 1);
+      // User specified to use the number in the customer column
+      const count = parseInt(g.customer) || 0;
+      totalCustomers += count;
 
       const gender = g.gender ? g.gender.trim() : 'לא צוין';
-      genderDist[gender] = (genderDist[gender] || 0) + 1;
+      genderDist[gender] = (genderDist[gender] || 0) + count;
     });
 
     return {
