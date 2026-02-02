@@ -21,12 +21,23 @@ export default function Table() {
   // אתחול דאטה - טעינה מהלוקאל סטורג' או יצירת שורות ריקות
   const [tableData, setTableData] = useState(() => {
     const saved = localStorage.getItem('tableData');
+    let initialData = [];
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try { 
+        initialData = JSON.parse(saved); 
+      } catch (e) { console.error(e); }
     }
-    return Array.from({ length: rowsCount }, () => 
-      COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})
-    );
+    
+    // Ensure we always have at least rowsCount rows
+    if (!Array.isArray(initialData)) initialData = [];
+    if (initialData.length < rowsCount) {
+      const emptyRows = Array.from({ length: rowsCount - initialData.length }, () => 
+        COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})
+      );
+      initialData = [...initialData, ...emptyRows];
+    }
+    
+    return initialData;
   });
 
   const [fetchingRows, setFetchingRows] = useState(new Set());

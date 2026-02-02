@@ -173,9 +173,13 @@ export default function NewSale() {
       
       // If tableData is initialized with empty strings from Table.jsx defaults, find first empty
       let inserted = false;
+      // Ensure tableData is an array
+      if (!Array.isArray(tableData)) tableData = [];
+      
       for (let i = 0; i < tableData.length; i++) {
-        if (!tableData[i].order_number || tableData[i].order_number === '') {
-            tableData[i] = { ...tableData[i], ...newRow };
+        // Check if row exists and is empty/available
+        if (!tableData[i] || !tableData[i].order_number || tableData[i].order_number === '') {
+            tableData[i] = { ...(tableData[i] || {}), ...newRow };
             inserted = true;
             break;
         }
