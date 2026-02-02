@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, CheckCircle2, ShieldAlert, Lock, PartyPopper } from "lucide-react";
+import { Loader2, CheckCircle2, ShieldAlert, Lock, PartyPopper, Wifi, ScanLine, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function NewSale() {
   const [formData, setFormData] = useState({ orderNumber: '', departureDate: '', customerCount: '1' });
@@ -16,6 +17,7 @@ export default function NewSale() {
   const [scannedIds, setScannedIds] = useState(new Set()); 
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastScanned, setLastScanned] = useState(null); // { id: string, status: 'success' | 'error', message: string, owner?: string }
   
   // ה-Ref הזה הוא המפתח: הוא נשאר יציב בין רינדורים ומונע כפל ריצה
   const isCurrentlyRegistering = useRef(false);
@@ -73,12 +75,16 @@ export default function NewSale() {
           });
 
           if (existingCheck.length > 0) {
+            const existing = existingCheck[0];
             playSound('error');
-            toast.error(`הצמיד ${nfcId} כבר תפוס במערכת!`, { 
-              description: "הוא משויך להזמנה קיימת.",
-              style: { border: '2px solid red' } 
+            setLastScanned({
+              id: nfcId,
+              status: 'error',
+              message: 'הצמיד כבר בשימוש',
+              owner: `הזמנה ${existing.order_number} (${existing.customer_name || 'ללא שם'})`
             });
-            isCurrentlyRegistering.current = false; // משחרר את הנעילה כדי לאפשר סריקת צמיד *אחר*
+            toast.error(`צמיד תפוס!`, { description: `שייך להזמנה ${existing.order_number}` });
+            isCurrentlyRegistering.current = false; 
             return;
           }
 
@@ -95,10 +101,18 @@ export default function NewSale() {
           });
 
           playSound('success');
+          setLastScanned({
+            id: nfcId,
+            status: 'success',
+            message: 'צמיד שויך בהצלחה',
+            owner: `לקוח ${scannedIds.size + 1}`
+          });
           setScannedIds(prev => new Set(prev).add(nfcId));
           toast.success("צמיד שויך בהצלחה");
           
         } catch (err) {
+          console.error(err);
+          setLastScanned({ id: nfcId, status: 'error', message: 'שגיאת תקשורת' });
           toast.error("שגיאה בתקשורת");
         } finally {
           // שחרור המנעול רק בסוף התהליך
