@@ -151,8 +151,8 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Create the main Order record (TableData)
-      await base44.entities.TableData.create({
+      // Create the Pending Order record (PendingSale) instead of TableData
+      await base44.entities.PendingSale.create({
         order_number: formData.orderNumber.toString(),
         departure_date: formData.departureDate,
         customer: formData.customerCount.toString(),
