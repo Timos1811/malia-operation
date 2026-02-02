@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Loader2, RefreshCw, Save } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
@@ -16,88 +17,84 @@ const COLUMN_KEYS = [
 ];
 
 export default function PendingSales() {
-  // Initialize from LocalStorage
-  const [tableData, setTableData] = useState(() => {
-    const saved = localStorage.getItem('pendingSalesTableData');
-    return saved ? JSON.parse(saved) : [];
+  const queryClient = useQueryClient();
+  const [editingCell, setEditingCell] = useState(null);
+
+  // Fetch data from PendingSale entity
+  const { data: pendingSales = [], isLoading, isRefetching, refetch } = useQuery({
+    queryKey: ['pendingSales'],
+    queryFn: () => base44.entities.PendingSale.list(),
   });
 
-  // Save to LocalStorage on change
-  useEffect(() => {
-    localStorage.setItem('pendingSalesTableData', JSON.stringify(tableData));
-  }, [tableData]);
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.PendingSale.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['pendingSales']);
+    },
+    onError: () => toast.error("שגיאה בעדכון הנתונים")
+  });
 
-  // Process new sales from the queue
-  const processPendingQueue = useCallback(() => {
-    const pendingStr = localStorage.getItem('pending_sales_queue');
-    if (!pendingStr) return;
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.PendingSale.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['pendingSales']);
+      toast.success("השורה נמחקה");
+    },
+    onError: () => toast.error("שגיאה במחיקת השורה")
+  });
 
-    try {
-      const pendingQueue = JSON.parse(pendingStr);
-      if (Array.isArray(pendingQueue) && pendingQueue.length > 0) {
-        setTableData(prevData => {
-          // Add new items to the beginning or end? Let's add to the end.
-          // Initialize currency fields for new items
-          const newItems = pendingQueue.map(item => ({
-            ...item,
-            eur_amount: "",
-            shekel_amount: "",
-            dollar_amount: "",
-            bit_amount: "",
-            eur_status: "0"
-          }));
-          
-          toast.success(`${newItems.length} הזמנות חדשות התווספו להמתנה!`);
-          return [...prevData, ...newItems];
-        });
-
-        // Clear queue
-        localStorage.setItem('pending_sales_queue', JSON.stringify([]));
-      }
-    } catch (e) {
-      console.error("Error processing queue", e);
-    }
-  }, []);
-
-  // Listen for sync events
-  useEffect(() => {
-    const channel = new BroadcastChannel('app_sync_channel');
-    channel.onmessage = (event) => {
-      if (event.data?.type === 'NEW_SALE_ADDED') {
-        processPendingQueue();
-      }
-    };
-
-    const handleFocus = () => processPendingQueue();
-    window.addEventListener('focus', handleFocus);
-    
-    const intervalId = setInterval(processPendingQueue, 2000); // Polling
-    
-    // Initial check
-    processPendingQueue();
-
-    return () => {
-      channel.close();
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(intervalId);
-    };
-  }, [processPendingQueue]);
-
-  const handleCellChange = (rowIndex, colKey, value) => {
-    const newData = [...tableData];
-    newData[rowIndex][colKey] = value;
-    setTableData(newData);
+  const handleCellChange = (id, colKey, value, originalRow) => {
+    // Optimistic update logic could go here, but for simplicity we'll just mutate
+    // We only trigger update on blur to avoid too many requests, 
+    // but here we are in onChange, so let's just update local state if we had it, 
+    // or direct update if we want real-time (but real-time on every keystroke is bad).
+    // Better pattern: Local state for the input, update on blur.
   };
 
-  // Calculate EUR Status
-  const calculateStatus = (row) => {
+  const handleBlur = (id, colKey, value, originalRow) => {
+    if (value === originalRow[colKey]) return; // No change
+
+    const updates = { [colKey]: value };
+
+    // If currency fields changed, recalculate status
+    if (['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'requested_amount'].includes(colKey)) {
+        // We calculate based on the new value and existing values
+        const row = { ...originalRow, ...updates };
+        const status = calculateStatusText(row);
+        updates.eur_status = status;
+    }
+
+    updateMutation.mutate({ id, data: updates });
+    setEditingCell(null);
+  };
+
+  // Helper to calculate status string for DB storage/display
+  const calculateStatusText = (row) => {
     const eur = parseFloat(row.eur_amount) || 0;
     const nis = parseFloat(row.shekel_amount) || 0;
     const usd = parseFloat(row.dollar_amount) || 0;
     const bit = parseFloat(row.bit_amount) || 0;
     const req = parseFloat(row.requested_amount) || 0;
     
-    // Conversion rates (approximate, based on previous code)
+    const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+    
+    if (!row.requested_amount) return "0";
+
+    const diff = total - req;
+    if (Math.abs(diff) < 0.01) return "מאוזן";
+    return diff.toFixed(2);
+  };
+
+  const calculateStatusDisplay = (row) => {
+    // Re-calculate for display properties (color)
+    const eur = parseFloat(row.eur_amount) || 0;
+    const nis = parseFloat(row.shekel_amount) || 0;
+    const usd = parseFloat(row.dollar_amount) || 0;
+    const bit = parseFloat(row.bit_amount) || 0;
+    const req = parseFloat(row.requested_amount) || 0;
+    
     const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
     
     if (!row.requested_amount) return { text: '—', color: 'bg-slate-100 text-slate-600' };
@@ -108,11 +105,9 @@ export default function PendingSales() {
     return { text: diff.toFixed(2), color: 'bg-red-100 text-red-800' };
   };
 
-  const handleDeleteRow = (index) => {
+  const handleDeleteRow = (id) => {
     if (window.confirm('האם למחוק שורה זו?')) {
-      const newData = [...tableData];
-      newData.splice(index, 1);
-      setTableData(newData);
+      deleteMutation.mutate(id);
     }
   };
 
@@ -121,19 +116,18 @@ export default function PendingSales() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-800">מכירה בהמתנה</h1>
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
             <Button 
               variant="outline" 
-              onClick={() => {
-                processPendingQueue();
-                toast.info('בודק הזמנות חדשות...');
-              }}
+              onClick={() => refetch()}
               className="gap-2"
+              disabled={isRefetching}
             >
-              <RefreshCw className="w-4 h-4" /> בדוק הזמנות חדשות
+              <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} /> 
+              {isRefetching ? 'מרענן...' : 'רענן נתונים'}
             </Button>
-            <div className="text-slate-500 self-center">
-              {tableData.length} הזמנות ממתינות
+            <div className="text-slate-500">
+              {pendingSales.length} הזמנות ממתינות
             </div>
           </div>
         </div>
@@ -151,17 +145,24 @@ export default function PendingSales() {
               </tr>
             </thead>
             <tbody>
-              {tableData.length === 0 ? (
+              {isLoading ? (
+                  <tr>
+                    <td colSpan={COLUMNS.length + 1} className="p-8 text-center text-slate-500">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                      טוען נתונים...
+                    </td>
+                  </tr>
+              ) : pendingSales.length === 0 ? (
                 <tr>
                   <td colSpan={COLUMNS.length + 1} className="p-8 text-center text-slate-500">
                     אין מכירות בהמתנה כרגע
                   </td>
                 </tr>
               ) : (
-                tableData.map((row, rowIndex) => {
-                  const status = calculateStatus(row);
+                pendingSales.map((row) => {
+                  const status = calculateStatusDisplay(row);
                   return (
-                    <tr key={rowIndex} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
                       {COLUMN_KEYS.map((colKey) => (
                         <td key={colKey} className="px-2 py-2 border-b">
                           {colKey === 'eur_status' ? (
@@ -169,11 +170,10 @@ export default function PendingSales() {
                               {status.text}
                             </div>
                           ) : (
-                            <Input
-                              value={row[colKey] || ''}
-                              onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
-                              className="text-right h-10 border-slate-200"
-                              disabled={colKey === 'requested_amount' || colKey === 'order_number'} // Maybe read-only for some fields?
+                            <EditableCell 
+                                value={row[colKey] || ''}
+                                onBlur={(val) => handleBlur(row.id, colKey, val, row)}
+                                disabled={colKey === 'order_number' || colKey === 'requested_amount'}
                             />
                           )}
                         </td>
@@ -182,7 +182,7 @@ export default function PendingSales() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => handleDeleteRow(rowIndex)}
+                          onClick={() => handleDeleteRow(row.id)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
                           מחק
@@ -198,4 +198,24 @@ export default function PendingSales() {
       </div>
     </div>
   );
+}
+
+// Separate component to handle local state of input
+function EditableCell({ value: initialValue, onBlur, disabled }) {
+    const [value, setValue] = useState(initialValue);
+    
+    // Update local state if external value changes (e.g. refresh)
+    React.useEffect(() => {
+        setValue(initialValue);
+    }, [initialValue]);
+
+    return (
+        <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={() => onBlur(value)}
+            className={`text-right h-10 border-slate-200 ${disabled ? 'bg-slate-50 text-slate-500' : ''}`}
+            disabled={disabled}
+        />
+    );
 }

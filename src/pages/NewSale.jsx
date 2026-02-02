@@ -176,28 +176,8 @@ export default function NewSale() {
         timestamp: Date.now() 
       };
 
-      // Use a "Pending Queue" approach to avoid race conditions with Table.jsx
-      // Instead of reading/writing the main tableData (which Table.jsx might be editing),
-      // we append to a separate queue that Table.jsx consumes.
-      const pendingStr = localStorage.getItem('pending_sales_queue');
-      let pendingQueue = [];
-      try {
-        pendingQueue = pendingStr ? JSON.parse(pendingStr) : [];
-        if (!Array.isArray(pendingQueue)) pendingQueue = [];
-      } catch (e) {
-        pendingQueue = [];
-      }
-
-      pendingQueue.push(newRow);
-      localStorage.setItem('pending_sales_queue', JSON.stringify(pendingQueue));
-
-      // Notify Table.jsx to pick up the new data immediately using BroadcastChannel
-      const channel = new BroadcastChannel('app_sync_channel');
-      channel.postMessage({ type: 'NEW_SALE_ADDED' });
-      channel.close();
-
-      // Trigger storage event manually for same-window updates if needed
-      window.dispatchEvent(new Event('storage'));
+      // Create the pending sale in the database
+      await base44.entities.PendingSale.create(newRow);
       
       setIsSuccess(true);
     } catch (error) {
