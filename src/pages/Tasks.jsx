@@ -43,8 +43,12 @@ function TaskList() {
           recipient: task.order_number || '',
           amount: parseFloat(totalAmount.toFixed(2)),
           currency: 'EUR',
-          expense_date: new Date().toISOString()
+          expense_date: new Date().toISOString().split('T')[0]
         });
+
+        // Invalidate expense queries to update BankTable and AllExpenses immediately
+        queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        queryClient.invalidateQueries({ queryKey: ['expensesAll'] });
 
         // 2. Remove events from wristbands if related_events exists
         if (task.order_number && task.related_events && task.related_events.length > 0) {
