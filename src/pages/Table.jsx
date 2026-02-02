@@ -43,39 +43,90 @@ export default function Table() {
   const [fetchingRows, setFetchingRows] = useState(new Set());
   const [missingFields, setMissingFields] = useState({});
 
-  // שמירה אוטומטית ללוקאל סטורג' בכל שינוי
+  // שמירה אוטומטית ללוקאל סטורג' בכל שינוי בטבלה
   useEffect(() => {
     localStorage.setItem('tableData', JSON.stringify(tableData));
   }, [tableData]);
 
-  // האזנה לשינויים בטאבים אחרים (סנכרון בזמן אמת)
+  // פונקציה לעיבוד הזמנות חדשות מהתור
+  const processPendingQueue = useCallback(() => {
+    const pendingStr = localStorage.getItem('pending_sales_queue');
+    if (!pendingStr) return;
+
+    try {
+      const pendingQueue = JSON.parse(pendingStr);
+      if (Array.isArray(pendingQueue) && pendingQueue.length > 0) {
+        setTableData(prevData => {
+          const newData = [...prevData];
+          let itemsProcessed = 0;
+
+          // לכל פריט בתור, ננסה למצוא מקום פנוי או נוסיף שורה
+          pendingQueue.forEach(newItem => {
+            let inserted = false;
+            // ניסיון למצוא שורה ריקה
+            for (let i = 0; i < newData.length; i++) {
+               // בדיקה אם השורה ריקה (ללא מספר הזמנה)
+               if (!newData[i].order_number || newData[i].order_number === '') {
+                 newData[i] = { ...newData[i], ...newItem };
+                 inserted = true;
+                 break;
+               }
+            }
+            // אם לא נמצא מקום, נוסיף בסוף
+            if (!inserted) {
+              newData.push(newItem);
+            }
+            itemsProcessed++;
+          });
+          
+          if (itemsProcessed > 0) {
+            toast.success(`${itemsProcessed} הזמנות חדשות התווספו!`);
+          }
+          return newData;
+        });
+
+        // ניקוי התור לאחר העיבוד
+        localStorage.setItem('pending_sales_queue', JSON.stringify([]));
+      }
+    } catch (e) {
+      console.error("Error processing pending queue", e);
+    }
+  }, []);
+
+  // האזנה לאירועים וסנכרון
   useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'tableData' && e.newValue) {
-        setTableData(JSON.parse(e.newValue));
-        toast.info('הטבלה עודכנה מחדש');
+    // 1. BroadcastChannel - לעדכון מיידי באותו דפדפן
+    const channel = new BroadcastChannel('app_sync_channel');
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'NEW_SALE_ADDED') {
+        processPendingQueue();
       }
     };
+
+    // 2. Storage Event - לעדכון בין טאבים (אם ה-Broadcast נכשל או לדפדפנים ישנים)
+    const handleStorageChange = (e) => {
+      if (e.key === 'pending_sales_queue' && e.newValue && e.newValue !== '[]') {
+        processPendingQueue();
+      }
+      // עדכון כללי של הטבלה רק אם השינוי לא הגיע מהדף הנוכחי
+      // הערה: הסרנו את העדכון האגרסיבי של tableData כדי למנוע דריסת עריכות מקומיות
+      // אלא אם כן המשתמש רוצה לרענן ידנית או בטעינה ראשונית
+    };
+
     window.addEventListener('storage', handleStorageChange);
     
-    // Refresh on window focus to ensure data is synced
-    const handleFocus = () => {
-      const saved = localStorage.getItem('tableData');
-      if (saved) {
-        // Compare stringified to avoid unnecessary re-renders loop if possible, 
-        // but JSON.parse/stringify order might differ. 
-        // Simple approach: just update. React handles value equality check for primitives, but this is object.
-        // Let's trust React or the user won't notice a quick blink.
-        setTableData(JSON.parse(saved));
-      }
-    };
-    window.addEventListener('focus', handleFocus);
+    // 3. Focus - בדיקה בעת חזרה לטאב
+    window.addEventListener('focus', processPendingQueue);
+
+    // בדיקה ראשונית בטעינה
+    processPendingQueue();
 
     return () => {
+        channel.close();
         window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('focus', processPendingQueue);
     };
-  }, []);
+  }, [processPendingQueue]);
 
   // פונקציית משיכת הנתונים מגוגל שיטס - מעודכנת לעבוד עם הפונקציה החדשה ב-Base44
   const fetchOrderDetails = useCallback(async (rowIndex, orderNumber) => {

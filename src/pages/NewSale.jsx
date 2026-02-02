@@ -151,7 +151,7 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Save to LocalStorage for "Manage Income" table (Table.jsx)
+      // Create new row data
       const newRow = {
         order_number: formData.orderNumber.toString(),
         departure_date: formData.departureDate,
@@ -165,31 +165,29 @@ export default function NewSale() {
         shekel_amount: "",
         dollar_amount: "",
         bit_amount: "",
-        eur_status: "0"
+        eur_status: "0",
+        timestamp: Date.now() // Unique ID for deduplication if needed
       };
 
-      const existingDataStr = localStorage.getItem('tableData');
-      let tableData = existingDataStr ? JSON.parse(existingDataStr) : [];
-      
-      // If tableData is initialized with empty strings from Table.jsx defaults, find first empty
-      let inserted = false;
-      // Ensure tableData is an array
-      if (!Array.isArray(tableData)) tableData = [];
-      
-      for (let i = 0; i < tableData.length; i++) {
-        // Check if row exists and is empty/available
-        if (!tableData[i] || !tableData[i].order_number || tableData[i].order_number === '') {
-            tableData[i] = { ...(tableData[i] || {}), ...newRow };
-            inserted = true;
-            break;
-        }
+      // Use a "Pending Queue" approach to avoid race conditions with Table.jsx
+      // Instead of reading/writing the main tableData (which Table.jsx might be editing),
+      // we append to a separate queue that Table.jsx consumes.
+      const pendingStr = localStorage.getItem('pending_sales_queue');
+      let pendingQueue = [];
+      try {
+        pendingQueue = pendingStr ? JSON.parse(pendingStr) : [];
+        if (!Array.isArray(pendingQueue)) pendingQueue = [];
+      } catch (e) {
+        pendingQueue = [];
       }
 
-      if (!inserted) {
-        tableData.push(newRow);
-      }
+      pendingQueue.push(newRow);
+      localStorage.setItem('pending_sales_queue', JSON.stringify(pendingQueue));
 
-      localStorage.setItem('tableData', JSON.stringify(tableData));
+      // Notify Table.jsx to pick up the new data immediately using BroadcastChannel
+      const channel = new BroadcastChannel('app_sync_channel');
+      channel.postMessage({ type: 'NEW_SALE_ADDED' });
+      channel.close();
       
       setIsSuccess(true);
     } catch (error) {
