@@ -36,6 +36,8 @@ function TaskList() {
     if (newStatus === 'done' && task.task_type === 'refund') {
       try {
         const totalAmount = (task.amount || 0) * (task.people_count || 1);
+        
+        // 1. Create Expense
         await base44.entities.Expense.create({
           reason: task.refund_type === 'full' ? 'החזר מלא' : 'החזר חלקי',
           recipient: task.order_number || '',
@@ -43,10 +45,33 @@ function TaskList() {
           currency: 'EUR',
           expense_date: new Date().toISOString()
         });
-        toast.success('הוצאה נוצרה בהצלחה');
+
+        // 2. Remove events from wristbands if related_events exists
+        if (task.order_number && task.related_events && task.related_events.length > 0) {
+          const wristbands = await base44.entities.Wristband.filter({ order_number: task.order_number });
+          
+          if (wristbands.length > 0) {
+            const updates = wristbands.map(wb => {
+              const currentEvents = wb.allowed_events || [];
+              const newEvents = currentEvents.filter(event => !task.related_events.includes(event));
+              
+              if (currentEvents.length !== newEvents.length) {
+                return base44.entities.Wristband.update(wb.id, { allowed_events: newEvents });
+              }
+              return null;
+            }).filter(Boolean);
+
+            if (updates.length > 0) {
+              await Promise.all(updates);
+              toast.success(`הוסרו אירועים מ-${updates.length} צמידים`);
+            }
+          }
+        }
+
+        toast.success('הוצאה נוצרה ואירועים עודכנו');
       } catch (error) {
-        console.error('Failed to create expense:', error);
-        toast.error('שגיאה ביצירת הוצאה');
+        console.error('Failed to process refund:', error);
+        toast.error('שגיאה בעיבוד ההחזר');
       }
     }
 

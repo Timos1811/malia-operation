@@ -100,15 +100,18 @@ export default function AddTask() {
 
     setLoading(true);
     try {
-      // Create description string from selected events
-      const eventNames = Array.from(selectedEvents).map(id => {
+      // Create description string and array of event names
+      const eventDetails = Array.from(selectedEvents).map(id => {
         const attr = attractions.find(a => a.id === id);
-        return attr ? `${attr.name} (€${attr.price_eur})` : '';
-      }).join(', ');
+        return attr ? { name: attr.name, desc: `${attr.name} (€${attr.price_eur})` } : null;
+      }).filter(Boolean);
+
+      const descriptionText = eventDetails.map(e => e.desc).join(', ');
+      const relatedEvents = eventDetails.map(e => e.name);
 
       await base44.entities.Task.create({
         title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'} - הזמנה ${orderNumber}`,
-        description: `אירועים שנבחרו: ${eventNames}`,
+        description: `אירועים שנבחרו: ${descriptionText}`,
         status: 'todo',
         task_type: 'refund',
         refund_type: refundType,
@@ -117,7 +120,8 @@ export default function AddTask() {
         order_number: orderNumber,
         people_count: parseInt(peopleCount) || 0,
         departure_date: departureDate || '',
-        due_date: new Date().toISOString().split('T')[0]
+        due_date: new Date().toISOString().split('T')[0],
+        related_events: relatedEvents
       });
 
       toast.success('הבקשה נשלחה בהצלחה');
