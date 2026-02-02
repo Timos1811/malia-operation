@@ -118,11 +118,15 @@ export default function Table() {
     // 3. Focus - בדיקה בעת חזרה לטאב
     window.addEventListener('focus', processPendingQueue);
 
+    // 4. Polling - בדיקה תקופתית כל 2 שניות ליתר ביטחון
+    const intervalId = setInterval(processPendingQueue, 2000);
+
     // בדיקה ראשונית בטעינה
     processPendingQueue();
 
     return () => {
         channel.close();
+        clearInterval(intervalId);
         window.removeEventListener('storage', handleStorageChange);
         window.removeEventListener('focus', processPendingQueue);
     };
