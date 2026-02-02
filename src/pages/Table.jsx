@@ -121,6 +121,13 @@ export default function Table() {
     }
   }, [fetchingRows]);
 
+  const handleAddRow = () => {
+    setTableData(prev => [
+      ...prev,
+      COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})
+    ]);
+  };
+
   const handleCellChange = (rowIndex, colKey, value) => {
     const newData = [...tableData];
     newData[rowIndex][colKey] = value;
@@ -290,6 +297,12 @@ export default function Table() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" onClick={handleAddRow} className="text-slate-500 hover:bg-slate-100">
+            <Plus className="w-4 h-4 ml-2" /> הוסף שורה חדשה
+          </Button>
         </div>
 
         <div className="mt-8 flex justify-center gap-4">
