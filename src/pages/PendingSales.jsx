@@ -121,8 +121,20 @@ export default function PendingSales() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-800">מכירה בהמתנה</h1>
-          <div className="text-slate-500">
-            {tableData.length} הזמנות ממתינות
+          <div className="flex gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                processPendingQueue();
+                toast.info('בודק הזמנות חדשות...');
+              }}
+              className="gap-2"
+            >
+              <RefreshCw className="w-4 h-4" /> בדוק הזמנות חדשות
+            </Button>
+            <div className="text-slate-500 self-center">
+              {tableData.length} הזמנות ממתינות
+            </div>
           </div>
         </div>
 

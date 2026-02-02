@@ -195,6 +195,9 @@ export default function NewSale() {
       const channel = new BroadcastChannel('app_sync_channel');
       channel.postMessage({ type: 'NEW_SALE_ADDED' });
       channel.close();
+
+      // Trigger storage event manually for same-window updates if needed
+      window.dispatchEvent(new Event('storage'));
       
       setIsSuccess(true);
     } catch (error) {
