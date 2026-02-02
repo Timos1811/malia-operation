@@ -68,13 +68,11 @@ export default function NewSale() {
         isProcessingRef.current = true;
 
         try {
-          // הגנה 3: בדיקה מול ה-DB (למקרה שהצמיד משויך להזמנה אחרת לגמרי)
+          // הגנה 3: בדיקה מול ה-DB - אם קיים, נמחוק את הישן (דריסה)
           const existing = await base44.entities.Wristband.list({ filter: { nfc_id: nfcId } });
           if (existing.length > 0) {
-            playBeep('error');
-            toast.error("הצמיד כבר רשום במערכת ללקוח אחר");
-            isProcessingRef.current = false;
-            return;
+            await Promise.all(existing.map(w => base44.entities.Wristband.delete(w.id)));
+            toast.info("צמיד משומש נמחק ושויך מחדש");
           }
 
           const selectedNames = Array.from(selectedAttractions)

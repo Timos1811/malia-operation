@@ -55,11 +55,11 @@ import EventsAndAttractions from './pages/EventsAndAttractions';
 import Live from './pages/Live';
 import NewSale from './pages/NewSale';
 import OrderDetails from './pages/OrderDetails';
+import OrderSuccess from './pages/OrderSuccess';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import OrderSuccess from './pages/OrderSuccess';
 import __Layout from './Layout.jsx';
 
 
@@ -72,11 +72,11 @@ export const PAGES = {
     "Live": Live,
     "NewSale": NewSale,
     "OrderDetails": OrderDetails,
+    "OrderSuccess": OrderSuccess,
     "ReturnedToIsrael": ReturnedToIsrael,
     "SavedData": SavedData,
     "Table": Table,
     "Tasks": Tasks,
-    "OrderSuccess": OrderSuccess,
 }
 
 export const pagesConfig = {
