@@ -37,6 +37,18 @@ export default function Table() {
     localStorage.setItem('tableData', JSON.stringify(tableData));
   }, [tableData]);
 
+  // האזנה לשינויים בטאבים אחרים (סנכרון בזמן אמת)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'tableData' && e.newValue) {
+        setTableData(JSON.parse(e.newValue));
+        toast.info('הטבלה עודכנה מחדש');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // פונקציית משיכת הנתונים מגוגל שיטס - מעודכנת לעבוד עם הפונקציה החדשה ב-Base44
   const fetchOrderDetails = useCallback(async (rowIndex, orderNumber) => {
     const trimmedOrder = String(orderNumber).trim();
@@ -177,7 +189,22 @@ export default function Table() {
   return (
     <div className="p-8 md:p-12 text-right" dir="rtl">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-800 mb-8">ניהול הכנסות והזמנות</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-slate-800">ניהול הכנסות והזמנות</h1>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              const saved = localStorage.getItem('tableData');
+              if (saved) {
+                setTableData(JSON.parse(saved));
+                toast.success('הנתונים רעננו');
+              }
+            }}
+            className="gap-2"
+          >
+            <RefreshCw className="w-4 h-4" /> רענן נתונים
+          </Button>
+        </div>
         
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
           <table className="w-full min-w-[1200px]">
