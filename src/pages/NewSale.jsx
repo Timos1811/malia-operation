@@ -195,7 +195,7 @@ export default function NewSale() {
               const next = new Set(prev);
               next.has(att.id) ? next.delete(att.id) : next.add(att.id);
               return next;
-            })} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${selectedAttractions.has(att.id) ? 'border-indigo-500 bg-indigo-50' : 'border-white bg-white shadow-sm'}`}>
+            })} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${selectedAttractions.has(att.id) ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-white bg-white shadow-sm'}`}>
               <Checkbox checked={selectedAttractions.has(att.id)} className="w-6 h-6 rounded-full border-slate-300" />
               <div className="flex-1 flex justify-between items-center font-bold">
                 <span className="text-slate-700">{att.name}</span>
@@ -204,6 +204,35 @@ export default function NewSale() {
             </div>
           ))}
         </div>
+
+        {/* Visual Feedback Area */}
+        <AnimatePresence mode="wait">
+          {lastScanned && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`p-4 rounded-2xl border-2 ${lastScanned.status === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${lastScanned.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                  {lastScanned.status === 'success' ? <Wifi className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                </div>
+                <div className="flex-1">
+                  <div className={`font-black text-lg ${lastScanned.status === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                    {lastScanned.message}
+                  </div>
+                  <div className="text-sm opacity-80 font-mono">ID: {lastScanned.id}</div>
+                  {lastScanned.owner && (
+                    <div className="text-sm font-bold mt-1">
+                       {lastScanned.status === 'success' ? 'שויך ל:' : 'שייך ל:'} {lastScanned.owner}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t p-4 shadow-2xl z-40">
