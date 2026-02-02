@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine } from "lucide-react";
 import { createPageUrl } from '../utils';
 
 export default function OrderDetails() {
@@ -12,6 +16,46 @@ export default function OrderDetails() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+
+  // Fetch wristbands associated with this order
+  const { data: wristbands = [], isLoading: loadingWristbands } = useQuery({
+    queryKey: ['wristbands', orderNumber],
+    queryFn: () => base44.entities.Wristband.filter({ order_number: orderNumber }),
+    enabled: !!orderNumber
+  });
+
+  // Fetch all available attractions (parties)
+  const { data: attractions = [] } = useQuery({
+    queryKey: ['attractions'],
+    queryFn: () => base44.entities.Attraction.list()
+  });
+
+  // Mutation to update wristband allowed events
+  const updateWristbandMutation = useMutation({
+    mutationFn: ({ id, allowed_events }) => base44.entities.Wristband.update(id, { allowed_events }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['wristbands', orderNumber]);
+      toast.success("עודכן בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון הצמיד")
+  });
+
+  const handleEventToggle = (wristband, eventName) => {
+    const currentEvents = wristband.allowed_events || [];
+    let newEvents;
+    
+    if (currentEvents.includes(eventName)) {
+      newEvents = currentEvents.filter(e => e !== eventName);
+    } else {
+      newEvents = [...currentEvents, eventName];
+    }
+    
+    updateWristbandMutation.mutate({
+      id: wristband.id,
+      allowed_events: newEvents
+    });
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -163,6 +207,68 @@ export default function OrderDetails() {
                     <DetailRow icon={CreditCard} label="דולר" value={data.dollar_amount} />
                     <DetailRow icon={CreditCard} label="ביט" value={data.bit_amount} />
                     <DetailRow icon={CreditCard} label="סטטוס בEUR" value={data.eur_status} />
+                </CardContent>
+            </Card>
+
+            {/* Wristbands & Parties Section */}
+            <Card className="md:col-span-2 shadow-sm border-slate-200">
+                <CardHeader className="border-b border-slate-100 bg-white/50">
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                        <ScanLine className="w-5 h-5 text-purple-600" />
+                        ניהול צמידים ומסיבות
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                    {loadingWristbands ? (
+                        <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+                    ) : wristbands.length === 0 ? (
+                        <div className="text-center text-slate-500 py-8 bg-slate-50 rounded-lg">
+                            לא נמצאו צמידים מקושרים להזמנה זו
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="text-right p-4 font-medium text-slate-500">פרטי צמיד</th>
+                                        <th className="text-right p-4 font-medium text-slate-500">מסיבות ואירועים</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {wristbands.map(wb => (
+                                        <tr key={wb.id} className="hover:bg-slate-50/50">
+                                            <td className="p-4 align-top w-1/4">
+                                                <div className="font-bold text-slate-800">{wb.customer_name}</div>
+                                                <div className="text-xs font-mono text-slate-400 mt-1">{wb.nfc_id}</div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                    {attractions.map(att => {
+                                                        const isChecked = (wb.allowed_events || []).includes(att.name);
+                                                        return (
+                                                            <div key={att.id} className="flex items-center space-x-2 space-x-reverse bg-white border p-2 rounded-lg hover:border-indigo-300 transition-colors">
+                                                                <Checkbox 
+                                                                    id={`wb-${wb.id}-${att.id}`} 
+                                                                    checked={isChecked}
+                                                                    onCheckedChange={() => handleEventToggle(wb, att.name)}
+                                                                />
+                                                                <Label 
+                                                                    htmlFor={`wb-${wb.id}-${att.id}`}
+                                                                    className="text-sm cursor-pointer select-none flex-1"
+                                                                >
+                                                                    {att.name}
+                                                                </Label>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
