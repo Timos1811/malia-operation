@@ -46,7 +46,24 @@ export default function Table() {
       }
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    
+    // Refresh on window focus to ensure data is synced
+    const handleFocus = () => {
+      const saved = localStorage.getItem('tableData');
+      if (saved) {
+        // Compare stringified to avoid unnecessary re-renders loop if possible, 
+        // but JSON.parse/stringify order might differ. 
+        // Simple approach: just update. React handles value equality check for primitives, but this is object.
+        // Let's trust React or the user won't notice a quick blink.
+        setTableData(JSON.parse(saved));
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // פונקציית משיכת הנתונים מגוגל שיטס - מעודכנת לעבוד עם הפונקציה החדשה ב-Base44
