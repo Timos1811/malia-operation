@@ -50,87 +50,14 @@ export default function Table() {
 
   // פונקציה לעיבוד הזמנות חדשות מהתור
   const processPendingQueue = useCallback(() => {
-    const pendingStr = localStorage.getItem('pending_sales_queue');
-    if (!pendingStr) return;
-
-    try {
-      const pendingQueue = JSON.parse(pendingStr);
-      if (Array.isArray(pendingQueue) && pendingQueue.length > 0) {
-        setTableData(prevData => {
-          const newData = [...prevData];
-          let itemsProcessed = 0;
-
-          // לכל פריט בתור, ננסה למצוא מקום פנוי או נוסיף שורה
-          pendingQueue.forEach(newItem => {
-            let inserted = false;
-            // ניסיון למצוא שורה ריקה
-            for (let i = 0; i < newData.length; i++) {
-               // בדיקה אם השורה ריקה (ללא מספר הזמנה)
-               if (!newData[i].order_number || newData[i].order_number === '') {
-                 newData[i] = { ...newData[i], ...newItem };
-                 inserted = true;
-                 break;
-               }
-            }
-            // אם לא נמצא מקום, נוסיף בסוף
-            if (!inserted) {
-              newData.push(newItem);
-            }
-            itemsProcessed++;
-          });
-          
-          if (itemsProcessed > 0) {
-            toast.success(`${itemsProcessed} הזמנות חדשות התווספו!`);
-          }
-          return newData;
-        });
-
-        // ניקוי התור לאחר העיבוד
-        localStorage.setItem('pending_sales_queue', JSON.stringify([]));
-      }
-    } catch (e) {
-      console.error("Error processing pending queue", e);
-    }
+    // בוטל: העיבוד הועבר לדף "מכירה בהמתנה" (PendingSales.jsx)
+    // אנו משאירים את הפונקציה ריקה כדי לא לשבור תלויות, אך היא לא תעשה כלום.
   }, []);
 
-  // האזנה לאירועים וסנכרון
+  // האזנה לאירועים וסנכרון - בוטל חלקית עבור התור, נשאר רק רענון ידני אם צריך
   useEffect(() => {
-    // 1. BroadcastChannel - לעדכון מיידי באותו דפדפן
-    const channel = new BroadcastChannel('app_sync_channel');
-    channel.onmessage = (event) => {
-      if (event.data?.type === 'NEW_SALE_ADDED') {
-        processPendingQueue();
-      }
-    };
-
-    // 2. Storage Event - לעדכון בין טאבים (אם ה-Broadcast נכשל או לדפדפנים ישנים)
-    const handleStorageChange = (e) => {
-      if (e.key === 'pending_sales_queue' && e.newValue && e.newValue !== '[]') {
-        processPendingQueue();
-      }
-      // עדכון כללי של הטבלה רק אם השינוי לא הגיע מהדף הנוכחי
-      // הערה: הסרנו את העדכון האגרסיבי של tableData כדי למנוע דריסת עריכות מקומיות
-      // אלא אם כן המשתמש רוצה לרענן ידנית או בטעינה ראשונית
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    // 3. Focus - בדיקה בעת חזרה לטאב
-    window.addEventListener('focus', processPendingQueue);
-
-    // 4. Polling - בדיקה תקופתית כל 2 שניות ליתר ביטחון
-    const intervalId = setInterval(processPendingQueue, 2000);
-
-    // בדיקה ראשונית בטעינה
-    processPendingQueue();
-
-    return () => {
-        channel.close();
-        clearInterval(intervalId);
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('focus', processPendingQueue);
-    };
-  }, [processPendingQueue]);
+    // הקוד המקורי בוטל כדי לא "לגנוב" נתונים מדף ההמתנה
+  }, []);
 
   // פונקציית משיכת הנתונים מגוגל שיטס - מעודכנת לעבוד עם הפונקציה החדשה ב-Base44
   const fetchOrderDetails = useCallback(async (rowIndex, orderNumber) => {
