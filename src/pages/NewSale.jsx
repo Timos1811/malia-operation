@@ -70,9 +70,7 @@ export default function NewSale() {
 
         try {
           // הגנה 3: בדיקה קפדנית מול ה-Database
-          const existingCheck = await base44.entities.Wristband.list({
-            filter: { nfc_id: nfcId }
-          });
+          const existingCheck = await base44.entities.Wristband.filter({ nfc_id: nfcId });
 
           if (existingCheck.length > 0) {
             const existing = existingCheck[0];
