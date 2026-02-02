@@ -151,8 +151,8 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Create the Pending Order record (PendingSale) instead of TableData
-      await base44.entities.PendingSale.create({
+      // Create the Order record (TableData) directly
+      await base44.entities.TableData.create({
         order_number: formData.orderNumber.toString(),
         departure_date: formData.departureDate,
         customer: formData.customerCount.toString(),
@@ -162,7 +162,10 @@ export default function NewSale() {
         company: formData.company,
         // Financials
         requested_amount: totalPrice.toString(),
-        eur_amount: totalPrice.toString(),
+        eur_amount: "", // Manual entry later
+        shekel_amount: "",
+        dollar_amount: "",
+        bit_amount: "",
         eur_status: "0"
       });
 
