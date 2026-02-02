@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
@@ -17,14 +16,7 @@ const COLUMN_KEYS = [
 ];
 
 export default function Table() {
-  const queryClient = useQueryClient();
   const rowsCount = 5;
-
-  // Fetch Pending Sales
-  const { data: pendingSales = [] } = useQuery({
-    queryKey: ['pendingSales'],
-    queryFn: () => base44.entities.PendingSale.list(),
-  });
 
   // אתחול דאטה - טעינה מהלוקאל סטורג' או יצירת שורות ריקות
   const [tableData, setTableData] = useState(() => {
@@ -36,70 +28,6 @@ export default function Table() {
       COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {})
     );
   });
-
-  // Load pending sales into table when they arrive
-  useEffect(() => {
-    if (pendingSales.length > 0) {
-      setTableData(prevData => {
-        // Create a map of existing pending_sale_ids in the table to avoid duplicates if re-fetching
-        const existingIds = new Set(prevData.map(row => row.pending_sale_id).filter(Boolean));
-        
-        // Filter new pending sales that aren't already in the table
-        const newPending = pendingSales.filter(sale => !existingIds.has(sale.id));
-        
-        if (newPending.length === 0) return prevData;
-
-        const newData = [...prevData];
-        let pendingIndex = 0;
-
-        // Fill empty rows first
-        for (let i = 0; i < newData.length && pendingIndex < newPending.length; i++) {
-            // Check if row is empty (no order number)
-            if (!newData[i].order_number) {
-                const sale = newPending[pendingIndex];
-                newData[i] = {
-                    ...newData[i],
-                    pending_sale_id: sale.id, // Store ID to delete later
-                    order_number: sale.order_number || '',
-                    departure_date: sale.departure_date || '',
-                    customer: sale.customer || '',
-                    nights: sale.nights || '',
-                    gender: sale.gender || '',
-                    hotel: sale.hotel || '',
-                    company: sale.company || '',
-                    requested_amount: sale.requested_amount || '',
-                    eur_amount: sale.eur_amount || '', // Pre-fill EUR with requested if needed
-                    eur_status: sale.eur_status || '',
-                };
-                pendingIndex++;
-            }
-        }
-
-        // If we still have pending sales, append new rows
-        while (pendingIndex < newPending.length) {
-            const sale = newPending[pendingIndex];
-            const newRow = COLUMN_KEYS.reduce((acc, key) => ({ ...acc, [key]: '' }), {});
-            newData.push({
-                ...newRow,
-                pending_sale_id: sale.id,
-                order_number: sale.order_number || '',
-                departure_date: sale.departure_date || '',
-                customer: sale.customer || '',
-                nights: sale.nights || '',
-                gender: sale.gender || '',
-                hotel: sale.hotel || '',
-                company: sale.company || '',
-                requested_amount: sale.requested_amount || '',
-                eur_amount: sale.eur_amount || '',
-                eur_status: sale.eur_status || '',
-            });
-            pendingIndex++;
-        }
-
-        return newData;
-      });
-    }
-  }, [pendingSales]);
 
   const [fetchingRows, setFetchingRows] = useState(new Set());
   const [missingFields, setMissingFields] = useState({});
@@ -228,20 +156,8 @@ export default function Table() {
             calculatedStatus = Math.abs(diff) < 0.01 ? 'מאוזן' : diff.toFixed(2);
         }
 
-        // Clean row data before saving (remove pending_sale_id)
-        const { pending_sale_id, ...rowToSave } = row;
-
-        // Save to TableData
-        await base44.entities.TableData.create({ ...rowToSave, eur_status: calculatedStatus });
-
-        // If this row came from a pending sale, delete the pending sale record
-        if (pending_sale_id) {
-            await base44.entities.PendingSale.delete(pending_sale_id);
-        }
+        await base44.entities.TableData.create({ ...row, eur_status: calculatedStatus });
       }
-
-      // Refresh pending sales query
-      queryClient.invalidateQueries(['pendingSales']);
 
       toast.success(`${rowsToCreate.length} שורות נשמרו!`);
 
@@ -253,7 +169,7 @@ export default function Table() {
          return newData;
       });
     } catch (error) {
-        console.error(error);
+      console.error(error);
       toast.error('שגיאה בשמירה');
     }
   };
