@@ -70,6 +70,28 @@ export default function PendingSales() {
     setEditingCell(null);
   };
 
+  const saveToAllIncomes = async (row) => {
+      if (!window.confirm('האם לשמור את הנתונים לטבלת ההכנסות?')) return;
+
+      try {
+          // 1. Create in TableData
+          await base44.entities.TableData.create({
+              ...row,
+              created_date: new Date().toISOString() // Ensure fresh date
+          });
+
+          // 2. Delete from PendingSale
+          await base44.entities.PendingSale.delete(row.id);
+
+          // 3. Refresh UI
+          queryClient.invalidateQueries(['pendingSales']);
+          toast.success("ההזמנה נשמרה בהצלחה והועברה לטבלת ההכנסות!");
+      } catch (error) {
+          console.error(error);
+          toast.error("שגיאה בשמירת הנתונים");
+      }
+  };
+
   // Helper to calculate status string for DB storage/display
   const calculateStatusText = (row) => {
     const eur = parseFloat(row.eur_amount) || 0;
@@ -173,20 +195,22 @@ export default function PendingSales() {
                             <EditableCell 
                                 value={row[colKey] || ''}
                                 onBlur={(val) => handleBlur(row.id, colKey, val, row)}
-                                disabled={colKey === 'order_number'}
+                                disabled={false}
                             />
                           )}
                         </td>
                       ))}
                       <td className="px-2 py-2 border-b text-center">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleDeleteRow(row.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          מחק
-                        </Button>
+                        <div className="flex gap-2 justify-center">
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              onClick={() => saveToAllIncomes(row)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              <Save className="w-4 h-4 ml-1" /> שמור
+                            </Button>
+                        </div>
                       </td>
                     </tr>
                   );

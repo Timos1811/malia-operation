@@ -56,11 +56,11 @@ import Live from './pages/Live';
 import NewSale from './pages/NewSale';
 import OrderDetails from './pages/OrderDetails';
 import OrderSuccess from './pages/OrderSuccess';
+import PendingSales from './pages/PendingSales';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import PendingSales from './pages/PendingSales';
 import __Layout from './Layout.jsx';
 
 
@@ -74,11 +74,11 @@ export const PAGES = {
     "NewSale": NewSale,
     "OrderDetails": OrderDetails,
     "OrderSuccess": OrderSuccess,
+    "PendingSales": PendingSales,
     "ReturnedToIsrael": ReturnedToIsrael,
     "SavedData": SavedData,
     "Table": Table,
     "Tasks": Tasks,
-    "PendingSales": PendingSales,
 }
 
 export const pagesConfig = {
