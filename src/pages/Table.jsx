@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
