@@ -151,8 +151,8 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Create the Order record (TableData) directly
-      await base44.entities.TableData.create({
+      // Save to LocalStorage for "Manage Income" table (Table.jsx)
+      const newRow = {
         order_number: formData.orderNumber.toString(),
         departure_date: formData.departureDate,
         customer: formData.customerCount.toString(),
@@ -160,15 +160,33 @@ export default function NewSale() {
         gender: formData.gender,
         hotel: formData.hotel,
         company: formData.company,
-        // Financials
         requested_amount: totalPrice.toString(),
-        eur_amount: "", // Manual entry later
+        eur_amount: "",
         shekel_amount: "",
         dollar_amount: "",
         bit_amount: "",
         eur_status: "0"
-      });
+      };
 
+      const existingDataStr = localStorage.getItem('tableData');
+      let tableData = existingDataStr ? JSON.parse(existingDataStr) : [];
+      
+      // If tableData is initialized with empty strings from Table.jsx defaults, find first empty
+      let inserted = false;
+      for (let i = 0; i < tableData.length; i++) {
+        if (!tableData[i].order_number || tableData[i].order_number === '') {
+            tableData[i] = { ...tableData[i], ...newRow };
+            inserted = true;
+            break;
+        }
+      }
+
+      if (!inserted) {
+        tableData.push(newRow);
+      }
+
+      localStorage.setItem('tableData', JSON.stringify(tableData));
+      
       setIsSuccess(true);
     } catch (error) {
       console.error(error);
