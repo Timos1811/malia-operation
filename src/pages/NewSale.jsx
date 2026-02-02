@@ -69,7 +69,7 @@ export default function NewSale() {
 
         try {
           // הגנה 3: בדיקה מול ה-DB - אם קיים, נמחוק את הישן (דריסה)
-          const existing = await base44.entities.Wristband.list({ filter: { nfc_id: nfcId } });
+          const existing = await base44.entities.Wristband.filter({ nfc_id: nfcId });
           if (existing.length > 0) {
             await Promise.all(existing.map(w => base44.entities.Wristband.delete(w.id)));
             toast.info("צמיד משומש נמחק ושויך מחדש");
