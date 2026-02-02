@@ -7,12 +7,12 @@ import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR'
+  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'הערות'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status'
+  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'comments'
 ];
 
 export default function Table() {
@@ -264,7 +264,7 @@ export default function Table() {
                       <td key={colKey} className="px-2 py-2 border-b">
                         <div className="relative">
                           <Input
-                            value={row[colKey]}
+                            value={row[colKey] || ''}
                             onChange={(e) => handleCellChange(rowIndex, colKey, e.target.value)}
                             onBlur={(e) => handleCellBlur(rowIndex, colKey, e.target.value)}
                             className={`text-right h-10 ${isMissing ? 'border-red-500 bg-red-50' : ''}`}

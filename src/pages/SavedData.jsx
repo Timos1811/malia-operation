@@ -21,7 +21,8 @@ const COLUMNS = [
   'שקל',
   'דולר',
   'ביט',
-  'סטטוס בEUR'
+  'סטטוס בEUR',
+  'הערות'
 ];
 
 const COLUMN_KEYS = [
@@ -38,7 +39,8 @@ const COLUMN_KEYS = [
   'shekel_amount',
   'dollar_amount',
   'bit_amount',
-  'eur_status'
+  'eur_status',
+  'comments'
 ];
 
 export default function SavedData() {
