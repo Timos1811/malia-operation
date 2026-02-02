@@ -42,11 +42,6 @@ export default function Layout({ children, currentPageName }) {
 
             <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
-            <Link to={createPageUrl('PendingSales')} className={linkClass('PendingSales')}>
-              <Clock className="w-5 h-5" />
-              <span className="whitespace-nowrap">הכנסות ממתינות</span>
-            </Link>
-
             <Link to={createPageUrl('Table')} className={linkClass('Table')}>
               <Table2 className="w-5 h-5" />
               <span className="whitespace-nowrap">צור הכנסה</span>
