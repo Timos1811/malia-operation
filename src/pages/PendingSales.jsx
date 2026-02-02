@@ -8,12 +8,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR'
+  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'הערות'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status'
+  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'comments'
 ];
 
 export default function PendingSales() {
@@ -173,7 +173,7 @@ export default function PendingSales() {
                             <EditableCell 
                                 value={row[colKey] || ''}
                                 onBlur={(val) => handleBlur(row.id, colKey, val, row)}
-                                disabled={colKey === 'order_number' || colKey === 'requested_amount'}
+                                disabled={colKey === 'order_number'}
                             />
                           )}
                         </td>
