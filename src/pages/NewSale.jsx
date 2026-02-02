@@ -151,13 +151,20 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Create new row data
+      // מיפוי ערכי מגדר לעברית
+      const genderMap = {
+        'male': 'גברים',
+        'female': 'נשים',
+        'mixed': 'מעורב'
+      };
+
+      // Create new row data with precise mapping
       const newRow = {
         order_number: formData.orderNumber.toString(),
-        departure_date: formData.departureDate,
+        departure_date: formData.departureDate, // פורמט YYYY-MM-DD מתאים גם לטבלה
         customer: formData.customerCount.toString(),
         nights: formData.nights,
-        gender: formData.gender,
+        gender: genderMap[formData.gender] || formData.gender, // המרה לעברית
         hotel: formData.hotel,
         company: formData.company,
         requested_amount: totalPrice.toString(),
@@ -166,7 +173,7 @@ export default function NewSale() {
         dollar_amount: "",
         bit_amount: "",
         eur_status: "0",
-        timestamp: Date.now() // Unique ID for deduplication if needed
+        timestamp: Date.now() 
       };
 
       // Use a "Pending Queue" approach to avoid race conditions with Table.jsx
