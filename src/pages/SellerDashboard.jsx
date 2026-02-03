@@ -14,8 +14,10 @@ export default function SellerDashboard() {
   const [stats, setStats] = useState({ 
     totalIncome: 0, 
     totalGroups: 0,
-    refundsCount: 0,
-    refundsAmount: 0,
+    fullRefundsAmount: 0,
+    fullRefundsCount: 0,
+    partialRefundsAmount: 0,
+    partialRefundsCount: 0,
     withdrawalsAmount: 0,
     withdrawalsCount: 0,
     shortagesAmount: 0
@@ -65,10 +67,13 @@ export default function SellerDashboard() {
             sales_rep: currentUser.full_name
           });
 
-          const myRefunds = refunds.filter(r => r.reason === 'החזר מלא' || r.reason === 'החזר חלקי');
-          
-          const refundsCount = myRefunds.length;
-          const refundsAmount = myRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+          const fullRefunds = refunds.filter(r => r.reason === 'החזר מלא');
+          const fullRefundsCount = fullRefunds.length;
+          const fullRefundsAmount = fullRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+          const partialRefunds = refunds.filter(r => r.reason === 'החזר חלקי');
+          const partialRefundsCount = partialRefunds.length;
+          const partialRefundsAmount = partialRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
           // Fetch withdrawals for this user (where they are the recipient)
           const myWithdrawals = refunds.filter(r => 
@@ -81,8 +86,10 @@ export default function SellerDashboard() {
           setStats({ 
             totalIncome, 
             totalGroups, 
-            refundsCount, 
-            refundsAmount, 
+            fullRefundsCount,
+            fullRefundsAmount,
+            partialRefundsCount,
+            partialRefundsAmount,
             withdrawalsCount, 
             withdrawalsAmount,
             shortagesAmount: calculatedShortages
@@ -133,10 +140,14 @@ export default function SellerDashboard() {
               <span className="text-2xl font-black text-emerald-900">{stats.totalGroups}</span>
             </div>
             <div className="bg-red-50 px-6 py-3 rounded-xl border border-red-100 text-center">
-              <span className="block text-red-600 text-xs font-bold uppercase tracking-wider">החזרים ({stats.refundsCount})</span>
-              <span className="text-2xl font-black text-red-900">€{stats.refundsAmount.toLocaleString()}</span>
+              <span className="block text-red-600 text-xs font-bold uppercase tracking-wider">החזר מלא ({stats.fullRefundsCount})</span>
+              <span className="text-2xl font-black text-red-900">€{stats.fullRefundsAmount.toLocaleString()}</span>
             </div>
             <div className="bg-orange-50 px-6 py-3 rounded-xl border border-orange-100 text-center">
+              <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider">החזר חלקי ({stats.partialRefundsCount})</span>
+              <span className="text-2xl font-black text-orange-900">€{stats.partialRefundsAmount.toLocaleString()}</span>
+            </div>
+            <div className="bg-blue-50 px-6 py-3 rounded-xl border border-blue-100 text-center">
               <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider">משיכות ({stats.withdrawalsCount})</span>
               <span className="text-2xl font-black text-orange-900">€{stats.withdrawalsAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>

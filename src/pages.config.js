@@ -62,6 +62,7 @@ import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
 import SellerDashboard from './pages/SellerDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
 import __Layout from './Layout.jsx';
 
 
@@ -81,6 +82,7 @@ export const PAGES = {
     "Table": Table,
     "Tasks": Tasks,
     "SellerDashboard": SellerDashboard,
+    "ManagerDashboard": ManagerDashboard,
 }
 
 export const pagesConfig = {

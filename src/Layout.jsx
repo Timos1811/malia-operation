@@ -106,6 +106,13 @@ export default function Layout({ children, currentPageName }) {
               <span className="whitespace-nowrap">מכירה חדשה</span>
             </Link>
 
+            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
+
+            <Link to={createPageUrl('ManagerDashboard')} className={linkClass('ManagerDashboard')}>
+              <Users className="w-5 h-5" />
+              <span className="whitespace-nowrap">מנהלים</span>
+            </Link>
+
           </div>
         </div>
       </nav>
