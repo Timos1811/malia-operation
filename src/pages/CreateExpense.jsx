@@ -30,6 +30,20 @@ export default function CreateExpense() {
     queryFn: () => base44.entities.User.list(),
   });
 
+  const { data: salesReps = [] } = useQuery({
+    queryKey: ['salesRepsExpenses'],
+    queryFn: async () => {
+         const sales = await base44.entities.TableData.list();
+         return [...new Set(sales.map(s => s.sales_rep).filter(Boolean))];
+    }
+  });
+
+  const allUserNames = React.useMemo(() => {
+      const names = new Set(users.map(u => u.full_name).filter(Boolean));
+      salesReps.forEach(n => names.add(n));
+      return Array.from(names);
+  }, [users, salesReps]);
+
   const [tableData, setTableData] = useState(() => {
     const saved = localStorage.getItem('expenseTableData');
     if (saved) {
@@ -219,17 +233,17 @@ export default function CreateExpense() {
                                                 <SelectItem value="מגדה">מגדה</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    ) : ['משיכה לאדם', 'החזר מלא', 'החזר חלקי'].includes(row.reason) ? (
+                                    ) : (row.reason === 'משיכה לאדם' || row.reason === 'החזר מלא' || row.reason === 'החזר חלקי') ? (
                                         <Select 
                                             value={row.recipient} 
                                             onValueChange={(val) => handleCellChange(rowIndex, 'recipient', val)}
                                         >
                                             <SelectTrigger className="w-full h-10 text-right" dir="rtl">
-                                                <SelectValue placeholder="בחר משתמש" />
+                                                <SelectValue placeholder="בחר נציג/משתמש" />
                                             </SelectTrigger>
                                             <SelectContent dir="rtl">
-                                                {users.map(u => (
-                                                    <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
+                                                {allUserNames.map((name, idx) => (
+                                                    <SelectItem key={idx} value={name}>{name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>

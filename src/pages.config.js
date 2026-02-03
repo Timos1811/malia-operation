@@ -53,16 +53,16 @@ import BankTable from './pages/BankTable';
 import CreateExpense from './pages/CreateExpense';
 import EventsAndAttractions from './pages/EventsAndAttractions';
 import Live from './pages/Live';
+import ManagerDashboard from './pages/ManagerDashboard';
 import NewSale from './pages/NewSale';
 import OrderDetails from './pages/OrderDetails';
 import OrderSuccess from './pages/OrderSuccess';
 import PendingSales from './pages/PendingSales';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
+import SellerDashboard from './pages/SellerDashboard';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import SellerDashboard from './pages/SellerDashboard';
-import ManagerDashboard from './pages/ManagerDashboard';
 import __Layout from './Layout.jsx';
 
 
@@ -73,16 +73,16 @@ export const PAGES = {
     "CreateExpense": CreateExpense,
     "EventsAndAttractions": EventsAndAttractions,
     "Live": Live,
+    "ManagerDashboard": ManagerDashboard,
     "NewSale": NewSale,
     "OrderDetails": OrderDetails,
     "OrderSuccess": OrderSuccess,
     "PendingSales": PendingSales,
     "ReturnedToIsrael": ReturnedToIsrael,
     "SavedData": SavedData,
+    "SellerDashboard": SellerDashboard,
     "Table": Table,
     "Tasks": Tasks,
-    "SellerDashboard": SellerDashboard,
-    "ManagerDashboard": ManagerDashboard,
 }
 
 export const pagesConfig = {
