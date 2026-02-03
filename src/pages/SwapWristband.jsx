@@ -37,7 +37,8 @@ export default function SwapWristband() {
         if (scanLockRef.current) return;
         scanLockRef.current = true;
         
-        const serialNumber = event.serialNumber;
+        // Remove colons from the serial number
+        const serialNumber = event.serialNumber.replace(/:/g, "");
         
         try {
           if (targetStep === 1) {

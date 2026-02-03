@@ -96,7 +96,8 @@ export default function NewSale() {
       toast.info("מוכן לסריקה: הצמד צמיד...");
 
       ndef.onreading = async (event) => {
-        const nfcId = event.serialNumber;
+        // Remove colons from the serial number (e.g. 04:3a:... -> 043a...)
+        const nfcId = event.serialNumber.replace(/:/g, "");
 
         // Prevent duplicate processing of the same tag in this session
         if (scannedIds.has(nfcId)) return;
