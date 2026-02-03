@@ -7,12 +7,12 @@ import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'הערות'
+  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'comments'
+  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments'
 ];
 
 export default function Table() {

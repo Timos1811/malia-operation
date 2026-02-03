@@ -32,8 +32,21 @@ export default function NewSale() {
   const [lastScanned, setLastScanned] = useState(null); // Feedback state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   
   const isProcessingRef = useRef(false);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) {
+        console.error("Failed to fetch user", e);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // --- Data Fetching ---
   const { data: attractions = [] } = useQuery({
@@ -173,7 +186,8 @@ export default function NewSale() {
         dollar_amount: "",
         bit_amount: "",
         eur_status: "0",
-        timestamp: Date.now() 
+        timestamp: Date.now(),
+        sales_rep: currentUser?.full_name || ''
       };
 
       // Create the pending sale in the database

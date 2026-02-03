@@ -11,18 +11,35 @@ export default function SellerDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [stats, setStats] = useState({ totalIncome: 0, totalGroups: 0 });
+
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchData = async () => {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
+
+        if (currentUser?.full_name) {
+          // Fetch sales for this user
+          const sales = await base44.entities.TableData.filter({ 
+            sales_rep: currentUser.full_name 
+          });
+          
+          const totalGroups = sales.length;
+          const totalIncome = sales.reduce((sum, sale) => {
+            const amount = parseFloat(sale.requested_amount) || 0;
+            return sum + amount;
+          }, 0);
+
+          setStats({ totalIncome, totalGroups });
+        }
       } catch (error) {
-        console.error("Failed to fetch user", error);
+        console.error("Failed to fetch data", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchUser();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -50,6 +67,18 @@ export default function SellerDashboard() {
               <p className="text-slate-500">ברוך הבא למערכת הניהול שלך</p>
             </div>
           </div>
+
+          <div className="flex gap-4">
+            <div className="bg-indigo-50 px-6 py-3 rounded-xl border border-indigo-100 text-center">
+              <span className="block text-indigo-600 text-xs font-bold uppercase tracking-wider">סה"כ הכנסות</span>
+              <span className="text-2xl font-black text-indigo-900">€{stats.totalIncome.toLocaleString()}</span>
+            </div>
+            <div className="bg-emerald-50 px-6 py-3 rounded-xl border border-emerald-100 text-center">
+              <span className="block text-emerald-600 text-xs font-bold uppercase tracking-wider">קבוצות</span>
+              <span className="text-2xl font-black text-emerald-900">{stats.totalGroups}</span>
+            </div>
+          </div>
+
           <Button 
             variant="ghost" 
             className="text-slate-500 hover:text-red-600 gap-2"
