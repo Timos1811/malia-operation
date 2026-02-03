@@ -239,7 +239,7 @@ export default function OrderDetails() {
                                         <tr key={wb.id} className="hover:bg-slate-50/50">
                                             <td className="p-4 align-top w-1/4">
                                                 <div className="font-bold text-slate-800">{wb.customer_name}</div>
-                                                <div className="text-xs font-mono text-slate-400 mt-1">{wb.nfc_id}</div>
+                                                <div className="text-xs font-mono text-slate-400 mt-1">{wb.nfc_id?.replace(/:/g, "")}</div>
                                             </td>
                                             <td className="p-4">
                                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -283,7 +283,7 @@ export default function SwapWristband() {
                                         </div>
                                         <div className="font-bold text-lg text-slate-800">{oldWristband.customer_name}</div>
                                         <div className="text-sm text-slate-500">הזמנה #{oldWristband.order_number}</div>
-                                        <div className="text-xs text-slate-400 mt-2 font-mono">{oldWristband.nfc_id}</div>
+                                        <div className="text-xs text-slate-400 mt-2 font-mono">{oldWristband.nfc_id?.replace(/:/g, "")}</div>
                                     </div>
 
                                     <div className="flex items-center justify-center my-4">
