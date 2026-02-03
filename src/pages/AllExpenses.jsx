@@ -36,6 +36,12 @@ export default function AllExpenses() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => base44.entities.User.list(),
+    staleTime: 300000,
+  });
+
   const isLoading = isLoadingExpenses || isLoadingEvents;
 
   // Map events to expenses (1-to-1 assumption per UI)
@@ -183,7 +189,7 @@ export default function AllExpenses() {
                   return (
                   <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
                     {COLUMNS.map((col) => {
-                        const isRecipientSelect = col.key === 'recipient' && expense.reason === 'תשלום לספק';
+                        const isRecipientSelect = col.key === 'recipient' && (expense.reason === 'תשלום לספק' || expense.reason === 'משיכה לאדם');
                         const isSelect = col.type === 'select' || isRecipientSelect;
                         const isEditable = col.type !== 'readonly';
 
@@ -213,12 +219,18 @@ export default function AllExpenses() {
                                             <SelectItem value="EUR">€ EUR</SelectItem>
                                           </>
                                         ) : isRecipientSelect ? (
-                                            <>
-                                                <SelectItem value="מנוס">מנוס</SelectItem>
-                                                <SelectItem value="טמיס">טמיס</SelectItem>
-                                                <SelectItem value="מייק">מייק</SelectItem>
-                                                <SelectItem value="מגדה">מגדה</SelectItem>
-                                            </>
+                                          expense.reason === 'משיכה לאדם' ? (
+                                              users.map(u => (
+                                                  <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
+                                              ))
+                                          ) : (
+                                              <>
+                                                  <SelectItem value="מנוס">מנוס</SelectItem>
+                                                  <SelectItem value="טמיס">טמיס</SelectItem>
+                                                  <SelectItem value="מייק">מייק</SelectItem>
+                                                  <SelectItem value="מגדה">מגדה</SelectItem>
+                                              </>
+                                          )
                                         ) : (
                                           col.options?.map(opt => (
                                             <SelectItem key={opt} value={opt}>{opt}</SelectItem>

@@ -15,7 +15,9 @@ export default function SellerDashboard() {
     totalIncome: 0, 
     totalGroups: 0,
     refundsCount: 0,
-    refundsAmount: 0
+    refundsAmount: 0,
+    withdrawalsAmount: 0,
+    withdrawalsCount: 0
   });
 
   useEffect(() => {
@@ -46,7 +48,15 @@ export default function SellerDashboard() {
           const refundsCount = myRefunds.length;
           const refundsAmount = myRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
-          setStats({ totalIncome, totalGroups, refundsCount, refundsAmount });
+          // Fetch withdrawals for this user (where they are the recipient)
+          const myWithdrawals = refunds.filter(r => 
+            r.reason === 'משיכה לאדם' && r.recipient === currentUser.full_name
+          );
+          
+          const withdrawalsCount = myWithdrawals.length;
+          const withdrawalsAmount = myWithdrawals.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+          setStats({ totalIncome, totalGroups, refundsCount, refundsAmount, withdrawalsCount, withdrawalsAmount });
         }
       } catch (error) {
         console.error("Failed to fetch data", error);
@@ -95,6 +105,10 @@ export default function SellerDashboard() {
             <div className="bg-red-50 px-6 py-3 rounded-xl border border-red-100 text-center">
               <span className="block text-red-600 text-xs font-bold uppercase tracking-wider">החזרים ({stats.refundsCount})</span>
               <span className="text-2xl font-black text-red-900">€{stats.refundsAmount.toLocaleString()}</span>
+            </div>
+            <div className="bg-orange-50 px-6 py-3 rounded-xl border border-orange-100 text-center">
+              <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider">משיכות ({stats.withdrawalsCount})</span>
+              <span className="text-2xl font-black text-orange-900">€{stats.withdrawalsAmount.toLocaleString()}</span>
             </div>
           </div>
 
