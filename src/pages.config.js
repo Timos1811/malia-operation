@@ -61,9 +61,9 @@ import PendingSales from './pages/PendingSales';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import SellerDashboard from './pages/SellerDashboard';
+import SwapWristband from './pages/SwapWristband';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import SwapWristband from './pages/SwapWristband';
 import __Layout from './Layout.jsx';
 
 
@@ -82,9 +82,9 @@ export const PAGES = {
     "ReturnedToIsrael": ReturnedToIsrael,
     "SavedData": SavedData,
     "SellerDashboard": SellerDashboard,
+    "SwapWristband": SwapWristband,
     "Table": Table,
     "Tasks": Tasks,
-    "SwapWristband": SwapWristband,
 }
 
 export const pagesConfig = {

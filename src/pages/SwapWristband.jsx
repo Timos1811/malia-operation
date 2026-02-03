@@ -18,6 +18,7 @@ export default function SwapWristband() {
   const [oldWristband, setOldWristband] = useState(null);
   const [newWristbandId, setNewWristbandId] = useState('');
   const [manualOldId, setManualOldId] = useState('');
+  const [feedback, setFeedback] = useState(null);
 
   const scanLockRef = useRef(false);
 
@@ -58,15 +59,21 @@ export default function SwapWristband() {
 
   const findOldWristband = async (id) => {
     setLoading(true);
+    setFeedback(null);
     try {
       const results = await base44.entities.Wristband.filter({ nfc_id: id });
       if (results.length === 0) {
-        toast.error("צמיד לא נמצא במערכת");
+        const msg = "צמיד לא משויך לקבוצה";
+        const det = `הצמיד ${id} אינו קיים במערכת`;
+        toast.error(msg);
+        setFeedback({ type: 'error', message: msg, details: det });
+        playSound('error');
         setLoading(false);
         return;
       }
       setOldWristband(results[0]);
       setStep(2);
+      setFeedback(null);
       playSound('success');
     } catch (error) {
       toast.error("שגיאה בחיפוש צמיד");
@@ -76,8 +83,12 @@ export default function SwapWristband() {
   };
 
   const validateNewWristband = async (id) => {
+    setFeedback(null);
     if (id === oldWristband.nfc_id) {
-        toast.error("זהו אותו צמיד! יש לסרוק צמיד אחר");
+        const msg = "שגיאה: זהו אותו צמיד";
+        const det = "יש לסרוק צמיד חדש שונה מהישן";
+        toast.error(msg);
+        setFeedback({ type: 'error', message: msg, details: det });
         playSound('error');
         return;
     }
@@ -86,7 +97,11 @@ export default function SwapWristband() {
     try {
       const exists = await base44.entities.Wristband.filter({ nfc_id: id });
       if (exists.length > 0) {
-        toast.error("הצמיד החדש כבר משויך להזמנה אחרת!");
+        const existingOrder = exists[0].order_number;
+        const msg = "הצמיד כבר משויך לקבוצה אחרת";
+        const det = `צמיד זה שייך כבר להזמנה ${existingOrder}`;
+        toast.error(msg);
+        setFeedback({ type: 'error', message: msg, details: det });
         playSound('error');
         setLoading(false);
         return;
@@ -130,6 +145,7 @@ export default function SwapWristband() {
     setNewWristbandId('');
     setManualOldId('');
     setScanning(false);
+    setFeedback(null);
   };
 
   const playSound = (type = 'success') => {
@@ -310,6 +326,36 @@ export default function SwapWristband() {
                                 </motion.div>
                             )}
 
+                        </AnimatePresence>
+
+                        {/* Feedback Area */}
+                        <AnimatePresence>
+                            {feedback && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className={`mt-6 p-4 rounded-xl border flex items-start gap-3 ${
+                                        feedback.type === 'error' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+                                    }`}
+                                >
+                                    <div className={`p-2 rounded-full ${
+                                        feedback.type === 'error' ? 'bg-red-200 text-red-700' : 'bg-blue-200 text-blue-700'
+                                    }`}>
+                                        <AlertTriangle className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <div className={`font-bold ${feedback.type === 'error' ? 'text-red-800' : 'text-blue-800'}`}>
+                                            {feedback.message}
+                                        </div>
+                                        {feedback.details && (
+                                            <div className={`text-sm mt-1 ${feedback.type === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
+                                                {feedback.details}
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
                         </AnimatePresence>
                     </CardContent>
                 </Tabs>
