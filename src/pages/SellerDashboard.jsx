@@ -17,7 +17,8 @@ export default function SellerDashboard() {
     refundsCount: 0,
     refundsAmount: 0,
     withdrawalsAmount: 0,
-    withdrawalsCount: 0
+    withdrawalsCount: 0,
+    shortagesAmount: 0
   });
 
   useEffect(() => {
@@ -33,10 +34,31 @@ export default function SellerDashboard() {
           });
           
           const totalGroups = sales.length;
-          const totalIncome = sales.reduce((sum, sale) => {
-            const amount = parseFloat(sale.requested_amount) || 0;
-            return sum + amount;
-          }, 0);
+          
+          let calculatedTotalIncome = 0;
+          let calculatedShortages = 0;
+
+          sales.forEach(sale => {
+            // Calculate Actual Income
+            const eur = parseFloat(sale.eur_amount) || 0;
+            const nis = parseFloat(sale.shekel_amount) || 0;
+            const usd = parseFloat(sale.dollar_amount) || 0;
+            const bit = parseFloat(sale.bit_amount) || 0;
+            
+            // Rates: NIS/Bit = 0.26, USD = 0.95
+            const actualTotal = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+            calculatedTotalIncome += actualTotal;
+
+            // Calculate Shortages based on eur_status
+            if (sale.eur_status && sale.eur_status !== 'מאוזן') {
+              const statusVal = parseFloat(sale.eur_status);
+              if (!isNaN(statusVal) && statusVal < 0) {
+                calculatedShortages += Math.abs(statusVal);
+              }
+            }
+          });
+
+          const totalIncome = calculatedTotalIncome;
 
           // Fetch refunds for this user
           const refunds = await base44.entities.Expense.filter({
@@ -56,7 +78,15 @@ export default function SellerDashboard() {
           const withdrawalsCount = myWithdrawals.length;
           const withdrawalsAmount = myWithdrawals.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
-          setStats({ totalIncome, totalGroups, refundsCount, refundsAmount, withdrawalsCount, withdrawalsAmount });
+          setStats({ 
+            totalIncome, 
+            totalGroups, 
+            refundsCount, 
+            refundsAmount, 
+            withdrawalsCount, 
+            withdrawalsAmount,
+            shortagesAmount: calculatedShortages
+          });
         }
       } catch (error) {
         console.error("Failed to fetch data", error);
