@@ -25,6 +25,11 @@ export default function CreateExpense() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => base44.entities.User.list(),
+  });
+
   const [tableData, setTableData] = useState(() => {
     const saved = localStorage.getItem('expenseTableData');
     if (saved) {
@@ -212,6 +217,20 @@ export default function CreateExpense() {
                                                 <SelectItem value="טמיס">טמיס</SelectItem>
                                                 <SelectItem value="מייק">מייק</SelectItem>
                                                 <SelectItem value="מגדה">מגדה</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    ) : row.reason === 'משיכה לאדם' ? (
+                                        <Select 
+                                            value={row.recipient} 
+                                            onValueChange={(val) => handleCellChange(rowIndex, 'recipient', val)}
+                                        >
+                                            <SelectTrigger className="w-full h-10 text-right" dir="rtl">
+                                                <SelectValue placeholder="בחר משתמש" />
+                                            </SelectTrigger>
+                                            <SelectContent dir="rtl">
+                                                {users.map(u => (
+                                                    <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     ) : (
