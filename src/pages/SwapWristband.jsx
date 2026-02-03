@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,20 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SwapWristband() {
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) {
+        console.error("Failed to fetch user", e);
+      }
+    };
+    fetchUser();
+  }, []);
+
   const [mode, setMode] = useState('scan'); // 'scan' | 'manual'
   const [step, setStep] = useState(1); // 1: Find Old, 2: Get New, 3: Success
   const [loading, setLoading] = useState(false);
@@ -128,6 +142,30 @@ export default function SwapWristband() {
 
       // 2. Delete old wristband
       await base44.entities.Wristband.delete(oldWristband.id);
+
+      // 3. Create PendingSale record for the swap fee
+      try {
+        await base44.entities.PendingSale.create({
+          order_number: oldWristband.order_number,
+          requested_amount: "10",
+          sales_rep: currentUser?.full_name || '',
+          comments: "החלפת צמיד",
+          // Minimal required fields with empty values
+          customer: "",
+          nights: "",
+          gender: "",
+          hotel: "",
+          company: "",
+          eur_amount: "",
+          shekel_amount: "",
+          dollar_amount: "",
+          bit_amount: "",
+          eur_status: ""
+        });
+      } catch (e) {
+        console.error("Failed to create pending sale record", e);
+        toast.error("נכשל ברישום חיוב החלפה");
+      }
 
       setStep(3);
       playSound('success');
