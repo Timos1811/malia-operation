@@ -23,6 +23,17 @@ export default function AddTask() {
   const [peopleCount, setPeopleCount] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) { console.error(e); }
+    };
+    fetchUser();
+  }, []);
 
   // Fetch attractions/events
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({
@@ -121,7 +132,8 @@ export default function AddTask() {
         people_count: parseInt(peopleCount) || 0,
         departure_date: departureDate || '',
         due_date: new Date().toISOString().split('T')[0],
-        related_events: relatedEvents
+        related_events: relatedEvents,
+        sales_rep: currentUser?.full_name || ''
       });
 
       toast.success('הבקשה נשלחה בהצלחה');

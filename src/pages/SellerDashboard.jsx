@@ -11,7 +11,12 @@ export default function SellerDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [stats, setStats] = useState({ totalIncome: 0, totalGroups: 0 });
+  const [stats, setStats] = useState({ 
+    totalIncome: 0, 
+    totalGroups: 0,
+    refundsCount: 0,
+    refundsAmount: 0
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -31,7 +36,17 @@ export default function SellerDashboard() {
             return sum + amount;
           }, 0);
 
-          setStats({ totalIncome, totalGroups });
+          // Fetch refunds for this user
+          const refunds = await base44.entities.Expense.filter({
+            sales_rep: currentUser.full_name
+          });
+
+          const myRefunds = refunds.filter(r => r.reason === 'החזר מלא' || r.reason === 'החזר חלקי');
+          
+          const refundsCount = myRefunds.length;
+          const refundsAmount = myRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+          setStats({ totalIncome, totalGroups, refundsCount, refundsAmount });
         }
       } catch (error) {
         console.error("Failed to fetch data", error);
@@ -76,6 +91,10 @@ export default function SellerDashboard() {
             <div className="bg-emerald-50 px-6 py-3 rounded-xl border border-emerald-100 text-center">
               <span className="block text-emerald-600 text-xs font-bold uppercase tracking-wider">קבוצות</span>
               <span className="text-2xl font-black text-emerald-900">{stats.totalGroups}</span>
+            </div>
+            <div className="bg-red-50 px-6 py-3 rounded-xl border border-red-100 text-center">
+              <span className="block text-red-600 text-xs font-bold uppercase tracking-wider">החזרים ({stats.refundsCount})</span>
+              <span className="text-2xl font-black text-red-900">€{stats.refundsAmount.toLocaleString()}</span>
             </div>
           </div>
 

@@ -43,7 +43,8 @@ function TaskList() {
           recipient: task.order_number || '',
           amount: parseFloat(totalAmount.toFixed(2)),
           currency: 'EUR',
-          expense_date: new Date().toISOString().split('T')[0]
+          expense_date: new Date().toISOString().split('T')[0],
+          sales_rep: task.sales_rep || ''
         });
 
         // Invalidate expense queries to update BankTable and AllExpenses immediately
