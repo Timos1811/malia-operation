@@ -138,7 +138,11 @@ export default function SellerDashboard() {
             </div>
             <div className="bg-orange-50 px-6 py-3 rounded-xl border border-orange-100 text-center">
               <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider">משיכות ({stats.withdrawalsCount})</span>
-              <span className="text-2xl font-black text-orange-900">€{stats.withdrawalsAmount.toLocaleString()}</span>
+              <span className="text-2xl font-black text-orange-900">€{stats.withdrawalsAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="bg-rose-50 px-6 py-3 rounded-xl border border-rose-100 text-center">
+              <span className="block text-rose-600 text-xs font-bold uppercase tracking-wider">חוסרים</span>
+              <span className="text-2xl font-black text-rose-900">€{stats.shortagesAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
           </div>
 
