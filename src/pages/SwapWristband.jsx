@@ -101,7 +101,7 @@ export default function SwapWristband() {
     setFeedback(null);
     if (id === oldWristband.nfc_id) {
         const msg = "שגיאה: זהו אותו צמיד";
-        const det = "יש לסרוק צמיד חדש שונה מהישן";
+        const det = "לא ניתן להחליף צמיד בעצמו. יש לסרוק צמיד חדש וריק.";
         toast.error(msg);
         setFeedback({ type: 'error', message: msg, details: det });
         playSound('error');
@@ -112,9 +112,14 @@ export default function SwapWristband() {
     try {
       const exists = await base44.entities.Wristband.filter({ nfc_id: id });
       if (exists.length > 0) {
-        const existingOrder = exists[0].order_number;
-        const msg = "הצמיד כבר משויך לקבוצה אחרת";
-        const det = `צמיד זה שייך כבר להזמנה ${existingOrder}`;
+        const existingWb = exists[0];
+        const hasEvents = existingWb.allowed_events && existingWb.allowed_events.length > 0;
+        
+        const msg = hasEvents ? "הצמיד כבר מכיל אירועים" : "הצמיד כבר בשימוש";
+        const det = hasEvents 
+            ? `הצמיד מכיל ${existingWb.allowed_events.length} אירועים ושייך להזמנה ${existingWb.order_number}`
+            : `הצמיד משויך להזמנה ${existingWb.order_number}`;
+
         toast.error(msg);
         setFeedback({ type: 'error', message: msg, details: det });
         playSound('error');
