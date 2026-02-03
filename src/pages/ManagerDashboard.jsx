@@ -11,8 +11,8 @@ export default function ManagerDashboard() {
     const fetchData = async () => {
       try {
         const [allSales, allExpenses] = await Promise.all([
-          base44.entities.TableData.list(),
-          base44.entities.Expense.list()
+          base44.entities.TableData.list('-created_date', 1000),
+          base44.entities.Expense.list('-expense_date', 1000)
         ]);
 
         // Get unique users from both sales reps and expense recipients
