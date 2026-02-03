@@ -33,7 +33,7 @@ export default function SellerDashboard() {
           // Fetch sales for this user
           const sales = await base44.entities.TableData.filter({ 
             sales_rep: currentUser.full_name 
-          });
+          }, '-created_date', 1000);
           
           const totalGroups = sales.length;
           
@@ -62,23 +62,24 @@ export default function SellerDashboard() {
 
           const totalIncome = calculatedTotalIncome;
 
-          // Fetch refunds for this user
-          const refunds = await base44.entities.Expense.filter({
+          // Fetch expenses where I am the sales rep (for refunds)
+          const myCreatedExpenses = await base44.entities.Expense.filter({
             sales_rep: currentUser.full_name
-          });
+          }, '-expense_date', 1000);
 
-          const fullRefunds = refunds.filter(r => r.reason === 'החזר מלא');
+          const fullRefunds = myCreatedExpenses.filter(r => r.reason === 'החזר מלא');
           const fullRefundsCount = fullRefunds.length;
           const fullRefundsAmount = fullRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
-          const partialRefunds = refunds.filter(r => r.reason === 'החזר חלקי');
+          const partialRefunds = myCreatedExpenses.filter(r => r.reason === 'החזר חלקי');
           const partialRefundsCount = partialRefunds.length;
           const partialRefundsAmount = partialRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
-          // Fetch withdrawals for this user (where they are the recipient)
-          const myWithdrawals = refunds.filter(r => 
-            r.reason === 'משיכה לאדם' && r.recipient === currentUser.full_name
-          );
+          // Fetch withdrawals where I am the recipient (regardless of who created it)
+          const myWithdrawals = await base44.entities.Expense.filter({
+             reason: 'משיכה לאדם',
+             recipient: currentUser.full_name
+          }, '-expense_date', 1000);
           
           const withdrawalsCount = myWithdrawals.length;
           const withdrawalsAmount = myWithdrawals.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
