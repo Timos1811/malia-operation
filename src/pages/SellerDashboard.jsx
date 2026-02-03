@@ -4,7 +4,7 @@ import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PartyPopper, CheckSquare, UserCircle, LogOut } from 'lucide-react';
+import { PartyPopper, CheckSquare, UserCircle, LogOut, RefreshCcw } from 'lucide-react';
 import { Loader2 } from "lucide-react";
 
 export default function SellerDashboard() {
@@ -169,7 +169,7 @@ export default function SellerDashboard() {
         </div>
 
         {/* Action Cards */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           
           <Link to={createPageUrl('NewSale')} className="block group">
             <Card className="h-full border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
@@ -202,6 +202,24 @@ export default function SellerDashboard() {
                 <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
                   <CheckSquare className="w-4 h-4" />
                   צור בקשה
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to={createPageUrl('SwapWristband')} className="block group">
+            <Card className="h-full border-slate-200 hover:border-orange-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
+              <CardHeader className="pb-4">
+                <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                  <RefreshCcw className="w-6 h-6 text-orange-600" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-orange-700 transition-colors">החלפת צמיד</CardTitle>
+                <CardDescription>החלפת צמיד תקול והעברת נתונים</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2">
+                  <RefreshCcw className="w-4 h-4" />
+                  החלף צמיד
                 </Button>
               </CardContent>
             </Card>
