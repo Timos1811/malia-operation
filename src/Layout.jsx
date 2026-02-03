@@ -1,9 +1,55 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock, UserCircle, RefreshCcw } from 'lucide-react';
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock, UserCircle, RefreshCcw, Loader2, LogIn } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const isAuth = await base44.auth.isAuthenticated();
+        setIsAuthenticated(isAuth);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-6 p-4" dir="rtl">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-black text-slate-900">ברוכים הבאים</h1>
+          <p className="text-slate-500 text-lg">יש להתחבר או להירשם למערכת כדי להמשיך</p>
+        </div>
+        <Button 
+          size="lg" 
+          className="gap-2 bg-slate-900 text-white hover:bg-slate-800"
+          onClick={() => base44.auth.redirectToLogin(window.location.href)}
+        >
+          <LogIn className="w-5 h-5" />
+          התחברות / הרשמה
+        </Button>
+      </div>
+    );
+  }
+
   // הסתרת התפריט בעמודים ספציפיים
   const hideNavPages = ['AddTask', 'NewSale', 'OrderSuccess'];
   const shouldHideNav = hideNavPages.includes(currentPageName);
