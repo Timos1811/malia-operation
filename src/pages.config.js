@@ -61,6 +61,7 @@ import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SavedData from './pages/SavedData';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
+import SellerDashboard from './pages/SellerDashboard';
 import __Layout from './Layout.jsx';
 
 
@@ -79,6 +80,7 @@ export const PAGES = {
     "SavedData": SavedData,
     "Table": Table,
     "Tasks": Tasks,
+    "SellerDashboard": SellerDashboard,
 }
 
 export const pagesConfig = {

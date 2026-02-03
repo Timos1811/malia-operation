@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock } from 'lucide-react';
+import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock, UserCircle } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
   // הסתרת התפריט בעמודים ספציפיים
@@ -28,6 +28,13 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
             
+            <Link to={createPageUrl('SellerDashboard')} className={linkClass('SellerDashboard')}>
+              <UserCircle className="w-5 h-5" />
+              <span className="whitespace-nowrap">בית</span>
+            </Link>
+
+            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
+
             <Link to={createPageUrl('ReturnedToIsrael')} className={linkClass('ReturnedToIsrael')}>
               <Plane className="w-5 h-5 transform rotate-180" />
               <span className="whitespace-nowrap">חזר לארץ</span>
