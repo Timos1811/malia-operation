@@ -75,7 +75,7 @@ export default function SellerDashboard() {
           const partialRefundsCount = partialRefunds.length;
           const partialRefundsAmount = partialRefunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
-          // Fetch withdrawals where I am the recipient (regardless of who created it)
+          // Fetch withdrawals where I am the recipient
           const myWithdrawals = await base44.entities.Expense.filter({
              reason: 'משיכה לאדם',
              recipient: currentUser.full_name
