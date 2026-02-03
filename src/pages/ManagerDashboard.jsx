@@ -10,6 +10,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Increased limit to 1000 to ensure all recent data is fetched
         const [allSales, allExpenses] = await Promise.all([
           base44.entities.TableData.list('-created_date', 1000),
           base44.entities.Expense.list('-expense_date', 1000)

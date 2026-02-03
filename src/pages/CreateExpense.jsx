@@ -44,6 +44,20 @@ export default function CreateExpense() {
       return Array.from(names);
   }, [users, salesReps]);
 
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) {
+        console.error("Failed to fetch user", e);
+      }
+    };
+    fetchUser();
+  }, []);
+
   const [tableData, setTableData] = useState(() => {
     const saved = localStorage.getItem('expenseTableData');
     if (saved) {
@@ -123,7 +137,8 @@ export default function CreateExpense() {
           recipient: row.recipient,
           amount: parseFloat(row.amount),
           currency: row.currency,
-          expense_date: new Date().toISOString() // Automatic date (now)
+          expense_date: new Date().toISOString(), // Automatic date (now)
+          sales_rep: currentUser?.full_name || ''
         });
 
         const detail = eventDetails[i];
