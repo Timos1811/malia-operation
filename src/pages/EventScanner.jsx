@@ -160,9 +160,9 @@ export default function EventScanner() {
             setUniqueScans(0);
 
             toast.success("סיכום האירוע נשלח והסריקות אופסו!");
-            setShowFinishDialog(false);
-            setSignaturesCount("");
             navigate(createPageUrl('TaskSentSuccess'));
+            // Small delay to ensure navigation starts before closing dialog/unmounting if needed, 
+            // though usually unnecessary. Keeping dialog open until nav is fine.
         } catch (error) {
             console.error("Failed to create task", error);
             toast.error("שגיאה ביצירת משימת תשלום");
@@ -439,18 +439,10 @@ export default function EventScanner() {
 
                             return (
                                 <>
-                                    <div className="grid grid-cols-2 gap-3 mb-2">
-                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                            <div className="text-xs text-slate-500 mb-1">כרטיסים שנמכרו</div>
-                                            <div className="font-bold text-lg text-slate-900">{totalBuyers}</div>
-                                        </div>
-                                        <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-                                            <div className="text-xs text-green-600 mb-1">נסרקו בפועל</div>
-                                            <div className="font-bold text-lg text-green-700">{uniqueScans}</div>
-                                        </div>
-                                        <div className="p-3 bg-orange-50 rounded-lg border border-orange-100">
-                                            <div className="text-xs text-orange-600 mb-1">קנו ולא נסרקו</div>
-                                            <div className="font-bold text-lg text-orange-700">{notScanned}</div>
+                                    <div className="grid grid-cols-1 gap-4 mb-4">
+                                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                                            <span className="text-slate-600 font-medium">כמות נסרקים במערכת</span>
+                                            <span className="font-bold text-2xl text-slate-900">{uniqueScans}</span>
                                         </div>
                                     </div>
                                     
