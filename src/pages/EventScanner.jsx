@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +22,7 @@ export default function EventScanner() {
     const [showFinishDialog, setShowFinishDialog] = useState(false);
     const [signaturesCount, setSignaturesCount] = useState("");
     const isProcessing = useRef(false);
+    const navigate = useNavigate();
     
     const audioSuccess = useRef(new Audio('https://cdn.freesound.org/previews/171/171671_2437358-lq.mp3'));
     const audioError = useRef(new Audio('https://cdn.freesound.org/previews/142/142608_1840739-lq.mp3'));
@@ -128,6 +131,7 @@ export default function EventScanner() {
             toast.success("סיכום האירוע נשלח והסריקות אופסו!");
             setShowFinishDialog(false);
             setSignaturesCount("");
+            navigate(createPageUrl('TaskSentSuccess'));
         } catch (error) {
             console.error("Failed to create task", error);
             toast.error("שגיאה ביצירת משימת תשלום");
@@ -403,14 +407,10 @@ export default function EventScanner() {
 
                             return (
                                 <>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-3 bg-slate-50 rounded-lg">
-                                            <div className="text-sm text-slate-500">כמות נסרקים</div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div className="p-3 bg-slate-50 rounded-lg flex justify-between items-center">
+                                            <div className="text-sm text-slate-500">כמות נסרקים במערכת</div>
                                             <div className="font-bold text-lg">{uniqueScans}</div>
-                                        </div>
-                                        <div className="p-3 bg-slate-50 rounded-lg">
-                                            <div className="text-sm text-slate-500">מחיר עלות לאדם</div>
-                                            <div className="font-bold text-lg">€{costPrice}</div>
                                         </div>
                                     </div>
                                     
@@ -424,15 +424,11 @@ export default function EventScanner() {
                                         />
                                     </div>
 
-                                    <div className="space-y-2 pt-2 border-t">
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span>סה"כ אנשים (סריקות + חתימות):</span>
-                                            <span className="font-bold">{totalPeople}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                                            <span className="font-medium text-indigo-900">סה"כ לתשלום (EUR):</span>
+                                    <div className="space-y-2 pt-4 border-t">
+                                        <div className="flex justify-between items-center p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                                            <span className="font-medium text-indigo-900">סה"כ אנשים לאישור:</span>
                                             <span className="font-bold text-xl text-indigo-900">
-                                                €{totalAmount.toLocaleString()}
+                                                {totalPeople}
                                             </span>
                                         </div>
                                     </div>
