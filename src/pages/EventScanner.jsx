@@ -9,6 +9,7 @@ import { toast } from "sonner";
 export default function EventScanner() {
     const [attractions, setAttractions] = useState([]);
     const [selectedEvent, setSelectedEvent] = useState("");
+    const [uniqueScans, setUniqueScans] = useState(0);
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null); // { status: 'success' | 'error' | 'warning', message: '', details: {} }
     const [loading, setLoading] = useState(false);
@@ -41,6 +42,28 @@ export default function EventScanner() {
         fetchAttractions();
         fetchUser();
     }, []);
+
+    useEffect(() => {
+        if (selectedEvent) {
+            fetchScanStats();
+        } else {
+            setUniqueScans(0);
+        }
+    }, [selectedEvent]);
+
+    const fetchScanStats = async () => {
+        if (!selectedEvent) return;
+        try {
+            const logs = await base44.entities.WristbandScanLog.filter({
+                event_name: selectedEvent,
+                status: 'success'
+            });
+            const uniqueIds = new Set(logs.map(log => log.nfc_id));
+            setUniqueScans(uniqueIds.size);
+        } catch (e) {
+            console.error("Failed to fetch stats", e);
+        }
+    };
 
     const playSound = (type) => {
         try {
@@ -205,6 +228,13 @@ export default function EventScanner() {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {selectedEvent && (
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center justify-between">
+                                <span className="text-indigo-700 font-medium">נסרקו לאירוע זה:</span>
+                                <span className="text-2xl font-bold text-indigo-900">{uniqueScans}</span>
+                            </div>
+                        )}
 
                         {!isScanning ? (
                             <Button 
