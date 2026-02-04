@@ -78,7 +78,7 @@ export default function EventScanner() {
         setScanResult(null);
 
         // Convert serial number format if needed (usually comes as xx:xx:xx:xx)
-        const nfcId = serialNumber; // Keep original format to match DB
+        const nfcId = serialNumber.replace(/:/g, ""); // Remove colons to match DB format
         
         try {
             // Find wristband
