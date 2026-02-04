@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Users, Search, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
 
 export default function Live() {
   const queryClient = useQueryClient();
@@ -126,9 +129,12 @@ export default function Live() {
       genderDist[gender] = (genderDist[gender] || 0) + count;
     });
 
+    const chartData = Object.entries(genderDist).map(([name, value]) => ({ name, value }));
+
     return {
       total: totalCustomers,
-      genderDist
+      genderDist,
+      chartData
     };
   }, [liveGroups]);
 
