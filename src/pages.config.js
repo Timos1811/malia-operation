@@ -52,6 +52,7 @@ import AgentGroups from './pages/AgentGroups';
 import AllExpenses from './pages/AllExpenses';
 import BankTable from './pages/BankTable';
 import CreateExpense from './pages/CreateExpense';
+import EventScanner from './pages/EventScanner';
 import EventsAndAttractions from './pages/EventsAndAttractions';
 import Live from './pages/Live';
 import ManagerDashboard from './pages/ManagerDashboard';
@@ -65,7 +66,6 @@ import SellerDashboard from './pages/SellerDashboard';
 import SwapWristband from './pages/SwapWristband';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
-import EventScanner from './pages/EventScanner';
 import WristbandHistory from './pages/WristbandHistory';
 import __Layout from './Layout.jsx';
 
@@ -76,6 +76,7 @@ export const PAGES = {
     "AllExpenses": AllExpenses,
     "BankTable": BankTable,
     "CreateExpense": CreateExpense,
+    "EventScanner": EventScanner,
     "EventsAndAttractions": EventsAndAttractions,
     "Live": Live,
     "ManagerDashboard": ManagerDashboard,
@@ -89,7 +90,6 @@ export const PAGES = {
     "SwapWristband": SwapWristband,
     "Table": Table,
     "Tasks": Tasks,
-    "EventScanner": EventScanner,
     "WristbandHistory": WristbandHistory,
 }
 

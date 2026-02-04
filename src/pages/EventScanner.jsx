@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 
 export default function EventScanner() {
@@ -144,21 +144,24 @@ export default function EventScanner() {
                 const isAllowed = allowedEvents.includes(selectedEvent);
 
                 if (isAllowed) {
-                    resultStatus = 'success';
-                    resultMessage = 'כניסה מאושרת';
-                    resultDetails = {
-                        customer: wristband.customer_name,
-                        order: wristband.order_number,
-                        nfc_id: nfcId
-                    };
+                    // Check if already scanned
+                    const previousScans = await base44.entities.WristbandScanLog.filter({
+                        nfc_id: nfcId,
+                        event_name: selectedEvent,
+                        status: 'success'
+                    }, '-scan_time', 1);
+
+                    if (previousScans.length > 0) {
+                        resultStatus = 'already_scanned';
+                    } else {
+                        resultStatus = 'success';
+                    }
+                    resultMessage = '';
+                    resultDetails = {};
                 } else {
                     resultStatus = 'warning';
-                    resultMessage = 'אין כניסה לאירוע זה';
-                    resultDetails = {
-                        customer: wristband.customer_name,
-                        order: wristband.order_number,
-                        nfc_id: nfcId
-                    };
+                    resultMessage = '';
+                    resultDetails = {};
                 }
             }
 
@@ -167,21 +170,27 @@ export default function EventScanner() {
                 message: resultMessage,
                 details: resultDetails
             });
-            playSound(resultStatus === 'success' ? 'success' : 'error');
+            playSound((resultStatus === 'success' || resultStatus === 'already_scanned') ? 'success' : 'error');
 
             // Log the scan
             try {
+                // Determine log status (map already_scanned to success for logs, or keep strictly unique?)
+                // Assuming 'already_scanned' is still a valid entry, log it as success or maybe a new status 'duplicate'
+                // User logic implies it's allowed, so 'success' is appropriate for the log, 
+                // but for statistics we only count unique NFC IDs anyway.
+                const logStatus = resultStatus === 'already_scanned' ? 'success' : resultStatus;
+
                 await base44.entities.WristbandScanLog.create({
                     nfc_id: nfcId,
                     event_name: selectedEvent,
                     scan_time: new Date().toISOString(),
-                    status: resultStatus,
-                    message: resultMessage,
+                    status: logStatus,
+                    message: resultStatus === 'already_scanned' ? 'Already Scanned' : resultMessage,
                     scanned_by: currentUser?.full_name || 'Unknown',
                     customer_name: wristband?.customer_name || '',
                     order_number: wristband?.order_number || ''
                 });
-                if (resultStatus === 'success') {
+                if (logStatus === 'success') {
                     fetchScanStats();
                 }
             } catch (logError) {
@@ -276,43 +285,19 @@ export default function EventScanner() {
                 )}
 
                 {scanResult && !loading && (
-                    <Card className={`border-4 overflow-hidden ${
-                        scanResult.status === 'success' ? 'border-green-500 shadow-green-100' : 
-                        scanResult.status === 'warning' ? 'border-red-500 shadow-red-100' : 'border-slate-300'
-                    } shadow-xl transform transition-all duration-300 scale-105`}>
-                        <CardHeader className={`${
-                            scanResult.status === 'success' ? 'bg-green-50' : 
+                    <Card className={`border-8 overflow-hidden ${
+                        (scanResult.status === 'success' || scanResult.status === 'already_scanned') ? 'border-green-500 shadow-green-200' : 
+                        scanResult.status === 'warning' ? 'border-red-500 shadow-red-200' : 'border-slate-300'
+                    } shadow-2xl transform transition-all duration-300 scale-110`}>
+                        <div className={`p-12 flex items-center justify-center ${
+                            (scanResult.status === 'success' || scanResult.status === 'already_scanned') ? 'bg-green-50' : 
                             scanResult.status === 'warning' ? 'bg-red-50' : 'bg-slate-50'
-                        } pb-6 pt-6 text-center`}>
-                            <div className="mx-auto mb-3">
-                                {scanResult.status === 'success' && <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto" />}
-                                {scanResult.status === 'warning' && <XCircle className="w-16 h-16 text-red-600 mx-auto" />}
-                                {scanResult.status === 'error' && <AlertTriangle className="w-16 h-16 text-slate-400 mx-auto" />}
-                            </div>
-                            <CardTitle className={`text-2xl font-black ${
-                                scanResult.status === 'success' ? 'text-green-700' : 
-                                scanResult.status === 'warning' ? 'text-red-700' : 'text-slate-700'
-                            }`}>
-                                {scanResult.message}
-                            </CardTitle>
-                        </CardHeader>
-                        {scanResult.details.nfc_id && (
-                            <CardContent className="pt-6 text-center space-y-2">
-                                {scanResult.details.customer && (
-                                    <div className="text-lg font-bold text-slate-800">
-                                        {scanResult.details.customer}
-                                    </div>
-                                )}
-                                {scanResult.details.order && (
-                                    <div className="text-slate-500">
-                                        הזמנה: {scanResult.details.order}
-                                    </div>
-                                )}
-                                <div className="text-xs text-slate-300 font-mono mt-4">
-                                    ID: {scanResult.details.nfc_id}
-                                </div>
-                            </CardContent>
-                        )}
+                        }`}>
+                            {scanResult.status === 'success' && <CheckCircle2 className="w-40 h-40 text-green-600 animate-bounce" />}
+                            {scanResult.status === 'already_scanned' && <ThumbsUp className="w-40 h-40 text-green-600 animate-bounce" />}
+                            {scanResult.status === 'warning' && <XCircle className="w-40 h-40 text-red-600 animate-pulse" />}
+                            {scanResult.status === 'error' && <AlertTriangle className="w-40 h-40 text-slate-400" />}
+                        </div>
                     </Card>
                 )}
             </div>
