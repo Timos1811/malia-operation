@@ -238,19 +238,38 @@ export default function Live() {
                     <div className="text-4xl font-bold text-slate-800">{stats.total}</div>
                 </CardContent>
             </Card>
-            <Card>
+            <Card className="flex flex-col">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-slate-500">התפלגות מגדר</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        {Object.entries(stats.genderDist).map(([gender, count]) => (
-                            <div key={gender} className="flex justify-between items-center text-sm border-b border-slate-100 last:border-0 pb-1 last:pb-0">
-                                <span className="text-slate-600">{gender}</span>
-                                <Badge variant="secondary" className="font-mono">{count}</Badge>
-                            </div>
-                        ))}
-                    </div>
+                <CardContent className="flex-1 min-h-[200px]">
+                    {stats.chartData.length > 0 ? (
+                        <div className="w-full h-[200px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.chartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {stats.chartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                            אין נתונים להצגה
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
