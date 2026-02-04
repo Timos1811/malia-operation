@@ -65,6 +65,7 @@ import SellerDashboard from './pages/SellerDashboard';
 import SwapWristband from './pages/SwapWristband';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
+import EventScanner from './pages/EventScanner';
 import __Layout from './Layout.jsx';
 
 
@@ -87,6 +88,7 @@ export const PAGES = {
     "SwapWristband": SwapWristband,
     "Table": Table,
     "Tasks": Tasks,
+    "EventScanner": EventScanner,
 }
 
 export const pagesConfig = {
