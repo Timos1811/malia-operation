@@ -114,53 +114,53 @@ export default function SellerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-12" dir="rtl">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-12" dir="rtl">
+      <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
         
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-100 p-3 rounded-full">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="bg-indigo-100 p-3 rounded-full shrink-0">
               <UserCircle className="w-8 h-8 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">
+              <h1 className="text-xl md:text-2xl font-bold text-slate-800">
                 שלום, {user?.full_name || 'מוכר יקר'}
               </h1>
-              <p className="text-slate-500">ברוך הבא למערכת הניהול שלך</p>
+              <p className="text-sm md:text-base text-slate-500">ברוך הבא למערכת הניהול שלך</p>
             </div>
           </div>
 
-          <div className="flex gap-4">
-            <div className="bg-indigo-50 px-6 py-3 rounded-xl border border-indigo-100 text-center">
-              <span className="block text-indigo-600 text-xs font-bold uppercase tracking-wider">סה"כ הכנסות</span>
-              <span className="text-2xl font-black text-indigo-900">€{stats.totalIncome.toLocaleString()}</span>
+          <div className="grid grid-cols-2 gap-3 w-full md:flex md:flex-wrap md:justify-center md:gap-4">
+            <div className="bg-indigo-50 px-4 py-3 rounded-xl border border-indigo-100 text-center flex flex-col justify-center">
+              <span className="block text-indigo-600 text-xs font-bold uppercase tracking-wider mb-1">סה"כ הכנסות</span>
+              <span className="text-lg md:text-2xl font-black text-indigo-900">€{stats.totalIncome.toLocaleString()}</span>
             </div>
-            <div className="bg-emerald-50 px-6 py-3 rounded-xl border border-emerald-100 text-center">
-              <span className="block text-emerald-600 text-xs font-bold uppercase tracking-wider">קבוצות</span>
-              <span className="text-2xl font-black text-emerald-900">{stats.totalGroups}</span>
+            <div className="bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 text-center flex flex-col justify-center">
+              <span className="block text-emerald-600 text-xs font-bold uppercase tracking-wider mb-1">קבוצות</span>
+              <span className="text-lg md:text-2xl font-black text-emerald-900">{stats.totalGroups}</span>
             </div>
-            <div className="bg-red-50 px-6 py-3 rounded-xl border border-red-100 text-center">
-              <span className="block text-red-600 text-xs font-bold uppercase tracking-wider">החזר מלא ({stats.fullRefundsCount})</span>
-              <span className="text-2xl font-black text-red-900">€{stats.fullRefundsAmount.toLocaleString()}</span>
+            <div className="bg-red-50 px-4 py-3 rounded-xl border border-red-100 text-center flex flex-col justify-center">
+              <span className="block text-red-600 text-xs font-bold uppercase tracking-wider mb-1">החזר מלא ({stats.fullRefundsCount})</span>
+              <span className="text-lg md:text-2xl font-black text-red-900">€{stats.fullRefundsAmount.toLocaleString()}</span>
             </div>
-            <div className="bg-orange-50 px-6 py-3 rounded-xl border border-orange-100 text-center">
-              <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider">החזר חלקי ({stats.partialRefundsCount})</span>
-              <span className="text-2xl font-black text-orange-900">€{stats.partialRefundsAmount.toLocaleString()}</span>
+            <div className="bg-orange-50 px-4 py-3 rounded-xl border border-orange-100 text-center flex flex-col justify-center">
+              <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider mb-1">החזר חלקי ({stats.partialRefundsCount})</span>
+              <span className="text-lg md:text-2xl font-black text-orange-900">€{stats.partialRefundsAmount.toLocaleString()}</span>
             </div>
-            <div className="bg-blue-50 px-6 py-3 rounded-xl border border-blue-100 text-center">
-              <span className="block text-orange-600 text-xs font-bold uppercase tracking-wider">משיכות ({stats.withdrawalsCount})</span>
-              <span className="text-2xl font-black text-orange-900">€{stats.withdrawalsAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <div className="bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 text-center flex flex-col justify-center">
+              <span className="block text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">משיכות ({stats.withdrawalsCount})</span>
+              <span className="text-lg md:text-2xl font-black text-blue-900">€{stats.withdrawalsAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
-            <div className="bg-rose-50 px-6 py-3 rounded-xl border border-rose-100 text-center">
-              <span className="block text-rose-600 text-xs font-bold uppercase tracking-wider">חוסרים</span>
-              <span className="text-2xl font-black text-rose-900">€{stats.shortagesAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <div className="bg-rose-50 px-4 py-3 rounded-xl border border-rose-100 text-center flex flex-col justify-center">
+              <span className="block text-rose-600 text-xs font-bold uppercase tracking-wider mb-1">חוסרים</span>
+              <span className="text-lg md:text-2xl font-black text-rose-900">€{stats.shortagesAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
             </div>
           </div>
 
           <Button 
             variant="ghost" 
-            className="text-slate-500 hover:text-red-600 gap-2"
+            className="text-slate-500 hover:text-red-600 gap-2 w-full md:w-auto mt-2 md:mt-0"
             onClick={async () => await base44.auth.logout()}
           >
             <LogOut className="w-4 h-4" />
@@ -169,7 +169,7 @@ export default function SellerDashboard() {
         </div>
 
         {/* Action Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           
           <Link to={createPageUrl('NewSale')} className="block group">
             <Card className="h-full border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
