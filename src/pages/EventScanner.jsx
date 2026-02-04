@@ -180,6 +180,9 @@ export default function EventScanner() {
                     customer_name: wristband?.customer_name || '',
                     order_number: wristband?.order_number || ''
                 });
+                if (resultStatus === 'success') {
+                    fetchScanStats();
+                }
             } catch (logError) {
                 console.error("Failed to log scan", logError);
             }
