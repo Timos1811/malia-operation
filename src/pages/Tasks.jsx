@@ -80,6 +80,40 @@ function TaskList() {
       }
     }
 
+    // Handle Supplier Payment Task Completion
+    if (newStatus === 'done' && task.task_type === 'supplier_payment') {
+      try {
+        // 1. Create Expense
+        const expense = await base44.entities.Expense.create({
+          reason: 'תשלום לספק',
+          recipient: task.event_name || 'ספק', // Using event name as recipient or generic
+          amount: task.amount || 0,
+          currency: task.currency || 'EUR',
+          expense_date: new Date().toISOString().split('T')[0], // Date of payment (today)
+          sales_rep: task.sales_rep || ''
+        });
+
+        // 2. Create ExpenseEvent linked to the expense
+        if (expense && expense.id) {
+          await base44.entities.ExpenseEvent.create({
+            expense_id: expense.id,
+            event_name: task.event_name || '',
+            event_date: task.event_date || new Date().toISOString().split('T')[0],
+            buyers_count: task.people_count || 0,
+            scanned_count: task.scanned_count || 0
+          });
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        queryClient.invalidateQueries({ queryKey: ['expensesAll'] });
+        
+        toast.success('הוצאה לתשלום ספק נוצרה בהצלחה');
+      } catch (error) {
+        console.error('Failed to process supplier payment:', error);
+        toast.error('שגיאה ביצירת הוצאה לספק');
+      }
+    }
+
     toggleStatusMutation.mutate({ id: task.id, status: newStatus });
   };
 

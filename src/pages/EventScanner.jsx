@@ -81,6 +81,21 @@ export default function EventScanner() {
             const totalCount = uniqueScans + signatures;
             const totalAmount = totalCount * costPrice;
 
+            // Find the date of the first scan for this event
+            let eventDate = new Date().toISOString().split('T')[0];
+            try {
+                const firstLog = await base44.entities.WristbandScanLog.filter({
+                    event_name: selectedEvent,
+                    status: 'success'
+                }, 'scan_time', 1); // Ascending sort to get the oldest
+                
+                if (firstLog && firstLog.length > 0) {
+                    eventDate = new Date(firstLog[0].scan_time).toISOString().split('T')[0];
+                }
+            } catch (err) {
+                console.error("Could not fetch first scan date", err);
+            }
+
             await base44.entities.Task.create({
                 title: `תשלום לספק - ${selectedEvent}`,
                 description: `
@@ -89,13 +104,19 @@ export default function EventScanner() {
 חתימות (ידני): ${signatures}
 סה"כ לתשלום: ${totalCount} אנשים
 מחיר עלות לאדם: €${costPrice}
+תאריך אירוע (לפי סריקה ראשונה): ${eventDate}
                 `.trim(),
                 status: 'todo',
-                task_type: 'general',
+                task_type: 'supplier_payment',
                 amount: totalAmount,
                 currency: 'EUR',
                 due_date: new Date().toISOString().split('T')[0],
-                sales_rep: currentUser?.full_name || 'System'
+                sales_rep: currentUser?.full_name || 'System',
+                // New fields for automation
+                people_count: totalCount,
+                scanned_count: uniqueScans,
+                event_date: eventDate,
+                event_name: selectedEvent
             });
 
             // Reset scans for this event
