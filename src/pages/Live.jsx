@@ -7,17 +7,49 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Users, Search, Filter, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function Live() {
   const queryClient = useQueryClient();
+  const [filters, setFilters] = React.useState({
+    sales_rep: 'all',
+    event_name: 'all',
+    event_status: 'bought'
+  });
+
+  // Fetch Filters Data
+  const { data: attractions = [] } = useQuery({
+    queryKey: ['attractions'],
+    queryFn: () => base44.entities.Attraction.list(),
+  });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => base44.entities.User.list(),
+  });
+
+  // Main Data Query
   const { data: tableData = [], isLoading } = useQuery({
-    queryKey: ['tableData'],
-    queryFn: () => base44.entities.TableData.list('-created_date', 100), // Get recent 100 or all if needed
+    queryKey: ['tableData', filters],
+    queryFn: async () => {
+      // Use the search backend function
+      const response = await base44.functions.invoke('searchGroups', filters);
+      return response.data;
+    },
     staleTime: 60000,
     refetchOnWindowFocus: false,
   });
+
+  const clearFilters = () => {
+    setFilters({
+        sales_rep: 'all',
+        event_name: 'all',
+        event_status: 'bought'
+    });
+  };
 
   const updateMutation = useMutation({
     mutationFn: ({ id, departure_sent }) => base44.entities.TableData.update(id, { departure_sent }),
@@ -101,6 +133,81 @@ export default function Live() {
             <Users className="w-8 h-8 text-slate-600" />
             <h1 className="text-3xl font-bold text-slate-800">לייב - קבוצות ביעד</h1>
         </div>
+
+        {/* Filters */}
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <Filter className="w-5 h-5" />
+                    סינון מתקדם
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">נציג מכירות</label>
+                        <Select 
+                            value={filters.sales_rep} 
+                            onValueChange={(val) => setFilters(prev => ({ ...prev, sales_rep: val }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="כל הנציגים" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">כל הנציגים</SelectItem>
+                                {users.map(u => (
+                                    <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">אירוע / מסיבה</label>
+                        <Select 
+                            value={filters.event_name} 
+                            onValueChange={(val) => setFilters(prev => ({ ...prev, event_name: val }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="בחר אירוע" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">הכל</SelectItem>
+                                {attractions.map(a => (
+                                    <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">סטטוס רכישה</label>
+                        <Select 
+                            value={filters.event_status} 
+                            onValueChange={(val) => setFilters(prev => ({ ...prev, event_status: val }))}
+                            disabled={filters.event_name === 'all'}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="סטטוס" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="bought">רכשו את האירוע</SelectItem>
+                                <SelectItem value="not_bought">לא רכשו</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <Button 
+                        variant="outline" 
+                        onClick={clearFilters}
+                        className="w-full"
+                    >
+                        <X className="w-4 h-4 ml-2" />
+                        נקה סינון
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
