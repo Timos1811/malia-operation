@@ -51,8 +51,8 @@ export default function SwapWristband() {
         if (scanLockRef.current) return;
         scanLockRef.current = true;
         
-        // Remove colons from the serial number
-        const serialNumber = event.serialNumber.replace(/:/g, "");
+        // Remove colons from the serial number and normalize
+        const serialNumber = event.serialNumber.replace(/:/g, "").toLowerCase();
         
         try {
           if (targetStep === 1) {
@@ -293,7 +293,7 @@ export default function SwapWristband() {
                                                 placeholder="הכנס מזהה צמיד ישן (ID)"
                                                 className="text-center h-14 text-lg bg-slate-50"
                                                 value={manualOldId}
-                                                onChange={e => setManualOldId(e.target.value)}
+                                                onChange={e => setManualOldId(e.target.value.toLowerCase())}
                                             />
                                             <Button 
                                                 size="lg" 
@@ -354,7 +354,7 @@ export default function SwapWristband() {
                                                 placeholder="הכנס מזהה צמיד חדש"
                                                 className="text-center h-14 text-lg bg-emerald-50 border-emerald-200 focus-visible:ring-emerald-500"
                                                 value={newWristbandId}
-                                                onChange={e => setNewWristbandId(e.target.value)}
+                                                onChange={e => setNewWristbandId(e.target.value.toLowerCase())}
                                             />
                                             <Button 
                                                 size="lg" 
