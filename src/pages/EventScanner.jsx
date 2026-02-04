@@ -13,6 +13,7 @@ export default function EventScanner() {
     const [scanResult, setScanResult] = useState(null); // { status: 'success' | 'error' | 'warning', message: '', details: {} }
     const [loading, setLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const isProcessing = useRef(false);
     
     const audioSuccess = useRef(new Audio('https://cdn.freesound.org/previews/171/171671_2437358-lq.mp3'));
     const audioError = useRef(new Audio('https://cdn.freesound.org/previews/142/142608_1840739-lq.mp3'));
@@ -69,7 +70,11 @@ export default function EventScanner() {
                 toast.success("מוכן לסריקה... קרב את הצמיד");
 
                 ndef.onreading = async ({ serialNumber }) => {
+                    if (isProcessing.current) return;
+                    isProcessing.current = true;
                     await handleScan(serialNumber);
+                    // Cooldown to prevent double scans
+                    setTimeout(() => { isProcessing.current = false; }, 2000);
                 };
 
                 ndef.onreadingerror = () => {
@@ -93,10 +98,15 @@ export default function EventScanner() {
         const nfcId = serialNumber.replace(/:/g, "").toLowerCase(); // Normalize format
         
         try {
-            // Find wristband
-            const wristbands = await base44.entities.Wristband.list();
-            // Filter locally or use filter API if precise match needed
-            const wristband = wristbands.find(w => w.nfc_id === nfcId);
+            // Find wristband directly using filter (handles large datasets correctly)
+            let wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId });
+            
+            // Fallback: Try uppercase match if not found (for legacy data)
+            if (!wristbands || wristbands.length === 0) {
+                wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId.toUpperCase() });
+            }
+
+            const wristband = wristbands && wristbands.length > 0 ? wristbands[0] : null;
 
             let resultStatus, resultMessage, resultDetails;
 
