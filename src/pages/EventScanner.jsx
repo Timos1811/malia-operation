@@ -54,10 +54,11 @@ export default function EventScanner() {
     const fetchScanStats = async () => {
         if (!selectedEvent) return;
         try {
+            // Fetch up to 1000 logs to ensure accurate counting
             const logs = await base44.entities.WristbandScanLog.filter({
                 event_name: selectedEvent,
                 status: 'success'
-            });
+            }, '-scan_time', 1000);
             const uniqueIds = new Set(logs.map(log => log.nfc_id));
             setUniqueScans(uniqueIds.size);
         } catch (e) {
@@ -234,7 +235,18 @@ export default function EventScanner() {
 
                         {selectedEvent && (
                             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center justify-between">
-                                <span className="text-indigo-700 font-medium">נסרקו לאירוע זה:</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-indigo-700 font-medium">נסרקו לאירוע זה:</span>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 text-indigo-400 hover:text-indigo-600" 
+                                        onClick={fetchScanStats}
+                                        title="רענן ספירה"
+                                    >
+                                        <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                    </Button>
+                                </div>
                                 <span className="text-2xl font-bold text-indigo-900">{uniqueScans}</span>
                             </div>
                         )}
