@@ -394,27 +394,51 @@ export default function EventScanner() {
                     </DialogHeader>
                     
                     <div className="space-y-4 py-4">
-                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                            <span className="font-medium">כמות נסרקים:</span>
-                            <span className="font-bold text-lg">{uniqueScans}</span>
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <Label>חתימות (תוספת ידנית)</Label>
-                            <Input 
-                                type="number" 
-                                placeholder="הכנס כמות חתימות..."
-                                value={signaturesCount}
-                                onChange={(e) => setSignaturesCount(e.target.value)}
-                            />
-                        </div>
+                        {(() => {
+                            const selectedAttraction = attractions.find(a => a.name === selectedEvent);
+                            const costPrice = selectedAttraction?.cost_price_eur || 0;
+                            const signatures = parseInt(signaturesCount) || 0;
+                            const totalPeople = uniqueScans + signatures;
+                            const totalAmount = totalPeople * costPrice;
 
-                        <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                            <span className="font-medium text-indigo-900">סה"כ לתשלום:</span>
-                            <span className="font-bold text-lg text-indigo-900">
-                                {uniqueScans + (parseInt(signaturesCount) || 0)} אנשים
-                            </span>
-                        </div>
+                            return (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 bg-slate-50 rounded-lg">
+                                            <div className="text-sm text-slate-500">כמות נסרקים</div>
+                                            <div className="font-bold text-lg">{uniqueScans}</div>
+                                        </div>
+                                        <div className="p-3 bg-slate-50 rounded-lg">
+                                            <div className="text-sm text-slate-500">מחיר עלות לאדם</div>
+                                            <div className="font-bold text-lg">€{costPrice}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <Label>חתימות (תוספת ידנית)</Label>
+                                        <Input 
+                                            type="number" 
+                                            placeholder="הכנס כמות חתימות..."
+                                            value={signaturesCount}
+                                            onChange={(e) => setSignaturesCount(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2 pt-2 border-t">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span>סה"כ אנשים (סריקות + חתימות):</span>
+                                            <span className="font-bold">{totalPeople}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                                            <span className="font-medium text-indigo-900">סה"כ לתשלום (EUR):</span>
+                                            <span className="font-bold text-xl text-indigo-900">
+                                                €{totalAmount.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
 
                     <DialogFooter>
