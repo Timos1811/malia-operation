@@ -14,6 +14,10 @@ import { toast } from "sonner";
 export default function AgentGroups() {
   const [user, setUser] = useState(null);
   const [showLiveOnly, setShowLiveOnly] = useState(false);
+  const [filters, setFilters] = useState({
+    event_name: 'all',
+    event_status: 'bought'
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -27,17 +31,31 @@ export default function AgentGroups() {
     fetchUser();
   }, []);
 
+  const { data: attractions = [] } = useQuery({
+    queryKey: ['attractions'],
+    queryFn: () => base44.entities.Attraction.list(),
+  });
+
   const { data: myGroups = [], isLoading } = useQuery({
-    queryKey: ['myGroups', user?.full_name],
+    queryKey: ['myGroups', user?.full_name, filters],
     queryFn: async () => {
       if (!user?.full_name) return [];
-      // Fetch all groups for this agent
-      return await base44.entities.TableData.filter({ 
-        sales_rep: user.full_name 
-      }, '-created_date', 1000);
+      
+      const payload = {
+          sales_rep: user.full_name,
+          event_name: filters.event_name,
+          event_status: filters.event_status
+      };
+      
+      const response = await base44.functions.invoke('searchGroups', payload);
+      return response.data;
     },
     enabled: !!user?.full_name,
   });
+
+  const clearFilters = () => {
+    setFilters({ event_name: 'all', event_status: 'bought' });
+  };
 
   const filteredGroups = useMemo(() => {
     if (!showLiveOnly) return myGroups;
@@ -123,6 +141,63 @@ export default function AgentGroups() {
              </Button>
           </div>
         </div>
+
+        {/* Filters */}
+        <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <Filter className="w-5 h-5" />
+                    סינון לפי אירועים
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">בחר אירוע / מסיבה</label>
+                        <Select 
+                            value={filters.event_name} 
+                            onValueChange={(val) => setFilters(prev => ({ ...prev, event_name: val }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="בחר אירוע" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">הכל</SelectItem>
+                                {attractions.map(a => (
+                                    <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">סטטוס רכישה</label>
+                        <Select 
+                            value={filters.event_status} 
+                            onValueChange={(val) => setFilters(prev => ({ ...prev, event_status: val }))}
+                            disabled={filters.event_name === 'all'}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="סטטוס" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="bought">רכשו את האירוע</SelectItem>
+                                <SelectItem value="not_bought">לא רכשו</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <Button 
+                        variant="outline" 
+                        onClick={clearFilters}
+                        className="w-full"
+                    >
+                        <X className="w-4 h-4 ml-2" />
+                        נקה סינון
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
 
         {/* Content */}
         <Card className="border-none shadow-sm">
