@@ -4,7 +4,7 @@ import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PartyPopper, CheckSquare, UserCircle, LogOut, RefreshCcw } from 'lucide-react';
+import { PartyPopper, CheckSquare, UserCircle, LogOut, RefreshCcw, Users } from 'lucide-react';
 import { Loader2 } from "lucide-react";
 
 export default function SellerDashboard() {
