@@ -98,7 +98,13 @@ export default function EventScanner() {
                 sales_rep: currentUser?.full_name || 'System'
             });
 
-            toast.success("סיכום האירוע נשלח בהצלחה למשימות!");
+            // Reset scans for this event
+            await base44.functions.invoke('resetEventScans', { event_name: selectedEvent });
+            
+            // Refresh counts locally
+            setUniqueScans(0);
+
+            toast.success("סיכום האירוע נשלח והסריקות אופסו!");
             setShowFinishDialog(false);
             setSignaturesCount("");
         } catch (error) {

@@ -103,15 +103,15 @@ function TaskList() {
           <Card 
             key={task.id} 
             className={`transition-all ${
-              isRefund && !isDone 
-                ? 'bg-red-50 border-red-200 shadow-md' 
-                : isDone ? 'bg-slate-50 opacity-70' : 'bg-white'
+              !isDone 
+                ? 'bg-red-50 border border-red-200 shadow-sm' 
+                : 'bg-slate-50 opacity-70 border border-slate-200'
             }`}
           >
             <CardContent className="p-6 flex items-start justify-between gap-4">
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <h3 className={`font-bold text-lg ${isRefund && !isDone ? 'text-red-700' : 'text-slate-800'} ${isDone ? 'line-through' : ''}`}>
+                  <h3 className={`font-bold text-lg ${!isDone ? 'text-red-900' : 'text-slate-800'} ${isDone ? 'line-through' : ''}`}>
                     {task.title}
                   </h3>
                   {isRefund && (
