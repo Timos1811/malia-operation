@@ -3,7 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle, ThumbsUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle, ThumbsUp, FileCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export default function EventScanner() {
@@ -14,6 +17,8 @@ export default function EventScanner() {
     const [scanResult, setScanResult] = useState(null); // { status: 'success' | 'error' | 'warning', message: '', details: {} }
     const [loading, setLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const [showFinishDialog, setShowFinishDialog] = useState(false);
+    const [signaturesCount, setSignaturesCount] = useState("");
     const isProcessing = useRef(false);
     
     const audioSuccess = useRef(new Audio('https://cdn.freesound.org/previews/171/171671_2437358-lq.mp3'));
@@ -63,6 +68,44 @@ export default function EventScanner() {
             setUniqueScans(uniqueIds.size);
         } catch (e) {
             console.error("Failed to fetch stats", e);
+        }
+    };
+
+    const handleFinishEvent = async () => {
+        if (!selectedEvent) return;
+        setLoading(true);
+        try {
+            const attraction = attractions.find(a => a.name === selectedEvent);
+            const costPrice = attraction?.cost_price_eur || 0;
+            const signatures = parseInt(signaturesCount) || 0;
+            const totalCount = uniqueScans + signatures;
+            const totalAmount = totalCount * costPrice;
+
+            await base44.entities.Task.create({
+                title: `תשלום לספק - ${selectedEvent}`,
+                description: `
+סיכום אירוע: ${selectedEvent}
+כמות נסרקים: ${uniqueScans}
+חתימות (ידני): ${signatures}
+סה"כ לתשלום: ${totalCount} אנשים
+מחיר עלות לאדם: €${costPrice}
+                `.trim(),
+                status: 'todo',
+                task_type: 'general',
+                amount: totalAmount,
+                currency: 'EUR',
+                due_date: new Date().toISOString().split('T')[0],
+                sales_rep: currentUser?.full_name || 'System'
+            });
+
+            toast.success("סיכום האירוע נשלח בהצלחה למשימות!");
+            setShowFinishDialog(false);
+            setSignaturesCount("");
+        } catch (error) {
+            console.error("Failed to create task", error);
+            toast.error("שגיאה ביצירת משימת תשלום");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -243,20 +286,30 @@ export default function EventScanner() {
                         </div>
 
                         {selectedEvent && (
-                            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-indigo-700 font-medium">נסרקו לאירוע זה:</span>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-6 w-6 text-indigo-400 hover:text-indigo-600" 
-                                        onClick={fetchScanStats}
-                                        title="רענן ספירה"
-                                    >
-                                        <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                                    </Button>
+                            <div className="space-y-4">
+                                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-indigo-700 font-medium">נסרקו לאירוע זה:</span>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-6 w-6 text-indigo-400 hover:text-indigo-600" 
+                                            onClick={fetchScanStats}
+                                            title="רענן ספירה"
+                                        >
+                                            <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                        </Button>
+                                    </div>
+                                    <span className="text-2xl font-bold text-indigo-900">{uniqueScans}</span>
                                 </div>
-                                <span className="text-2xl font-bold text-indigo-900">{uniqueScans}</span>
+                                
+                                <Button 
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    onClick={() => setShowFinishDialog(true)}
+                                >
+                                    <FileCheck className="w-4 h-4 ml-2" />
+                                    סיים אירוע וצור דוח
+                                </Button>
                             </div>
                         )}
 
@@ -303,6 +356,49 @@ export default function EventScanner() {
                     </Card>
                 )}
             </div>
+
+            <Dialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>סיכום אירוע - {selectedEvent}</DialogTitle>
+                        <DialogDescription>
+                            אשר את נתוני האירוע ושלח למשימות לתשלום
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4 py-4">
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                            <span className="font-medium">כמות נסרקים:</span>
+                            <span className="font-bold text-lg">{uniqueScans}</span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label>חתימות (תוספת ידנית)</Label>
+                            <Input 
+                                type="number" 
+                                placeholder="הכנס כמות חתימות..."
+                                value={signaturesCount}
+                                onChange={(e) => setSignaturesCount(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                            <span className="font-medium text-indigo-900">סה"כ לתשלום:</span>
+                            <span className="font-bold text-lg text-indigo-900">
+                                {uniqueScans + (parseInt(signaturesCount) || 0)} אנשים
+                            </span>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowFinishDialog(false)}>ביטול</Button>
+                        <Button onClick={handleFinishEvent} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700">
+                            {loading && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+                            שלח למשימות
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
