@@ -77,20 +77,28 @@ export default function Live() {
         let departureDate = null;
         const dateStr = row.departure_date.trim();
 
-        const parts = dateStr.split('/');
-        if (parts.length >= 2) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          let year = today.getFullYear();
-          
-          if (parts.length === 3) {
-             year = parseInt(parts[2], 10);
-             if (year < 100) year += 2000;
-          }
-
-          departureDate = new Date(year, month, day);
-          if (isNaN(departureDate.getTime())) return null;
+        // Handle YYYY-MM-DD
+        if (dateStr.includes('-')) {
+          departureDate = new Date(dateStr);
         }
+        // Handle DD/MM/YYYY
+        else if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length >= 2) {
+              const day = parseInt(parts[0], 10);
+              const month = parseInt(parts[1], 10) - 1;
+              let year = today.getFullYear();
+              
+              if (parts.length === 3) {
+                 year = parseInt(parts[2], 10);
+                 if (year < 100) year += 2000;
+              }
+    
+              departureDate = new Date(year, month, day);
+            }
+        }
+
+        if (departureDate && isNaN(departureDate.getTime())) return null;
 
         if (!departureDate) return null;
 
