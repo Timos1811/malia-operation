@@ -167,6 +167,11 @@ export default function Table() {
     }
 
     setMissingFields(newMissingFields);
+
+    if (Object.keys(newMissingFields).length > 0) {
+        toast.error('שגיאה: חובה למלא את שדות החובה ולפחות אמצעי תשלום אחד (יורו, שקל, דולר, ביט) לכל שורה');
+    }
+
     if (rowsToCreate.length === 0) return;
 
     try {
