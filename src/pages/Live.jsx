@@ -79,7 +79,13 @@ export default function Live() {
 
         // Handle YYYY-MM-DD
         if (dateStr.includes('-')) {
-          departureDate = new Date(dateStr);
+             const parts = dateStr.split('-');
+             if (parts.length === 3) {
+                 const year = parseInt(parts[0], 10);
+                 const month = parseInt(parts[1], 10) - 1;
+                 const day = parseInt(parts[2], 10);
+                 departureDate = new Date(year, month, day);
+             }
         }
         // Handle DD/MM/YYYY
         else if (dateStr.includes('/')) {
