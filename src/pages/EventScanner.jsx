@@ -15,6 +15,7 @@ export default function EventScanner() {
     const [attractions, setAttractions] = useState([]);
     const [selectedEvent, setSelectedEvent] = useState("");
     const [uniqueScans, setUniqueScans] = useState(0);
+    const [totalBuyers, setTotalBuyers] = useState(0);
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null); // { status: 'success' | 'error' | 'warning', message: '', details: {} }
     const [loading, setLoading] = useState(false);
@@ -54,8 +55,10 @@ export default function EventScanner() {
     useEffect(() => {
         if (selectedEvent) {
             fetchScanStats();
+            fetchBuyerStats();
         } else {
             setUniqueScans(0);
+            setTotalBuyers(0);
         }
     }, [selectedEvent]);
 
@@ -74,6 +77,29 @@ export default function EventScanner() {
         }
     };
 
+    const fetchBuyerStats = async () => {
+        if (!selectedEvent) return;
+        try {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            // Fetch recent wristbands to find potential buyers
+            // Using a large limit to catch all relevant wristbands from the last week
+            const wristbands = await base44.entities.Wristband.filter({
+                created_date: { $gte: oneWeekAgo.toISOString() }
+            }, '-created_date', 5000);
+
+            // Filter client-side for the specific event
+            const buyerCount = wristbands.filter(wb => 
+                wb.allowed_events && wb.allowed_events.includes(selectedEvent)
+            ).length;
+
+            setTotalBuyers(buyerCount);
+        } catch (e) {
+            console.error("Failed to fetch buyer stats", e);
+        }
+    };
+
     const handleFinishEvent = async () => {
         if (!selectedEvent) return;
         setLoading(true);
@@ -81,8 +107,11 @@ export default function EventScanner() {
             const attraction = attractions.find(a => a.name === selectedEvent);
             const costPrice = attraction?.cost_price_eur || 0;
             const signatures = parseInt(signaturesCount) || 0;
-            const totalCount = uniqueScans + signatures;
-            const totalAmount = totalCount * costPrice;
+            
+            // Payment is based on Total Buyers (Sold) + Manual Signatures
+            // This covers everyone who bought a ticket (scanned or not) + extras
+            const paymentCount = totalBuyers + signatures;
+            const totalAmount = paymentCount * costPrice;
 
             // Find the date of the first scan for this event
             let eventDate = new Date().toISOString().split('T')[0];
@@ -103,9 +132,11 @@ export default function EventScanner() {
                 title: `תשלום לספק - ${selectedEvent}`,
                 description: `
 סיכום אירוע: ${selectedEvent}
-כמות נסרקים: ${uniqueScans}
+סה"כ כרטיסים שנמכרו (בשבוע האחרון): ${totalBuyers}
+מתוכם נסרקו: ${uniqueScans}
+לא נסרקו: ${Math.max(0, totalBuyers - uniqueScans)}
 חתימות (ידני): ${signatures}
-סה"כ לתשלום: ${totalCount} אנשים
+סה"כ לתשלום (מכירות + חתימות): ${paymentCount} אנשים
 מחיר עלות לאדם: €${costPrice}
 תאריך אירוע (לפי סריקה ראשונה): ${eventDate}
                 `.trim(),
@@ -116,8 +147,9 @@ export default function EventScanner() {
                 due_date: new Date().toISOString().split('T')[0],
                 sales_rep: currentUser?.full_name || 'System',
                 // New fields for automation
-                people_count: totalCount,
+                people_count: paymentCount,
                 scanned_count: uniqueScans,
+                buyers_count: totalBuyers, // Adding buyers count for context
                 event_date: eventDate,
                 event_name: selectedEvent
             });
@@ -402,15 +434,24 @@ export default function EventScanner() {
                             const selectedAttraction = attractions.find(a => a.name === selectedEvent);
                             const costPrice = selectedAttraction?.cost_price_eur || 0;
                             const signatures = parseInt(signaturesCount) || 0;
-                            const totalPeople = uniqueScans + signatures;
-                            const totalAmount = totalPeople * costPrice;
+                            // Calculate payment based on Total Buyers + Signatures
+                            const paymentCount = totalBuyers + signatures;
+                            const notScanned = Math.max(0, totalBuyers - uniqueScans);
 
                             return (
                                 <>
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="p-3 bg-slate-50 rounded-lg flex justify-between items-center">
-                                            <div className="text-sm text-slate-500">כמות נסרקים במערכת</div>
-                                            <div className="font-bold text-lg">{uniqueScans}</div>
+                                    <div className="grid grid-cols-2 gap-3 mb-2">
+                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                            <div className="text-xs text-slate-500 mb-1">כרטיסים שנמכרו</div>
+                                            <div className="font-bold text-lg text-slate-900">{totalBuyers}</div>
+                                        </div>
+                                        <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                                            <div className="text-xs text-green-600 mb-1">נסרקו בפועל</div>
+                                            <div className="font-bold text-lg text-green-700">{uniqueScans}</div>
+                                        </div>
+                                        <div className="p-3 bg-orange-50 rounded-lg border border-orange-100">
+                                            <div className="text-xs text-orange-600 mb-1">קנו ולא נסרקו</div>
+                                            <div className="font-bold text-lg text-orange-700">{notScanned}</div>
                                         </div>
                                     </div>
                                     
@@ -421,14 +462,23 @@ export default function EventScanner() {
                                             placeholder="הכנס כמות חתימות..."
                                             value={signaturesCount}
                                             onChange={(e) => setSignaturesCount(e.target.value)}
+                                            className="text-lg"
                                         />
                                     </div>
 
-                                    <div className="space-y-2 pt-4 border-t">
-                                        <div className="flex justify-between items-center p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                                            <span className="font-medium text-indigo-900">סה"כ אנשים לאישור:</span>
-                                            <span className="font-bold text-xl text-indigo-900">
-                                                {totalPeople}
+                                    <div className="space-y-3 pt-4 border-t mt-2">
+                                        <div className="flex justify-between items-center text-sm px-2">
+                                            <span className="text-slate-600">סה"כ לתשלום (נמכרו + חתימות):</span>
+                                            <span className="font-semibold">{paymentCount}</span>
+                                        </div>
+                                        
+                                        <div className="flex justify-between items-center p-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-indigo-900">סכום לתשלום לספק</span>
+                                                <span className="text-xs text-indigo-600">לפי €{costPrice} לאדם</span>
+                                            </div>
+                                            <span className="font-bold text-2xl text-indigo-900">
+                                                €{(paymentCount * costPrice).toLocaleString()}
                                             </span>
                                         </div>
                                     </div>
