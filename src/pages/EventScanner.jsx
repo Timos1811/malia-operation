@@ -286,15 +286,17 @@ export default function EventScanner() {
 
                 {scanResult && !loading && (
                     <Card className={`border-8 overflow-hidden ${
-                        (scanResult.status === 'success' || scanResult.status === 'already_scanned') ? 'border-green-500 shadow-green-200' : 
+                        scanResult.status === 'success' ? 'border-green-500 shadow-green-200' : 
+                        scanResult.status === 'already_scanned' ? 'border-yellow-500 shadow-yellow-200' :
                         scanResult.status === 'warning' ? 'border-red-500 shadow-red-200' : 'border-slate-300'
                     } shadow-2xl transform transition-all duration-300 scale-110`}>
                         <div className={`p-12 flex items-center justify-center ${
-                            (scanResult.status === 'success' || scanResult.status === 'already_scanned') ? 'bg-green-50' : 
+                            scanResult.status === 'success' ? 'bg-green-50' : 
+                            scanResult.status === 'already_scanned' ? 'bg-yellow-50' :
                             scanResult.status === 'warning' ? 'bg-red-50' : 'bg-slate-50'
                         }`}>
                             {scanResult.status === 'success' && <CheckCircle2 className="w-40 h-40 text-green-600 animate-bounce" />}
-                            {scanResult.status === 'already_scanned' && <ThumbsUp className="w-40 h-40 text-green-600 animate-bounce" />}
+                            {scanResult.status === 'already_scanned' && <ThumbsUp className="w-40 h-40 text-yellow-500 animate-bounce" />}
                             {scanResult.status === 'warning' && <XCircle className="w-40 h-40 text-red-600 animate-pulse" />}
                             {scanResult.status === 'error' && <AlertTriangle className="w-40 h-40 text-slate-400" />}
                         </div>
