@@ -12,6 +12,7 @@ export default function EventScanner() {
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null); // { status: 'success' | 'error' | 'warning', message: '', details: {} }
     const [loading, setLoading] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
     
     const audioSuccess = useRef(new Audio('https://cdn.freesound.org/previews/171/171671_2437358-lq.mp3'));
     const audioError = useRef(new Audio('https://cdn.freesound.org/previews/142/142608_1840739-lq.mp3'));
@@ -26,7 +27,18 @@ export default function EventScanner() {
                 toast.error("שגיאה בטעינת אירועים");
             }
         };
+        
+        const fetchUser = async () => {
+            try {
+                const user = await base44.auth.me();
+                setCurrentUser(user);
+            } catch (e) {
+                console.error("Failed to fetch user", e);
+            }
+        };
+
         fetchAttractions();
+        fetchUser();
     }, []);
 
     const playSound = (type) => {
@@ -86,41 +98,57 @@ export default function EventScanner() {
             // Filter locally or use filter API if precise match needed
             const wristband = wristbands.find(w => w.nfc_id === nfcId);
 
+            let resultStatus, resultMessage, resultDetails;
+
             if (!wristband) {
-                setScanResult({
-                    status: 'error',
-                    message: 'צמיד לא מזוהה במערכת',
-                    details: { nfc_id: nfcId }
-                });
-                playSound('error');
+                resultStatus = 'error';
+                resultMessage = 'צמיד לא מזוהה במערכת';
+                resultDetails = { nfc_id: nfcId };
             } else {
                 // Check if event is allowed
                 const allowedEvents = wristband.allowed_events || [];
                 const isAllowed = allowedEvents.includes(selectedEvent);
 
                 if (isAllowed) {
-                    setScanResult({
-                        status: 'success',
-                        message: 'כניסה מאושרת',
-                        details: {
-                            customer: wristband.customer_name,
-                            order: wristband.order_number,
-                            nfc_id: nfcId
-                        }
-                    });
-                    playSound('success');
+                    resultStatus = 'success';
+                    resultMessage = 'כניסה מאושרת';
+                    resultDetails = {
+                        customer: wristband.customer_name,
+                        order: wristband.order_number,
+                        nfc_id: nfcId
+                    };
                 } else {
-                    setScanResult({
-                        status: 'warning',
-                        message: 'אין כניסה לאירוע זה',
-                        details: {
-                            customer: wristband.customer_name,
-                            order: wristband.order_number,
-                            nfc_id: nfcId
-                        }
-                    });
-                    playSound('error');
+                    resultStatus = 'warning';
+                    resultMessage = 'אין כניסה לאירוע זה';
+                    resultDetails = {
+                        customer: wristband.customer_name,
+                        order: wristband.order_number,
+                        nfc_id: nfcId
+                    };
                 }
+            }
+
+            setScanResult({
+                status: resultStatus,
+                message: resultMessage,
+                details: resultDetails
+            });
+            playSound(resultStatus === 'success' ? 'success' : 'error');
+
+            // Log the scan
+            try {
+                await base44.entities.WristbandScanLog.create({
+                    nfc_id: nfcId,
+                    event_name: selectedEvent,
+                    scan_time: new Date().toISOString(),
+                    status: resultStatus,
+                    message: resultMessage,
+                    scanned_by: currentUser?.full_name || 'Unknown',
+                    customer_name: wristband?.customer_name || '',
+                    order_number: wristband?.order_number || ''
+                });
+            } catch (logError) {
+                console.error("Failed to log scan", logError);
             }
         } catch (error) {
             console.error("Scan processing error", error);

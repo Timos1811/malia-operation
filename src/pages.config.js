@@ -66,6 +66,7 @@ import SwapWristband from './pages/SwapWristband';
 import Table from './pages/Table';
 import Tasks from './pages/Tasks';
 import EventScanner from './pages/EventScanner';
+import WristbandHistory from './pages/WristbandHistory';
 import __Layout from './Layout.jsx';
 
 
@@ -89,6 +90,7 @@ export const PAGES = {
     "Table": Table,
     "Tasks": Tasks,
     "EventScanner": EventScanner,
+    "WristbandHistory": WristbandHistory,
 }
 
 export const pagesConfig = {
