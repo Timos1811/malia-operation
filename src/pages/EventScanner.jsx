@@ -108,9 +108,8 @@ export default function EventScanner() {
             const costPrice = attraction?.cost_price_eur || 0;
             const signatures = parseInt(signaturesCount) || 0;
             
-            // Payment is based on Total Buyers (Sold) + Manual Signatures
-            // This covers everyone who bought a ticket (scanned or not) + extras
-            const paymentCount = totalBuyers + signatures;
+            // Payment is based on Total Scans + Manual Signatures
+            const paymentCount = uniqueScans + signatures;
             const totalAmount = paymentCount * costPrice;
 
             // Find the date of the first scan for this event
@@ -136,7 +135,7 @@ export default function EventScanner() {
 מתוכם נסרקו: ${uniqueScans}
 לא נסרקו: ${Math.max(0, totalBuyers - uniqueScans)}
 חתימות (ידני): ${signatures}
-סה"כ לתשלום (מכירות + חתימות): ${paymentCount} אנשים
+סה"כ לתשלום (סריקות + חתימות): ${paymentCount} אנשים
 מחיר עלות לאדם: €${costPrice}
 תאריך אירוע (לפי סריקה ראשונה): ${eventDate}
                 `.trim(),
@@ -434,8 +433,8 @@ export default function EventScanner() {
                             const selectedAttraction = attractions.find(a => a.name === selectedEvent);
                             const costPrice = selectedAttraction?.cost_price_eur || 0;
                             const signatures = parseInt(signaturesCount) || 0;
-                            // Calculate payment based on Total Buyers + Signatures
-                            const paymentCount = totalBuyers + signatures;
+                            // Calculate payment based on Total Scans + Signatures
+                            const paymentCount = uniqueScans + signatures;
                             const notScanned = Math.max(0, totalBuyers - uniqueScans);
 
                             return (
@@ -468,7 +467,7 @@ export default function EventScanner() {
 
                                     <div className="space-y-3 pt-4 border-t mt-2">
                                         <div className="flex justify-between items-center text-sm px-2">
-                                            <span className="text-slate-600">סה"כ לתשלום (נמכרו + חתימות):</span>
+                                            <span className="text-slate-600">סה"כ לתשלום (סריקות + חתימות):</span>
                                             <span className="font-semibold">{paymentCount}</span>
                                         </div>
                                         
