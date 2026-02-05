@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Users, Search, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
@@ -17,6 +18,8 @@ const COLORS = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
 
 export default function Live() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [orderSearch, setOrderSearch] = React.useState('');
   const [filters, setFilters] = React.useState({
     sales_rep: 'all',
     event_name: 'all',
@@ -154,16 +157,41 @@ export default function Live() {
             <h1 className="text-3xl font-bold text-slate-800">לייב - קבוצות ביעד</h1>
         </div>
 
-        {/* Filters */}
+        {/* Search & Filters */}
         <Card>
             <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Filter className="w-5 h-5" />
-                    סינון מתקדם
+                    חיפוש וסינון
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="flex flex-col gap-6">
+                    {/* Order Search */}
+                    <div className="flex gap-2 items-end border-b pb-6">
+                        <div className="space-y-2 flex-1 max-w-sm">
+                            <label className="text-sm font-medium text-slate-700">חיפוש לפי מספר הזמנה</label>
+                            <div className="relative">
+                                <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <Input 
+                                    value={orderSearch}
+                                    onChange={(e) => setOrderSearch(e.target.value)}
+                                    placeholder="הזן מספר הזמנה..."
+                                    className="pr-9"
+                                    onKeyDown={(e) => e.key === 'Enter' && orderSearch && navigate(`${createPageUrl('OrderDetails')}?orderNumber=${orderSearch}`)}
+                                />
+                            </div>
+                        </div>
+                        <Button 
+                            onClick={() => orderSearch && navigate(`${createPageUrl('OrderDetails')}?orderNumber=${orderSearch}`)}
+                            disabled={!orderSearch}
+                        >
+                            חפש הזמנה
+                        </Button>
+                    </div>
+
+                    {/* Advanced Filters */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-700">נציג מכירות</label>
                         <Select 
