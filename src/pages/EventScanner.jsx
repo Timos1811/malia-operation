@@ -560,15 +560,7 @@ export default function EventScanner() {
                                             <span className="font-semibold">{paymentCount}</span>
                                         </div>
                                         
-                                        <div className="flex justify-between items-center p-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm">
-                                            <div className="flex flex-col">
-                                                <span className="font-medium text-indigo-900">סכום לתשלום לספק</span>
-                                                <span className="text-xs text-indigo-600">לפי €{costPrice} לאדם</span>
-                                            </div>
-                                            <span className="font-bold text-2xl text-indigo-900">
-                                                €{(paymentCount * costPrice).toLocaleString()}
-                                            </span>
-                                        </div>
+
                                     </div>
                                 </>
                             );
