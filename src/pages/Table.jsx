@@ -175,6 +175,18 @@ export default function Table() {
     if (rowsToCreate.length === 0) return;
 
     try {
+      // בדיקת כפילויות מול מסד הנתונים
+      const orderNumbers = rowsToCreate.map(r => r.order_number);
+      const existingOrders = await base44.entities.TableData.filter({ 
+        order_number: { $in: orderNumbers } 
+      });
+
+      if (existingOrders.length > 0) {
+        const duplicates = existingOrders.map(o => o.order_number).join(', ');
+        toast.error(`שגיאה: הזמנות הבאות כבר קיימות במערכת: ${duplicates}`);
+        return;
+      }
+
       for (const row of rowsToCreate) {
         // חישוב סטטוס EUR
         const eur = parseFloat(row.eur_amount) || 0;
