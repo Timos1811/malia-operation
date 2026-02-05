@@ -223,23 +223,35 @@ export default function AddEventToWristband() {
             <div className="space-y-3">
               <h3 className="font-bold text-slate-700 px-1">בחירת צמידים ({selectedWristbands.size})</h3>
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y">
-                {foundOrder.wristbands.length > 0 ? foundOrder.wristbands.map((wb, idx) => (
+                {foundOrder.wristbands.length > 0 ? foundOrder.wristbands.map((wb, idx) => {
+                    const isActive = wb.status === 'active';
+                    return (
                     <div 
                         key={wb.id}
-                        onClick={() => setSelectedWristbands(prev => {
-                            const next = new Set(prev);
-                            next.has(wb.nfc_id) ? next.delete(wb.nfc_id) : next.add(wb.nfc_id);
-                            return next;
-                        })}
-                        className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${selectedWristbands.has(wb.nfc_id) ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                        onClick={() => {
+                            if (!isActive) return;
+                            setSelectedWristbands(prev => {
+                                const next = new Set(prev);
+                                next.has(wb.nfc_id) ? next.delete(wb.nfc_id) : next.add(wb.nfc_id);
+                                return next;
+                            });
+                        }}
+                        className={`p-4 flex items-center gap-3 transition-colors border-b last:border-0
+                            ${!isActive ? 'opacity-50 bg-slate-100 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'}
+                            ${selectedWristbands.has(wb.nfc_id) ? 'bg-indigo-50' : ''}
+                        `}
                     >
-                        <Checkbox checked={selectedWristbands.has(wb.nfc_id)} />
+                        <Checkbox checked={selectedWristbands.has(wb.nfc_id)} disabled={!isActive} />
                         <div>
-                            <div className="font-bold text-slate-800">{wb.customer_name || `אורח ${idx + 1}`}</div>
+                            <div className="font-bold text-slate-800 flex items-center gap-2">
+                                {wb.customer_name || `אורח ${idx + 1}`}
+                                {!isActive && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">לא פעיל</span>}
+                            </div>
                             <div className="text-xs text-slate-400 font-mono">{wb.nfc_id}</div>
                         </div>
                     </div>
-                )) : (
+                    );
+                }) : (
                     <div className="p-4 text-center text-slate-500">לא נמצאו צמידים מקושרים להזמנה זו</div>
                 )}
               </div>
