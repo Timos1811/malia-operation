@@ -53,10 +53,15 @@ function TaskList() {
 
         // 2. Remove events from wristbands if related_events exists
         if (task.order_number && task.related_events && task.related_events.length > 0) {
-          const wristbands = await base44.entities.Wristband.filter({ order_number: task.order_number });
+          const allWristbands = await base44.entities.Wristband.filter({ order_number: task.order_number });
           
-          if (wristbands.length > 0) {
-            const updates = wristbands.map(wb => {
+          // If specific wristbands were selected for the task, filter only them. Otherwise, apply to all.
+          const targetWristbands = (task.related_wristbands && task.related_wristbands.length > 0)
+            ? allWristbands.filter(wb => task.related_wristbands.includes(wb.nfc_id))
+            : allWristbands;
+
+          if (targetWristbands.length > 0) {
+            const updates = targetWristbands.map(wb => {
               const currentEvents = wb.allowed_events || [];
               const newEvents = currentEvents.filter(event => !task.related_events.includes(event));
               
