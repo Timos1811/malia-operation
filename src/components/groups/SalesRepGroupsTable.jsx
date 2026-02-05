@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Plane, History } from "lucide-react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
@@ -15,8 +16,9 @@ const COLORS = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
 
 export default function SalesRepGroupsTable({ salesRepName }) {
   const queryClient = useQueryClient();
+  const [showLiveOnly, setShowLiveOnly] = useState(true);
 
-  // Main Data Query for Live groups filtered by salesRepName
+  // Main Data Query filtered by salesRepName
   const { data: tableData = [], isLoading } = useQuery({
     queryKey: ['tableData', salesRepName],
     queryFn: async () => {
@@ -45,11 +47,11 @@ export default function SalesRepGroupsTable({ salesRepName }) {
     updateMutation.mutate({ id, departure_sent: checked });
   };
 
-  const liveGroups = useMemo(() => {
+  const filteredGroups = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return tableData
+    const processedData = tableData
       .map(row => {
         if (!row.departure_date || !row.order_number) return null;
         
@@ -89,14 +91,19 @@ export default function SalesRepGroupsTable({ salesRepName }) {
 
         return { ...row, parsedDepartureDate: departureDate };
       })
-      .filter(row => row && today <= row.parsedDepartureDate);
-  }, [tableData]);
+      .filter(row => row); // Filter out nulls
+
+      if (showLiveOnly) {
+          return processedData.filter(row => today <= row.parsedDepartureDate);
+      }
+      return processedData;
+  }, [tableData, showLiveOnly]);
 
   const stats = useMemo(() => {
     let totalCustomers = 0;
     const genderDist = {};
     
-    liveGroups.forEach(g => {
+    filteredGroups.forEach(g => {
       const count = parseInt(g.customer) || 0;
       totalCustomers += count;
 
@@ -111,7 +118,7 @@ export default function SalesRepGroupsTable({ salesRepName }) {
       genderDist,
       chartData
     };
-  }, [liveGroups]);
+  }, [filteredGroups]);
 
   if (isLoading) {
     return (
@@ -123,10 +130,36 @@ export default function SalesRepGroupsTable({ salesRepName }) {
 
   return (
     <div className="space-y-6">
+        {/* Toggle Buttons */}
+        <div className="flex justify-end">
+             <div className="flex gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                 <Button 
+                    variant={!showLiveOnly ? "default" : "ghost"}
+                    size="sm"
+                    className={`rounded-lg transition-all ${!showLiveOnly ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                    onClick={() => setShowLiveOnly(false)}
+                 >
+                    <History className="w-4 h-4 ml-2" />
+                    כל ההיסטוריה
+                 </Button>
+                 <Button 
+                    variant={showLiveOnly ? "default" : "ghost"}
+                    size="sm"
+                    className={`rounded-lg transition-all ${showLiveOnly ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                    onClick={() => setShowLiveOnly(true)}
+                 >
+                    <Plane className="w-4 h-4 ml-2" />
+                    לייב (ביעד)
+                 </Button>
+             </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-500">סה״כ לקוחות ביעד</CardTitle>
+                    <CardTitle className="text-sm font-medium text-slate-500">
+                        {showLiveOnly ? 'סה״כ לקוחות ביעד' : 'סה״כ לקוחות (היסטוריה)'}
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="text-4xl font-bold text-slate-800">{stats.total}</div>
@@ -170,12 +203,15 @@ export default function SalesRepGroupsTable({ salesRepName }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>קבוצות נוכחות ({liveGroups.length})</CardTitle>
+            <CardTitle className="flex justify-between items-center">
+                <span>{showLiveOnly ? 'קבוצות נוכחות (ביעד)' : 'היסטוריית קבוצות'}</span>
+                <Badge variant="secondary" className="text-base px-3">{filteredGroups.length}</Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {liveGroups.length === 0 ? (
+            {filteredGroups.length === 0 ? (
                 <div className="text-center py-10 text-slate-500">
-                    אין קבוצות ביעד עבור נציג זה
+                    {showLiveOnly ? 'אין קבוצות ביעד עבור נציג זה' : 'אין היסטוריית קבוצות עבור נציג זה'}
                 </div>
             ) : (
                 <div className="rounded-md border">
@@ -193,16 +229,21 @@ export default function SalesRepGroupsTable({ salesRepName }) {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {liveGroups.map((group) => {
+                    {filteredGroups.map((group) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        // Calculate days difference
-                        const timeDiff = group.parsedDepartureDate.getTime() - today.getTime();
-                        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-                        const isUrgent = daysDiff <= 1 && !group.departure_sent;
+                        
+                        // Calculate days difference for Live items or just generally
+                        let isUrgent = false;
+                        if (group.parsedDepartureDate) {
+                            const timeDiff = group.parsedDepartureDate.getTime() - today.getTime();
+                            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                            // Mark as urgent if leaving today/tomorrow and not sent
+                            isUrgent = daysDiff <= 1 && daysDiff >= -1 && !group.departure_sent;
+                        }
 
                         return (
-                        <TableRow key={group.id} className={isUrgent ? "bg-red-100 hover:bg-red-200" : ""}>
+                        <TableRow key={group.id} className={isUrgent ? "bg-red-50 hover:bg-red-100" : ""}>
                         <TableCell className="font-medium">
                             <Link 
                                 to={`${createPageUrl('OrderDetails')}?orderNumber=${group.order_number}`}
