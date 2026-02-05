@@ -74,18 +74,46 @@ export default function PendingSales() {
       if (!window.confirm('האם לשמור את הנתונים לטבלת ההכנסות?')) return;
 
       try {
-          // 1. Create in TableData
-          await base44.entities.TableData.create({
-              ...row,
-              created_date: new Date().toISOString() // Ensure fresh date
-          });
+          // Check for existing order in TableData
+          const existingOrders = await base44.entities.TableData.filter({ order_number: row.order_number });
+          
+          if (existingOrders.length > 0) {
+              // UPDATE EXISTING (Merge)
+              const existing = existingOrders[0];
+              const newAmount = (parseFloat(existing.requested_amount || 0) + parseFloat(row.requested_amount || 0)).toString();
+              const newComments = (existing.comments || '') + (row.comments ? ` | ${row.comments}` : '');
+              
+              const newEur = (parseFloat(existing.eur_amount || 0) + parseFloat(row.eur_amount || 0)).toString();
+              const newShekel = (parseFloat(existing.shekel_amount || 0) + parseFloat(row.shekel_amount || 0)).toString();
+              const newDollar = (parseFloat(existing.dollar_amount || 0) + parseFloat(row.dollar_amount || 0)).toString();
+              const newBit = (parseFloat(existing.bit_amount || 0) + parseFloat(row.bit_amount || 0)).toString();
 
-          // 2. Delete from PendingSale
+              await base44.entities.TableData.update(existing.id, {
+                  requested_amount: newAmount,
+                  eur_amount: newEur,
+                  shekel_amount: newShekel,
+                  dollar_amount: newDollar,
+                  bit_amount: newBit,
+                  comments: newComments,
+                  updated_date: new Date().toISOString()
+              });
+              
+              toast.success(`הזמנה ${row.order_number} קיימת - הנתונים עודכנו ומוזגו בהצלחה!`);
+          } else {
+              // CREATE NEW
+              await base44.entities.TableData.create({
+                  ...row,
+                  created_date: new Date().toISOString()
+              });
+              toast.success("ההזמנה נשמרה בהצלחה והועברה לטבלת ההכנסות!");
+          }
+
+          // Delete from PendingSale
           await base44.entities.PendingSale.delete(row.id);
 
-          // 3. Refresh UI
+          // Refresh UI
           queryClient.invalidateQueries(['pendingSales']);
-          toast.success("ההזמנה נשמרה בהצלחה והועברה לטבלת ההכנסות!");
+          
       } catch (error) {
           console.error(error);
           toast.error("שגיאה בשמירת הנתונים");
