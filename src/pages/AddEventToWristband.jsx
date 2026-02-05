@@ -61,6 +61,13 @@ export default function AddEventToWristband() {
       const wristbands = await base44.entities.Wristband.filter({ nfc_id: searchQuery.toLowerCase() });
       if (wristbands.length > 0) {
         const wb = wristbands[0];
+
+        if (wb.status !== 'active') {
+             toast.error("צמיד זה אינו פעיל (inactive) ולא ניתן להוסיף לו אירועים");
+             setFoundOrder(null);
+             return;
+        }
+
         // Fetch the order for this wristband
         let parentOrders = await base44.entities.TableData.filter({ order_number: wb.order_number });
         if (parentOrders.length === 0) {
