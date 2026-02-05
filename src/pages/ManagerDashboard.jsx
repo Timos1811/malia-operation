@@ -100,7 +100,7 @@ export default function ManagerDashboard() {
             <div className="bg-slate-900 p-3 rounded-full text-white">
                 <Users className="w-6 h-6" />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">דשבורד מנהלים</h1>
+            <h1 className="text-3xl font-bold text-slate-900">דשבורד נציגים</h1>
         </div>
 
         <Card className="border-none shadow-sm overflow-hidden">

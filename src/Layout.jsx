@@ -177,7 +177,7 @@ export default function Layout({ children, currentPageName }) {
 
             <Link to={createPageUrl('ManagerDashboard')} className={linkClass('ManagerDashboard')}>
               <Users className="w-5 h-5" />
-              <span className="whitespace-nowrap">מנהלים</span>
+              <span className="whitespace-nowrap">נציגים</span>
             </Link>
 
           </div>
