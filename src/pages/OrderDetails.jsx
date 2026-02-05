@@ -280,11 +280,11 @@ export default function OrderDetails() {
                                                         const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
                                                         const isDisabled = isInactive || isExpired;
                                                         
-                                                        // Check if scanned
+                                                        // Check if scanned (include both success and processed)
                                                         const isScanned = scanLogs.some(log => 
                                                             log.nfc_id === wb.nfc_id && 
                                                             log.event_name === att.name && 
-                                                            log.status === 'success'
+                                                            (log.status === 'success' || log.status === 'processed')
                                                         );
 
                                                         return (
