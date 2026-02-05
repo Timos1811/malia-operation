@@ -131,8 +131,14 @@ function TaskList() {
     <div className="grid gap-4">
       {sortedTasks.map((task) => {
         const isRefund = task.task_type === 'refund';
+        const isSupplierPayment = task.task_type === 'supplier_payment';
         const isDone = task.status === 'done';
         
+        // For supplier payments, amount is already total. For refunds, it's per person.
+        const displayAmount = isSupplierPayment 
+            ? task.amount 
+            : (task.amount * (task.people_count || 1));
+
         return (
           <Card 
             key={task.id} 
@@ -155,7 +161,7 @@ function TaskList() {
                   )}
                   {task.amount > 0 && (
                     <Badge variant="secondary" className="text-lg font-bold px-3 py-1">
-                      €{parseFloat((task.amount * (task.people_count || 1)).toFixed(2))}
+                      €{parseFloat(displayAmount.toFixed(2))}
                     </Badge>
                   )}
                 </div>
