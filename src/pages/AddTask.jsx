@@ -183,7 +183,7 @@ export default function AddTask() {
 
       await base44.entities.Task.create({
         title: `בקשת החזר ${refundType === 'full' ? 'מלא' : 'חלקי'} - הזמנה ${orderNumber}`,
-        description: `אירועים שנבחרו: ${descriptionText}`,
+        description: `אירועים שנבחרו: ${descriptionText}\nעבור ${selectedWristbandIds.size > 0 ? selectedWristbandIds.size : 'כל ה'} צמידים`,
         status: 'todo',
         task_type: 'refund',
         refund_type: refundType,
@@ -194,6 +194,7 @@ export default function AddTask() {
         departure_date: departureDate || '',
         due_date: new Date().toISOString().split('T')[0],
         related_events: relatedEvents,
+        related_wristbands: Array.from(selectedWristbandIds), // Save specific wristbands
         sales_rep: currentUser?.full_name || ''
       });
 
@@ -226,30 +227,57 @@ export default function AddTask() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="orderNumber">מספר הזמנה</Label>
-                <div className="relative">
+                <Label htmlFor="search">מספר הזמנה / מס' צמיד</Label>
+                <div className="relative flex gap-2">
                   <Input
-                    id="orderNumber"
-                    value={orderNumber}
-                    onChange={(e) => setOrderNumber(e.target.value)}
-                    onBlur={handleOrderBlur}
-                    placeholder="הזן מספר הזמנה"
+                    id="search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
+                    placeholder="הזן מספר הזמנה או סרוק צמיד"
                     className="text-right"
                   />
-                  {isFetchingOrder && <Loader2 className="absolute left-2 top-2.5 h-4 w-4 animate-spin text-slate-400" />}
-                  {departureDate && <p className="text-xs text-green-600 mt-1">תאריך עזיבה: {departureDate}</p>}
+                  <Button type="button" onClick={handleSearch} disabled={isFetchingOrder}>
+                    {isFetchingOrder ? <Loader2 className="animate-spin" /> : 'חפש'}
+                  </Button>
                 </div>
+                {orderNumber && <p className="text-sm font-bold text-indigo-600 mt-1">זוהתה הזמנה: {orderNumber}</p>}
+                {departureDate && <p className="text-xs text-green-600 mt-1">תאריך עזיבה: {departureDate}</p>}
               </div>
+
+              {/* Wristband Selection Section */}
+              {orderWristbands.length > 0 && (
+                <div className="col-span-2 space-y-2 border rounded-lg p-3 bg-slate-50">
+                  <Label className="text-sm font-semibold">בחר צמידים להחזר ({selectedWristbandIds.size} נבחרו)</Label>
+                  <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {orderWristbands.map(wb => (
+                      <div key={wb.id} className={`flex items-center gap-2 p-2 rounded border ${selectedWristbandIds.has(wb.nfc_id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white'}`}>
+                        <Checkbox 
+                          id={`wb-${wb.id}`}
+                          checked={selectedWristbandIds.has(wb.nfc_id)}
+                          onCheckedChange={() => handleWristbandToggle(wb.nfc_id)}
+                        />
+                        <div className="flex flex-col">
+                          <Label htmlFor={`wb-${wb.id}`} className="cursor-pointer font-medium">{wb.customer_name || 'אורח'}</Label>
+                          <span className="text-xs text-slate-400 font-mono">{wb.nfc_id}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="peopleCount">כמות אנשים</Label>
+                <Label htmlFor="peopleCount">כמות אנשים (מחושב אוטומטית)</Label>
                 <Input
                   id="peopleCount"
                   type="number"
                   value={peopleCount}
                   onChange={(e) => setPeopleCount(e.target.value)}
                   placeholder="0"
-                  className="text-right"
+                  className="text-right bg-slate-100"
                   min="1"
+                  readOnly={selectedWristbandIds.size > 0} // Read only if wristbands are selected
                 />
               </div>
             </div>
