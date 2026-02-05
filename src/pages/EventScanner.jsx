@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle, ThumbsUp, FileCheck } from "lucide-react";
+import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle, ThumbsUp, FileCheck, Home } from "lucide-react";
 import { toast } from "sonner";
 
 export default function EventScanner() {
@@ -22,6 +22,7 @@ export default function EventScanner() {
     const [currentUser, setCurrentUser] = useState(null);
     const [showFinishDialog, setShowFinishDialog] = useState(false);
     const [signaturesCount, setSignaturesCount] = useState("");
+    const [isSuccess, setIsSuccess] = useState(false);
     const isProcessing = useRef(false);
     const navigate = useNavigate();
     
@@ -160,9 +161,8 @@ export default function EventScanner() {
             setUniqueScans(0);
 
             toast.success("סיכום האירוע נשלח והסריקות אופסו!");
-            navigate(createPageUrl('TaskSentSuccess'));
-            // Small delay to ensure navigation starts before closing dialog/unmounting if needed, 
-            // though usually unnecessary. Keeping dialog open until nav is fine.
+            setShowFinishDialog(false);
+            setIsSuccess(true);
         } catch (error) {
             console.error("Failed to create task", error);
             toast.error("שגיאה ביצירת משימת תשלום");
@@ -313,6 +313,56 @@ export default function EventScanner() {
             setLoading(false);
         }
     };
+
+    if (isSuccess) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+                <Card className="max-w-md w-full shadow-xl border-green-100">
+                    <CardContent className="pt-12 pb-8 px-8 text-center space-y-6">
+                        <div className="flex justify-center">
+                            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
+                                <CheckCircle2 className="w-12 h-12 text-green-600" />
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <h1 className="text-2xl font-bold text-slate-900">המשימה נשלחה בהצלחה!</h1>
+                            <p className="text-slate-500">
+                                דוח האירוע הועבר למנהל לאישור ותשלום.
+                                <br/>
+                                ספירת הסריקות לאירוע זה אופסה.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-3 pt-4">
+                            <Button 
+                                onClick={() => {
+                                    setIsSuccess(false);
+                                    setSelectedEvent("");
+                                    setSignaturesCount("");
+                                    setUniqueScans(0);
+                                    setScanResult(null);
+                                }}
+                                className="w-full bg-slate-900 hover:bg-slate-800 h-12 text-lg gap-2"
+                            >
+                                <Scan className="w-5 h-5" />
+                                סרוק אירוע חדש
+                            </Button>
+                            
+                            <Button 
+                                variant="outline" 
+                                onClick={() => navigate(createPageUrl('SellerDashboard'))}
+                                className="w-full h-12 text-lg gap-2"
+                            >
+                                <Home className="w-5 h-5" />
+                                חזור לדף הבית
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8" dir="rtl">

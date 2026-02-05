@@ -65,9 +65,9 @@ import SavedData from './pages/SavedData';
 import SellerDashboard from './pages/SellerDashboard';
 import SwapWristband from './pages/SwapWristband';
 import Table from './pages/Table';
+import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
-import TaskSentSuccess from './pages/TaskSentSuccess';
 import __Layout from './Layout.jsx';
 
 
@@ -90,9 +90,9 @@ export const PAGES = {
     "SellerDashboard": SellerDashboard,
     "SwapWristband": SwapWristband,
     "Table": Table,
+    "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
-    "TaskSentSuccess": TaskSentSuccess,
 }
 
 export const pagesConfig = {
