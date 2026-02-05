@@ -124,12 +124,28 @@ export default function AddEventToWristband() {
 
     setIsSubmitting(true);
     try {
-      const totalAmount = Array.from(selectedEvents).reduce((sum, eventId) => {
+      // Filter out invalid events
+      const validEventIds = Array.from(selectedEvents).filter(eventId => {
+          const ev = attractions.find(a => a.id === eventId);
+          if (!ev) return false;
+          const isConflict = Array.from(selectedWristbands).some(nfcId => {
+              const wb = foundOrder?.wristbands.find(w => w.nfc_id === nfcId);
+              return wb?.allowed_events?.includes(ev.name);
+          });
+          return !isConflict;
+      });
+
+      if (validEventIds.length === 0) {
+          setIsSubmitting(false);
+          return toast.error("אין אירועים תקינים להוספה (האירועים שנבחרו כבר קיימים בצמידים)");
+      }
+
+      const totalAmount = validEventIds.reduce((sum, eventId) => {
         const ev = attractions.find(a => a.id === eventId);
         return sum + (ev?.price_eur || 0);
       }, 0) * selectedWristbands.size;
 
-      const eventNames = Array.from(selectedEvents).map(id => attractions.find(a => a.id === id)?.name).filter(Boolean);
+      const eventNames = validEventIds.map(id => attractions.find(a => a.id === id)?.name).filter(Boolean);
 
       await base44.entities.Task.create({
         title: `הוספת אירוע: ${eventNames.join(', ')}`,
