@@ -68,6 +68,7 @@ import Table from './pages/Table';
 import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
+import AddEventToWristband from './pages/AddEventToWristband';
 import __Layout from './Layout.jsx';
 
 
@@ -93,6 +94,7 @@ export const PAGES = {
     "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
+    "AddEventToWristband": AddEventToWristband,
 }
 
 export const pagesConfig = {
