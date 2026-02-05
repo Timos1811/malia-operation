@@ -17,7 +17,6 @@ export default function NewSale() {
     orderNumber: '',
     departureDate: '',
     customerCount: '1',
-    nights: '',
     gender: 'mixed',
     hotel: '',
     company: ''
@@ -174,12 +173,20 @@ export default function NewSale() {
         'mixed': 'מעורב'
       };
 
+      // Calculate nights based on departure date vs today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const departure = new Date(formData.departureDate);
+      departure.setHours(0, 0, 0, 0);
+      const diffTime = departure - today;
+      const calculatedNights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))).toString();
+
       // Create new row data with precise mapping
       const newRow = {
         order_number: formData.orderNumber.toString(),
         departure_date: formData.departureDate, // פורמט YYYY-MM-DD מתאים גם לטבלה
         customer: formData.customerCount.toString(),
-        nights: formData.nights,
+        nights: calculatedNights,
         gender: genderMap[formData.gender] || formData.gender, // המרה לעברית
         hotel: formData.hotel,
         company: formData.company,
@@ -279,16 +286,7 @@ export default function NewSale() {
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-500">לילות</Label>
-              <Input 
-                type="number" 
-                value={formData.nights}
-                onChange={e => setFormData({...formData, nights: e.target.value})}
-                className="bg-slate-50 border-slate-200"
-                placeholder="7"
-              />
-            </div>
+
 
             <div className="space-y-1">
               <Label className="text-xs text-slate-500">מגדר</Label>
