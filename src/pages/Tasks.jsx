@@ -61,25 +61,36 @@ function TaskList() {
                 }
             }
 
-            // 2. Update Income (TableData)
+            // 2. Create PendingSale (instead of direct update)
             let tables = await base44.entities.TableData.filter({ order_number: task.order_number });
-            
-            // If not found in TableData, check PendingSale (though usually finalized orders are in TableData)
-            // But usually we only update confirmed income in TableData.
+            let baseData = {};
             
             if (tables.length > 0) {
                 const row = tables[0];
-                const currentAmount = parseFloat(row.requested_amount || 0);
-                const taskAmount = parseFloat(task.amount || 0);
-                
-                await base44.entities.TableData.update(row.id, {
-                    requested_amount: (currentAmount + taskAmount).toString(),
-                    comments: (row.comments || '') + ` | תוספת ${taskAmount} עבור אירועים`
-                });
-                toast.success("עודכנו צמידים והכנסות בהצלחה");
-            } else {
-                toast.warning("ההכנסה לא עודכנה - לא נמצאה הזמנה בטבלה, אך הצמידים עודכנו");
+                baseData = {
+                    customer: row.customer,
+                    departure_date: row.departure_date,
+                    nights: row.nights,
+                    gender: row.gender,
+                    hotel: row.hotel,
+                    company: row.company,
+                    sales_rep: row.sales_rep
+                };
             }
+
+            await base44.entities.PendingSale.create({
+                order_number: task.order_number,
+                requested_amount: (task.amount || 0).toString(),
+                comments: `תוספת עבור אירועים: ${eventNames.join(', ')}`,
+                sales_rep: task.sales_rep || baseData.sales_rep,
+                ...baseData,
+                eur_amount: "0",
+                shekel_amount: "0",
+                dollar_amount: "0",
+                bit_amount: "0"
+            });
+
+            toast.success("נוצרה מכירה בהמתנה לאישור התשלום");
 
         } catch (error) {
             console.error('Failed to process add_event:', error);
