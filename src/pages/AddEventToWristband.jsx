@@ -155,7 +155,7 @@ export default function AddEventToWristband() {
         order_number: foundOrder.details.order_number,
         amount: totalAmount,
         currency: 'EUR', // Defaulting to EUR as per attractions
-        related_events: Array.from(selectedEvents), // Storing IDs
+        related_events: validEventIds, // Storing IDs
         related_wristbands: Array.from(selectedWristbands),
         people_count: selectedWristbands.size,
         sales_rep: currentUser?.full_name || 'נציג',
