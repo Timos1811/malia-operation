@@ -50,6 +50,10 @@ function TaskList() {
                     const wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId });
                     if (wristbands.length > 0) {
                         const wb = wristbands[0];
+                        if (wb.status !== 'active') {
+                             console.warn(`Skipping event update for inactive wristband: ${nfcId}`);
+                             continue;
+                        }
                         const currentEvents = wb.allowed_events || [];
                         const uniqueEvents = [...new Set([...currentEvents, ...eventNames])];
                         await base44.entities.Wristband.update(wb.id, { allowed_events: uniqueEvents });
