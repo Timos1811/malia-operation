@@ -225,6 +225,24 @@ export default function SellerDashboard() {
             </Card>
           </Link>
 
+          <Link to={createPageUrl('AddEventToWristband')} className="block group">
+            <Card className="h-full border-slate-200 hover:border-purple-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
+              <CardHeader className="pb-4">
+                <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                  <PartyPopper className="w-6 h-6 text-purple-600" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-purple-700 transition-colors">הוספת אירוע</CardTitle>
+                <CardDescription>הוספת אירוע לצמיד קיים וחיוב</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                  <PartyPopper className="w-4 h-4" />
+                  הוסף אירוע
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
           <Link to={createPageUrl('AgentGroups')} className="block group">
             <Card className="h-full border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
               <CardHeader className="pb-4">
