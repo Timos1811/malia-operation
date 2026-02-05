@@ -161,10 +161,20 @@ export default function AddEventToWristband() {
   const calculatedTotal = useMemo(() => {
     const eventPrice = Array.from(selectedEvents).reduce((sum, id) => {
       const ev = attractions.find(a => a.id === id);
-      return sum + (ev?.price_eur || 0);
+      if (!ev) return sum;
+      
+      // Check for conflicts
+      const isConflict = Array.from(selectedWristbands).some(nfcId => {
+          const wb = foundOrder?.wristbands.find(w => w.nfc_id === nfcId);
+          return wb?.allowed_events?.includes(ev.name);
+      });
+      
+      if (isConflict) return sum;
+
+      return sum + (ev.price_eur || 0);
     }, 0);
     return eventPrice * selectedWristbands.size;
-  }, [selectedEvents, selectedWristbands, attractions]);
+  }, [selectedEvents, selectedWristbands, attractions, foundOrder]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 pb-24" dir="rtl">
