@@ -208,12 +208,17 @@ function TaskList() {
             <CardContent className="p-6 flex items-start justify-between gap-4">
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <h3 className={`font-bold text-lg ${!isDone ? 'text-red-900' : 'text-slate-800'} ${isDone ? 'line-through' : ''}`}>
+                  <h3 className={`font-bold text-lg ${!isDone ? (isAddEvent ? 'text-purple-900' : 'text-red-900') : 'text-slate-800'} ${isDone ? 'line-through' : ''}`}>
                     {task.title}
                   </h3>
                   {isRefund && (
                     <Badge variant={isDone ? "outline" : "destructive"}>
                       {task.refund_type === 'full' ? 'החזר מלא' : 'החזר חלקי'}
+                    </Badge>
+                  )}
+                  {isAddEvent && (
+                    <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200">
+                      הוספת אירוע
                     </Badge>
                   )}
                   {task.amount > 0 && (
