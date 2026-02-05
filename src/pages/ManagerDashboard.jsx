@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
 import { Loader2, Users, Receipt, TrendingUp, TrendingDown, ArrowDownCircle, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -118,7 +120,11 @@ export default function ManagerDashboard() {
                     <tbody className="divide-y divide-slate-100">
                         {summaryData.map((row, index) => (
                             <tr key={index} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-slate-900">{row.name}</td>
+                                                                <td className="px-6 py-4 font-medium text-slate-900">
+                                    <Link to={`${createPageUrl('SalesRepDashboard')}?salesRep=${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline">
+                                        {row.name}
+                                    </Link>
+                                </td>
                                 <td className="px-6 py-4 text-slate-600">{row.groups}</td>
                                 <td className="px-6 py-4 text-emerald-600 font-bold">€{row.totalIncome.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                                 <td className="px-6 py-4 text-red-500">€{row.fullRefunds.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
