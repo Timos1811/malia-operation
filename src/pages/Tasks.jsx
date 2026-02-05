@@ -188,10 +188,11 @@ function TaskList() {
       {sortedTasks.map((task) => {
         const isRefund = task.task_type === 'refund';
         const isSupplierPayment = task.task_type === 'supplier_payment';
+        const isAddEvent = task.task_type === 'add_event';
         const isDone = task.status === 'done';
         
-        // For supplier payments, amount is already total. For refunds, it's per person.
-        const displayAmount = isSupplierPayment 
+        // For supplier payments and add_event, amount is already total. For refunds, it's per person.
+        const displayAmount = (isSupplierPayment || isAddEvent)
             ? task.amount 
             : (task.amount * (task.people_count || 1));
 
