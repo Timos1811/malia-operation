@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine } from "lucide-react";
+import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine, Search, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { createPageUrl } from '../utils';
 
 export default function OrderDetails() {
@@ -16,6 +17,7 @@ export default function OrderDetails() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [wristbandFilter, setWristbandFilter] = useState('');
   const queryClient = useQueryClient();
 
   // Fetch wristbands associated with this order
@@ -29,6 +31,13 @@ export default function OrderDetails() {
   const { data: attractions = [] } = useQuery({
     queryKey: ['attractions'],
     queryFn: () => base44.entities.Attraction.list()
+  });
+
+  // Fetch scan logs for this order to show status
+  const { data: scanLogs = [] } = useQuery({
+    queryKey: ['scanLogs', orderNumber],
+    queryFn: () => base44.entities.WristbandScanLog.filter({ order_number: orderNumber }),
+    enabled: !!orderNumber
   });
 
   // Mutation to update wristband allowed events
@@ -219,6 +228,19 @@ export default function OrderDetails() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
+                    {/* Wristband Search */}
+                    <div className="mb-6 max-w-sm">
+                        <div className="relative">
+                            <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <Input 
+                                value={wristbandFilter}
+                                onChange={(e) => setWristbandFilter(e.target.value)}
+                                placeholder="חפש לפי שם אורח או מספר צמיד..."
+                                className="pr-9"
+                            />
+                        </div>
+                    </div>
+
                     {loadingWristbands ? (
                         <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
                     ) : wristbands.length === 0 ? (
@@ -235,7 +257,16 @@ export default function OrderDetails() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {wristbands.map(wb => (
+                                    {wristbands
+                                        .filter(wb => {
+                                            if (!wristbandFilter) return true;
+                                            const search = wristbandFilter.toLowerCase();
+                                            return (
+                                                wb.customer_name?.toLowerCase().includes(search) || 
+                                                wb.nfc_id?.toLowerCase().includes(search)
+                                            );
+                                        })
+                                        .map(wb => (
                                         <tr key={wb.id} className="hover:bg-slate-50/50">
                                             <td className="p-4 align-top w-1/4">
                                                 <div className="font-bold text-slate-800">{wb.customer_name}</div>
@@ -248,21 +279,36 @@ export default function OrderDetails() {
                                                         const isInactive = wb.status === 'inactive';
                                                         const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
                                                         const isDisabled = isInactive || isExpired;
+                                                        
+                                                        // Check if scanned
+                                                        const isScanned = scanLogs.some(log => 
+                                                            log.nfc_id === wb.nfc_id && 
+                                                            log.event_name === att.name && 
+                                                            log.status === 'success'
+                                                        );
 
                                                         return (
-                                                            <div key={att.id} className={`flex items-center space-x-2 space-x-reverse bg-white border p-2 rounded-lg transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:border-indigo-300'}`}>
-                                                                <Checkbox 
-                                                                    id={`wb-${wb.id}-${att.id}`} 
-                                                                    checked={isChecked}
-                                                                    onCheckedChange={() => !isDisabled && handleEventToggle(wb, att.name)}
-                                                                    disabled={isDisabled}
-                                                                />
-                                                                <Label 
-                                                                    htmlFor={`wb-${wb.id}-${att.id}`}
-                                                                    className={`text-sm select-none flex-1 ${isDisabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer'}`}
-                                                                >
-                                                                    {att.name}
-                                                                </Label>
+                                                            <div key={att.id} className={`flex flex-col gap-1 bg-white border p-2 rounded-lg transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:border-indigo-300'}`}>
+                                                                <div className="flex items-center space-x-2 space-x-reverse">
+                                                                    <Checkbox 
+                                                                        id={`wb-${wb.id}-${att.id}`} 
+                                                                        checked={isChecked}
+                                                                        onCheckedChange={() => !isDisabled && handleEventToggle(wb, att.name)}
+                                                                        disabled={isDisabled}
+                                                                    />
+                                                                    <Label 
+                                                                        htmlFor={`wb-${wb.id}-${att.id}`}
+                                                                        className={`text-sm select-none flex-1 ${isDisabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer'}`}
+                                                                    >
+                                                                        {att.name}
+                                                                    </Label>
+                                                                </div>
+                                                                {isScanned && (
+                                                                    <div className="flex items-center gap-1 text-[10px] text-green-600 font-medium px-6">
+                                                                        <CheckCircle2 className="w-3 h-3" />
+                                                                        נסרק
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     })}
