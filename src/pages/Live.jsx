@@ -254,6 +254,7 @@ export default function Live() {
                         נקה סינון
                     </Button>
                 </div>
+                </div>
             </CardContent>
         </Card>
 
