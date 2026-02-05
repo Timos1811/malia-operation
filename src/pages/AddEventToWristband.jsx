@@ -184,21 +184,7 @@ export default function AddEventToWristband() {
           created_date: new Date().toISOString()
       });
 
-      // 3. Create Task (For logging / record keeping)
-      await base44.entities.Task.create({
-        title: `הוספת אירוע: ${eventNames.join(', ')}`,
-        description: `בוצעה הוספת אירועים להזמנה ${foundOrder.details.order_number}. עבור ${selectedWristbands.size} אורחים.\nנוצרה שורת מכירה בהמתנה על סך €${totalAmount}.`,
-        status: 'todo', // Can be todo for manager to "acknowledge" or done. User said "when task is sent", implies it's a log.
-        task_type: 'add_event',
-        order_number: foundOrder.details.order_number,
-        amount: totalAmount,
-        currency: 'EUR',
-        related_events: validEventIds,
-        related_wristbands: Array.from(selectedWristbands),
-        people_count: selectedWristbands.size,
-        sales_rep: currentUser?.full_name || 'נציג',
-        created_date: new Date().toISOString()
-      });
+      // Task creation removed as per user request
 
       toast.success("האירועים נוספו והתשלום עבר למכירה בהמתנה");
       navigate(createPageUrl('SellerDashboard'));
