@@ -243,7 +243,54 @@ export default function EventScanner() {
                 resultStatus = 'error';
                 resultMessage = 'צמיד לא מזוהה במערכת';
                 resultDetails = { nfc_id: nfcId };
+            } else if (wristband.status === 'inactive') {
+                resultStatus = 'error';
+                resultMessage = 'הצמיד אינו פעיל';
+                resultDetails = { reason: 'status_inactive' };
+            } else if (wristband.valid_until && new Date(wristband.valid_until) < new Date(new Date().setHours(0,0,0,0))) {
+                // Check expiration: valid_until is usually inclusive (checkout day), 
+                // so if today is AFTER valid_until (at 00:00), it is expired.
+                // Actually, if departure is "2023-01-01", usually checkout is morning, so evening events on 01-01 might be invalid?
+                // User said "defined until... after that not active". 
+                // Let's assume strict: if today > valid_until, it's expired.
+                // If today == valid_until, it depends. Usually checkout is 11am. 
+                // Let's treat valid_until as the LAST VALID DAY (inclusive) for now, or assume it expires at the end of that day.
+                // Code: if today (00:00) > valid_until (parsed as date), then expired.
+                // Date comparison: '2023-01-02' > '2023-01-01'.
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (todayStr > wristband.valid_until) {
+                    resultStatus = 'error';
+                    resultMessage = 'תוקף הצמיד פג';
+                    resultDetails = { valid_until: wristband.valid_until };
+                } else {
+                    // Continue with allowed check
+                    // Check if event is allowed
+                    const allowedEvents = wristband.allowed_events || [];
+                    const isAllowed = allowedEvents.includes(selectedEvent);
+
+                    if (isAllowed) {
+                        // Check if already scanned
+                        const previousScans = await base44.entities.WristbandScanLog.filter({
+                            nfc_id: nfcId,
+                            event_name: selectedEvent,
+                            status: 'success'
+                        }, '-scan_time', 1);
+
+                        if (previousScans.length > 0) {
+                            resultStatus = 'already_scanned';
+                        } else {
+                            resultStatus = 'success';
+                        }
+                        resultMessage = '';
+                        resultDetails = {};
+                    } else {
+                        resultStatus = 'warning';
+                        resultMessage = '';
+                        resultDetails = {};
+                    }
+                }
             } else {
+                // Status active and date valid (or not set)
                 // Check if event is allowed
                 const allowedEvents = wristband.allowed_events || [];
                 const isAllowed = allowedEvents.includes(selectedEvent);

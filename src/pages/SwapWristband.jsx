@@ -142,11 +142,15 @@ export default function SwapWristband() {
         nfc_id: targetNewId,
         order_number: oldWristband.order_number,
         customer_name: oldWristband.customer_name,
-        allowed_events: oldWristband.allowed_events
+        allowed_events: oldWristband.allowed_events,
+        status: 'active',
+        valid_until: oldWristband.valid_until // Copy expiration date
       });
 
-      // 2. Delete old wristband
-      await base44.entities.Wristband.delete(oldWristband.id);
+      // 2. Mark old wristband as inactive (instead of deleting)
+      await base44.entities.Wristband.update(oldWristband.id, {
+        status: 'inactive'
+      });
 
       // 3. Create PendingSale record for the swap fee
       try {

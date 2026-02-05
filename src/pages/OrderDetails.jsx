@@ -245,22 +245,34 @@ export default function OrderDetails() {
                                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                                     {attractions.map(att => {
                                                         const isChecked = (wb.allowed_events || []).includes(att.name);
+                                                        const isInactive = wb.status === 'inactive';
+                                                        const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
+                                                        const isDisabled = isInactive || isExpired;
+
                                                         return (
-                                                            <div key={att.id} className="flex items-center space-x-2 space-x-reverse bg-white border p-2 rounded-lg hover:border-indigo-300 transition-colors">
+                                                            <div key={att.id} className={`flex items-center space-x-2 space-x-reverse bg-white border p-2 rounded-lg transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:border-indigo-300'}`}>
                                                                 <Checkbox 
                                                                     id={`wb-${wb.id}-${att.id}`} 
                                                                     checked={isChecked}
-                                                                    onCheckedChange={() => handleEventToggle(wb, att.name)}
+                                                                    onCheckedChange={() => !isDisabled && handleEventToggle(wb, att.name)}
+                                                                    disabled={isDisabled}
                                                                 />
                                                                 <Label 
                                                                     htmlFor={`wb-${wb.id}-${att.id}`}
-                                                                    className="text-sm cursor-pointer select-none flex-1"
+                                                                    className={`text-sm select-none flex-1 ${isDisabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer'}`}
                                                                 >
                                                                     {att.name}
                                                                 </Label>
                                                             </div>
                                                         );
                                                     })}
+                                                    </div>
+                                                    {(wb.status === 'inactive' || (wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until)) && (
+                                                    <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1">
+                                                        <AlertTriangle className="w-3 h-3" />
+                                                        {wb.status === 'inactive' ? 'צמיד לא פעיל' : `פג תוקף (${wb.valid_until})`}
+                                                    </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

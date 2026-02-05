@@ -132,7 +132,9 @@ export default function NewSale() {
             order_number: formData.orderNumber.toString(),
             // Wristband only holds the parties link and the order link
             customer_name: `אורח ${scannedIds.size + 1}`, // Optional: internal numbering
-            allowed_events: selectedNames
+            allowed_events: selectedNames,
+            status: 'active',
+            valid_until: formData.departureDate // Set expiration from form
           });
 
           playSound('success');
