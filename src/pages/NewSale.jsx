@@ -69,6 +69,23 @@ export default function NewSale() {
 
   // --- Handlers ---
 
+  const checkOrderDuplicate = async () => {
+    if (!formData.orderNumber || formData.orderNumber.length < 3) return false;
+    
+    try {
+      const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
+      const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
+
+      if (existingPending.length > 0 || existingTable.length > 0) {
+        toast.error("מספר הזמנה זה כבר קיים במערכת!");
+        return true;
+      }
+    } catch (e) {
+      console.error("Error checking duplicates", e);
+    }
+    return false;
+  };
+
   const playSound = (type = 'success') => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
