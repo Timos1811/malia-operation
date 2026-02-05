@@ -147,22 +147,60 @@ export default function AddEventToWristband() {
 
       const eventNames = validEventIds.map(id => attractions.find(a => a.id === id)?.name).filter(Boolean);
 
+      // 1. Update Wristbands Immediately
+      const updatePromises = Array.from(selectedWristbands).map(async (nfcId) => {
+          const wb = foundOrder.wristbands.find(w => w.nfc_id === nfcId);
+          if (wb && wb.status === 'active') {
+              const currentEvents = wb.allowed_events || [];
+              const uniqueEvents = [...new Set([...currentEvents, ...eventNames])];
+              return base44.entities.Wristband.update(wb.id, { allowed_events: uniqueEvents });
+          }
+      });
+      await Promise.all(updatePromises);
+
+      // 2. Create PendingSale Immediately
+      const baseData = {
+          customer: foundOrder.details.customer,
+          departure_date: foundOrder.details.departure_date,
+          nights: foundOrder.details.nights,
+          gender: foundOrder.details.gender,
+          hotel: foundOrder.details.hotel,
+          company: foundOrder.details.company,
+          // Use the current user as sales_rep for this specific addition, or fallback to original
+          // Using current user makes sense for tracking who added the event
+      };
+
+      await base44.entities.PendingSale.create({
+          order_number: foundOrder.details.order_number,
+          requested_amount: totalAmount.toString(),
+          comments: `תוספת עבור אירועים: ${eventNames.join(', ')}`,
+          sales_rep: currentUser?.full_name || foundOrder.details.sales_rep || 'נציג',
+          ...baseData,
+          eur_amount: "0",
+          shekel_amount: "0",
+          dollar_amount: "0",
+          bit_amount: "0",
+          eur_status: "0", // Initialize status
+          created_date: new Date().toISOString()
+      });
+
+      // 3. Create Task (For logging / record keeping)
       await base44.entities.Task.create({
         title: `הוספת אירוע: ${eventNames.join(', ')}`,
-        description: `בקשה להוספת אירועים להזמנה ${foundOrder.details.order_number}. עבור ${selectedWristbands.size} אורחים.`,
-        status: 'todo',
+        description: `בוצעה הוספת אירועים להזמנה ${foundOrder.details.order_number}. עבור ${selectedWristbands.size} אורחים.\nנוצרה שורת מכירה בהמתנה על סך €${totalAmount}.`,
+        status: 'todo', // Can be todo for manager to "acknowledge" or done. User said "when task is sent", implies it's a log.
         task_type: 'add_event',
         order_number: foundOrder.details.order_number,
         amount: totalAmount,
-        currency: 'EUR', // Defaulting to EUR as per attractions
-        related_events: validEventIds, // Storing IDs
+        currency: 'EUR',
+        related_events: validEventIds,
         related_wristbands: Array.from(selectedWristbands),
         people_count: selectedWristbands.size,
         sales_rep: currentUser?.full_name || 'נציג',
         created_date: new Date().toISOString()
       });
 
-      toast.success("בקשה נשלחה למנהל לאישור");
+      toast.success("האירועים נוספו והתשלום עבר למכירה בהמתנה");
       navigate(createPageUrl('SellerDashboard'));
 
     } catch (e) {
@@ -348,7 +386,7 @@ export default function AddEventToWristband() {
                         onClick={handleSubmit}
                         disabled={isSubmitting || selectedWristbands.size === 0 || selectedEvents.size === 0}
                     >
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : 'שלח בקשה לאישור'}
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : 'הוסף אירועים ועדכן תשלום'}
                     </Button>
                 </div>
             </div>

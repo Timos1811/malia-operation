@@ -33,70 +33,10 @@ function TaskList() {
     const isDone = task.status === 'done';
     const newStatus = isDone ? 'todo' : 'done';
 
+    // add_event logic is now handled automatically in AddEventToWristband.js
+    // We keep the task just for logging purposes
     if (newStatus === 'done' && task.task_type === 'add_event') {
-        const confirmed = window.confirm(`האם לאשר את הוספת האירועים להזמנה ${task.order_number}? הסכום ${task.amount} ${task.currency} יתווסף להכנסות.`);
-        if (!confirmed) return;
-
-        try {
-            // 1. Update Wristbands
-            const allAttractions = await base44.entities.Attraction.list();
-            const eventNames = task.related_events.map(id => {
-                const att = allAttractions.find(a => a.id === id);
-                return att ? att.name : id;
-            });
-
-            if (task.related_wristbands && task.related_wristbands.length > 0) {
-                for (const nfcId of task.related_wristbands) {
-                    const wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId });
-                    if (wristbands.length > 0) {
-                        const wb = wristbands[0];
-                        if (wb.status !== 'active') {
-                             console.warn(`Skipping event update for inactive wristband: ${nfcId}`);
-                             continue;
-                        }
-                        const currentEvents = wb.allowed_events || [];
-                        const uniqueEvents = [...new Set([...currentEvents, ...eventNames])];
-                        await base44.entities.Wristband.update(wb.id, { allowed_events: uniqueEvents });
-                    }
-                }
-            }
-
-            // 2. Create PendingSale (instead of direct update)
-            let tables = await base44.entities.TableData.filter({ order_number: task.order_number });
-            let baseData = {};
-            
-            if (tables.length > 0) {
-                const row = tables[0];
-                baseData = {
-                    customer: row.customer,
-                    departure_date: row.departure_date,
-                    nights: row.nights,
-                    gender: row.gender,
-                    hotel: row.hotel,
-                    company: row.company,
-                    sales_rep: row.sales_rep
-                };
-            }
-
-            await base44.entities.PendingSale.create({
-                order_number: task.order_number,
-                requested_amount: (task.amount || 0).toString(),
-                comments: `תוספת עבור אירועים: ${eventNames.join(', ')}`,
-                sales_rep: task.sales_rep || baseData.sales_rep,
-                ...baseData,
-                eur_amount: "0",
-                shekel_amount: "0",
-                dollar_amount: "0",
-                bit_amount: "0"
-            });
-
-            toast.success("נוצרה מכירה בהמתנה לאישור התשלום");
-
-        } catch (error) {
-            console.error('Failed to process add_event:', error);
-            toast.error('שגיאה בעדכון הנתונים');
-            return; // Don't complete task on error
-        }
+        // Just toggle the status, no side effects
     }
 
     if (newStatus === 'done' && task.task_type === 'refund') {

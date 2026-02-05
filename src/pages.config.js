@@ -47,6 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import AddEventToWristband from './pages/AddEventToWristband';
 import AddTask from './pages/AddTask';
 import AgentGroups from './pages/AgentGroups';
 import AllExpenses from './pages/AllExpenses';
@@ -68,11 +69,11 @@ import Table from './pages/Table';
 import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
-import AddEventToWristband from './pages/AddEventToWristband';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "AddEventToWristband": AddEventToWristband,
     "AddTask": AddTask,
     "AgentGroups": AgentGroups,
     "AllExpenses": AllExpenses,
@@ -94,7 +95,6 @@ export const PAGES = {
     "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
-    "AddEventToWristband": AddEventToWristband,
 }
 
 export const pagesConfig = {
