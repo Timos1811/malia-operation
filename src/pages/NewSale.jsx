@@ -166,6 +166,16 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
+      // Check for duplicate order number
+      const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
+      const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
+
+      if (existingPending.length > 0 || existingTable.length > 0) {
+        toast.error("מספר הזמנה זה כבר קיים במערכת!");
+        setIsSubmitting(false);
+        return;
+      }
+
       // מיפוי ערכי מגדר לעברית
       const genderMap = {
         'male': 'גברים',
