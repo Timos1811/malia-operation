@@ -286,6 +286,7 @@ export default function NewSale() {
                 className="text-lg font-bold bg-slate-50 border-slate-200"
                 value={formData.orderNumber}
                 onChange={e => setFormData({...formData, orderNumber: e.target.value})}
+                onBlur={checkOrderDuplicate}
                 placeholder="123456"
               />
             </div>
