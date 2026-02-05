@@ -261,28 +261,51 @@ export default function AddEventToWristband() {
             <div className="space-y-3">
               <h3 className="font-bold text-slate-700 px-1">בחירת אירועים להוספה</h3>
               <div className="grid gap-2">
-                {attractions.map(att => (
+                {attractions.map(att => {
+                  const conflictCount = Array.from(selectedWristbands).filter(nfcId => {
+                      const wb = foundOrder.wristbands.find(w => w.nfc_id === nfcId);
+                      return wb?.allowed_events?.includes(att.name);
+                  }).length;
+                  const isDisabled = conflictCount > 0;
+
+                  return (
                   <div 
                     key={att.id}
-                    onClick={() => setSelectedEvents(prev => {
-                        const next = new Set(prev);
-                        next.has(att.id) ? next.delete(att.id) : next.add(att.id);
-                        return next;
-                    })}
+                    onClick={() => {
+                        if (isDisabled) return;
+                        setSelectedEvents(prev => {
+                            const next = new Set(prev);
+                            next.has(att.id) ? next.delete(att.id) : next.add(att.id);
+                            return next;
+                        });
+                    }}
                     className={`
-                        p-4 rounded-xl border cursor-pointer flex justify-between items-center transition-all
-                        ${selectedEvents.has(att.id) ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-white border-slate-200 hover:border-green-300'}
+                        p-4 rounded-xl border flex justify-between items-center transition-all relative
+                        ${isDisabled ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                        ${!isDisabled && selectedEvents.has(att.id) ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : ''}
+                        ${!isDisabled && !selectedEvents.has(att.id) ? 'bg-white border-slate-200 hover:border-green-300' : ''}
                     `}
                   >
                     <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${selectedEvents.has(att.id) ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}>
-                            {selectedEvents.has(att.id) && <div className="w-2 h-2 bg-white rounded-full" />}
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center 
+                            ${isDisabled ? 'border-slate-300 bg-slate-200' : ''}
+                            ${!isDisabled && selectedEvents.has(att.id) ? 'bg-green-500 border-green-500' : 'border-slate-300'}
+                        `}>
+                            {!isDisabled && selectedEvents.has(att.id) && <div className="w-2 h-2 bg-white rounded-full" />}
                         </div>
-                        <span className="font-medium">{att.name}</span>
+                        <div className="flex flex-col">
+                            <span className={`font-medium ${isDisabled ? 'text-slate-500' : ''}`}>{att.name}</span>
+                            {isDisabled && (
+                                <span className="text-[10px] text-red-500 font-medium">
+                                    {conflictCount === selectedWristbands.size ? 'קיים כבר בכל הצמידים שנבחרו' : `קיים ב-${conflictCount} צמידים שנבחרו`}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    <span className="font-bold text-slate-900">€{att.price_eur}</span>
+                    <span className={`font-bold ${isDisabled ? 'text-slate-400' : 'text-slate-900'}`}>€{att.price_eur}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
