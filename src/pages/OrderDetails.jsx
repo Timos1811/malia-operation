@@ -273,7 +273,6 @@ export default function OrderDetails() {
                                                         {wb.status === 'inactive' ? 'צמיד לא פעיל' : `פג תוקף (${wb.valid_until})`}
                                                     </div>
                                                     )}
-                                                </div>
                                             </td>
                                         </tr>
                                     ))}
