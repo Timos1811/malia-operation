@@ -24,6 +24,12 @@ export default function AddTask() {
   const [departureDate, setDepartureDate] = useState('');
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // New state for wristbands
+  const [orderWristbands, setOrderWristbands] = useState([]);
+  const [selectedWristbandIds, setSelectedWristbandIds] = useState(new Set());
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(''); // Replaces direct orderNumber input for searching
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -68,27 +74,82 @@ export default function AddTask() {
     setSelectedEvents(newSelected);
   };
 
-  const handleOrderBlur = async () => {
-    if (!orderNumber || orderNumber.length < 5) return;
+  const handleSearch = async () => {
+    if (!searchTerm || searchTerm.length < 3) return;
     
     setIsFetchingOrder(true);
+    setIsSearching(true);
+    setOrderWristbands([]);
+    setSelectedWristbandIds(new Set());
+    
+    let targetOrderNumber = searchTerm;
+
     try {
-      const response = await base44.functions.invoke('fetchOrderData', { orderNumber });
+      // 1. Try to find if input is an NFC ID first
+      const nfcSearch = searchTerm.toLowerCase().replace(/:/g, "");
+      const wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcSearch });
       
-      if (response.data) {
-        // עדכון תאריך העזיבה ישירות מהשדה החדש (עמודה B)
-        if (response.data.departureDate) {
+      let foundSpecificWristband = null;
+      if (wristbands && wristbands.length > 0) {
+        // It's a wristband scan/input
+        targetOrderNumber = wristbands[0].order_number;
+        foundSpecificWristband = wristbands[0];
+        toast.info(`נמצא צמיד המשויך להזמנה ${targetOrderNumber}`);
+      }
+
+      // 2. Set the order number state
+      setOrderNumber(targetOrderNumber);
+
+      // 3. Fetch Order Data (departure date etc)
+      try {
+        const response = await base44.functions.invoke('fetchOrderData', { orderNumber: targetOrderNumber });
+        if (response.data && response.data.departureDate) {
           setDepartureDate(response.data.departureDate);
         }
-
-        toast.success("נתוני הזמנה נטענו");
+      } catch (err) {
+        console.warn("Order data fetch warning:", err);
       }
+
+      // 4. Fetch all wristbands for this order
+      const allOrderWristbands = await base44.entities.Wristband.filter({ order_number: targetOrderNumber });
+      setOrderWristbands(allOrderWristbands);
+
+      // 5. Pre-select specific wristband if found, otherwise select none (or all? let's default to none so user chooses)
+      // Actually user asked "option to request refund... by selecting specific wristband".
+      // If searched by NFC, select that one.
+      if (foundSpecificWristband) {
+        setSelectedWristbandIds(new Set([foundSpecificWristband.nfc_id]));
+        setPeopleCount('1'); // Auto set count to 1
+      } else {
+        // If searched by order number, maybe select all by default? Or let user select.
+        // Let's select all by default for convenience if searched by order number
+        if (allOrderWristbands.length > 0) {
+            const allIds = new Set(allOrderWristbands.map(wb => wb.nfc_id));
+            setSelectedWristbandIds(allIds);
+            setPeopleCount(allOrderWristbands.length.toString());
+        }
+      }
+
+      toast.success("נתוני הזמנה וצמידים נטענו");
+
     } catch (error) {
-       console.error("Fetch error:", error);
-       toast.error("שגיאה במשיכת נתונים");
+       console.error("Search error:", error);
+       toast.error("שגיאה בחיפוש (לא נמצאה הזמנה או צמיד)");
     } finally {
        setIsFetchingOrder(false);
+       setIsSearching(false);
     }
+  };
+
+  const handleWristbandToggle = (nfcId) => {
+    const newSelected = new Set(selectedWristbandIds);
+    if (newSelected.has(nfcId)) {
+      newSelected.delete(nfcId);
+    } else {
+      newSelected.add(nfcId);
+    }
+    setSelectedWristbandIds(newSelected);
+    setPeopleCount(newSelected.size.toString());
   };
 
   const handleSubmit = async (e) => {
