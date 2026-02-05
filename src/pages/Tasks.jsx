@@ -33,6 +33,57 @@ function TaskList() {
     const isDone = task.status === 'done';
     const newStatus = isDone ? 'todo' : 'done';
 
+    if (newStatus === 'done' && task.task_type === 'add_event') {
+        const confirmed = window.confirm(`האם לאשר את הוספת האירועים להזמנה ${task.order_number}? הסכום ${task.amount} ${task.currency} יתווסף להכנסות.`);
+        if (!confirmed) return;
+
+        try {
+            // 1. Update Wristbands
+            const allAttractions = await base44.entities.Attraction.list();
+            const eventNames = task.related_events.map(id => {
+                const att = allAttractions.find(a => a.id === id);
+                return att ? att.name : id;
+            });
+
+            if (task.related_wristbands && task.related_wristbands.length > 0) {
+                for (const nfcId of task.related_wristbands) {
+                    const wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId });
+                    if (wristbands.length > 0) {
+                        const wb = wristbands[0];
+                        const currentEvents = wb.allowed_events || [];
+                        const uniqueEvents = [...new Set([...currentEvents, ...eventNames])];
+                        await base44.entities.Wristband.update(wb.id, { allowed_events: uniqueEvents });
+                    }
+                }
+            }
+
+            // 2. Update Income (TableData)
+            let tables = await base44.entities.TableData.filter({ order_number: task.order_number });
+            
+            // If not found in TableData, check PendingSale (though usually finalized orders are in TableData)
+            // But usually we only update confirmed income in TableData.
+            
+            if (tables.length > 0) {
+                const row = tables[0];
+                const currentAmount = parseFloat(row.requested_amount || 0);
+                const taskAmount = parseFloat(task.amount || 0);
+                
+                await base44.entities.TableData.update(row.id, {
+                    requested_amount: (currentAmount + taskAmount).toString(),
+                    comments: (row.comments || '') + ` | תוספת ${taskAmount} עבור אירועים`
+                });
+                toast.success("עודכנו צמידים והכנסות בהצלחה");
+            } else {
+                toast.warning("ההכנסה לא עודכנה - לא נמצאה הזמנה בטבלה, אך הצמידים עודכנו");
+            }
+
+        } catch (error) {
+            console.error('Failed to process add_event:', error);
+            toast.error('שגיאה בעדכון הנתונים');
+            return; // Don't complete task on error
+        }
+    }
+
     if (newStatus === 'done' && task.task_type === 'refund') {
       try {
         const totalAmount = (task.amount || 0) * (task.people_count || 1);
