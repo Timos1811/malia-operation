@@ -63,13 +63,13 @@ import OrderSuccess from './pages/OrderSuccess';
 import PendingSales from './pages/PendingSales';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
 import SalesRepDashboard from './pages/SalesRepDashboard';
+import SavedData from './pages/SavedData';
 import SellerDashboard from './pages/SellerDashboard';
 import SwapWristband from './pages/SwapWristband';
 import Table from './pages/Table';
 import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
-import SavedData from './pages/SavedData';
 import __Layout from './Layout.jsx';
 
 
@@ -90,13 +90,13 @@ export const PAGES = {
     "PendingSales": PendingSales,
     "ReturnedToIsrael": ReturnedToIsrael,
     "SalesRepDashboard": SalesRepDashboard,
+    "SavedData": SavedData,
     "SellerDashboard": SellerDashboard,
     "SwapWristband": SwapWristband,
     "Table": Table,
     "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
-    "SavedData": SavedData,
 }
 
 export const pagesConfig = {

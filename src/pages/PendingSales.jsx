@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Save, Plus } from "lucide-react";
+import { Loader2, RefreshCw, Save, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -331,6 +331,13 @@ export default function PendingSales() {
                               className="bg-green-600 hover:bg-green-700 text-white"
                             >
                               <Save className="w-4 h-4 ml-1" /> שמור
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => handleDeleteRow(row.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                         </div>
                       </td>
