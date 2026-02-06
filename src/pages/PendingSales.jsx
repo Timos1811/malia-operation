@@ -78,7 +78,7 @@ export default function PendingSales() {
     // Better pattern: Local state for the input, update on blur.
   };
 
-  const handleBlur = (id, colKey, value, originalRow) => {
+  const handleBlur = async (id, colKey, value, originalRow) => {
     if (value === originalRow[colKey]) return; // No change
 
     const updates = { [colKey]: value };
