@@ -28,46 +28,50 @@ function TaskList() {
 
   const sortedTasks = React.useMemo(() => {
     const today = new Date();
-    const todayDateString = today.toISOString().split('T')[0];
-    const dayOfWeek = today.getDay(); // 0-6
+    // Use local date for accurate day comparison
+    const todayDateString = today.toLocaleDateString('en-CA');
+    const dayOfWeek = today.getDay();
 
-    // Filter Logic
     const filtered = tasks.filter(task => {
       if (task.is_recurring) {
-        // Show if recurring_days includes today
-        return task.recurring_days && task.recurring_days.includes(dayOfWeek);
+        // Safely check if recurring_days includes today
+        if (!Array.isArray(task.recurring_days) || task.recurring_days.length === 0) return true;
+        return task.recurring_days.includes(dayOfWeek);
       }
-      return true; // Show all normal tasks
+      return true;
     });
 
-    // Sort Logic: Recurring Todo -> Normal Todo -> Done
     return filtered.sort((a, b) => {
-      // Determine effective status
       let aDone = a.status === 'done';
       let bDone = b.status === 'done';
 
-      if (a.is_recurring) aDone = a.last_completed_at && a.last_completed_at.startsWith(todayDateString);
-      if (b.is_recurring) bDone = b.last_completed_at && b.last_completed_at.startsWith(todayDateString);
+      // Check completion for recurring tasks using LOCAL date
+      if (a.is_recurring) {
+         aDone = !!a.last_completed_at && new Date(a.last_completed_at).toLocaleDateString('en-CA') === todayDateString;
+      }
+      if (b.is_recurring) {
+         bDone = !!b.last_completed_at && new Date(b.last_completed_at).toLocaleDateString('en-CA') === todayDateString;
+      }
 
       if (aDone === bDone) {
-        // If both TODO, prioritize Recurring
         if (!aDone) {
+          // Both TODO: Recurring first
           if (a.is_recurring && !b.is_recurring) return -1;
           if (!a.is_recurring && b.is_recurring) return 1;
         }
-        return 0;
+        // Maintain created_date sort (newest first)
+        return new Date(b.created_date) - new Date(a.created_date);
       }
       return aDone ? 1 : -1;
     });
   }, [tasks]);
 
   const handleStatusToggle = async (task) => {
-    const todayDateString = new Date().toISOString().split('T')[0];
+    const todayDateString = new Date().toLocaleDateString('en-CA');
     let isDone = task.status === 'done';
     
-    // For recurring tasks, check last_completed_at
     if (task.is_recurring) {
-      isDone = task.last_completed_at && task.last_completed_at.startsWith(todayDateString);
+      isDone = !!task.last_completed_at && new Date(task.last_completed_at).toLocaleDateString('en-CA') === todayDateString;
     }
 
     const newStatus = isDone ? 'todo' : 'done';
@@ -197,10 +201,10 @@ function TaskList() {
         const isAddEvent = task.task_type === 'add_event';
         
         // Determine "Done" status
-        const todayDateString = new Date().toISOString().split('T')[0];
+        const todayDateString = new Date().toLocaleDateString('en-CA');
         let isDone = task.status === 'done';
         if (task.is_recurring) {
-          isDone = task.last_completed_at && task.last_completed_at.startsWith(todayDateString);
+          isDone = !!task.last_completed_at && new Date(task.last_completed_at).toLocaleDateString('en-CA') === todayDateString;
         }
         
         // For supplier payments and add_event, amount is already total. For refunds, it's per person.
