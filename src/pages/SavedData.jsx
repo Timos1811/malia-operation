@@ -3,8 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
-import { Loader2, Database, ExternalLink } from "lucide-react";
+import { Loader2, Database, ExternalLink, Search, Filter, X, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { he } from "date-fns/locale";
 import { toast } from "sonner";
 
 const COLUMNS = [
@@ -48,6 +54,12 @@ const COLUMN_KEYS = [
 export default function SavedData() {
     const [editingCell, setEditingCell] = useState(null);
     const [fetchingRows, setFetchingRows] = useState(new Set());
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filters, setFilters] = useState({
+      startDate: null,
+      endDate: null,
+      salesRep: 'all'
+    });
     const attemptedRows = useRef(new Set());
     const queryClient = useQueryClient();
   
@@ -61,6 +73,50 @@ export default function SavedData() {
       }
     },
   });
+
+  // Extract unique sales reps for filter
+  const salesReps = React.useMemo(() => {
+    const reps = new Set(savedRows.map(r => r.sales_rep).filter(Boolean));
+    return Array.from(reps).sort();
+  }, [savedRows]);
+
+  // Filter Logic
+  const filteredRows = React.useMemo(() => {
+    return savedRows.filter(row => {
+      // Search Query
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+        (row.order_number?.toLowerCase().includes(searchLower)) ||
+        (row.customer?.toLowerCase().includes(searchLower)) ||
+        (row.hotel?.toLowerCase().includes(searchLower)) ||
+        (row.company?.toLowerCase().includes(searchLower)) ||
+        (row.comments?.toLowerCase().includes(searchLower));
+
+      // Date Range Filter (based on created_date)
+      let matchesDate = true;
+      if (filters.startDate || filters.endDate) {
+        const rowDate = new Date(row.created_date);
+        rowDate.setHours(0, 0, 0, 0);
+        
+        if (filters.startDate) {
+          const start = new Date(filters.startDate);
+          start.setHours(0, 0, 0, 0);
+          if (rowDate < start) matchesDate = false;
+        }
+        
+        if (filters.endDate && matchesDate) {
+          const end = new Date(filters.endDate);
+          end.setHours(23, 59, 59, 999);
+          if (rowDate > end) matchesDate = false;
+        }
+      }
+
+      // Sales Rep Filter
+      const matchesRep = filters.salesRep === 'all' || row.sales_rep === filters.salesRep;
+
+      return matchesSearch && matchesDate && matchesRep;
+    });
+  }, [savedRows, searchQuery, filters]);
 
   React.useEffect(() => {
     // Auto-fetch order details on mount for existing order numbers
@@ -181,7 +237,7 @@ export default function SavedData() {
       e.preventDefault();
       handleCellChange(rowId, colKey, value);
       
-      const currentRowIndex = savedRows.findIndex(r => r.id === rowId);
+      const currentRowIndex = filteredRows.findIndex(r => r.id === rowId);
       const currentColIndex = COLUMN_KEYS.indexOf(colKey);
       
       if (e.shiftKey) {
@@ -189,14 +245,14 @@ export default function SavedData() {
         if (currentColIndex > 0) {
           setEditingCell({ row: rowId, col: COLUMN_KEYS[currentColIndex - 1] });
         } else if (currentRowIndex > 0) {
-          setEditingCell({ row: savedRows[currentRowIndex - 1].id, col: COLUMN_KEYS[COLUMN_KEYS.length - 1] });
+          setEditingCell({ row: filteredRows[currentRowIndex - 1].id, col: COLUMN_KEYS[COLUMN_KEYS.length - 1] });
         }
       } else {
         // Tab - move to next cell
         if (currentColIndex < COLUMN_KEYS.length - 1) {
           setEditingCell({ row: rowId, col: COLUMN_KEYS[currentColIndex + 1] });
-        } else if (currentRowIndex < savedRows.length - 1) {
-          setEditingCell({ row: savedRows[currentRowIndex + 1].id, col: COLUMN_KEYS[0] });
+        } else if (currentRowIndex < filteredRows.length - 1) {
+          setEditingCell({ row: filteredRows[currentRowIndex + 1].id, col: COLUMN_KEYS[0] });
         }
       }
     }
@@ -225,16 +281,109 @@ export default function SavedData() {
           </h1>
         </div>
         
+        {/* Filters Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
+            
+            {/* Search */}
+            <div className="relative flex-1 w-full">
+              <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="חיפוש לפי הזמנה, לקוח, מלון..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+
+            {/* Date Filter */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={`justify-start text-right font-normal ${!filters.startDate && "text-muted-foreground"}`}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {filters.startDate ? format(filters.startDate, "P", { locale: he }) : "מתאריך"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={filters.startDate}
+                    onSelect={(date) => setFilters(prev => ({ ...prev, startDate: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-slate-400">-</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={`justify-start text-right font-normal ${!filters.endDate && "text-muted-foreground"}`}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {filters.endDate ? format(filters.endDate, "P", { locale: he }) : "עד תאריך"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={filters.endDate}
+                    onSelect={(date) => setFilters(prev => ({ ...prev, endDate: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Sales Rep Filter */}
+            <Select 
+              value={filters.salesRep} 
+              onValueChange={(val) => setFilters(prev => ({ ...prev, salesRep: val }))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="סינון לפי נציג" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל הנציגים</SelectItem>
+                {salesReps.map(rep => (
+                  <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Clear Filters */}
+            {(searchQuery || filters.startDate || filters.endDate || filters.salesRep !== 'all') && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilters({ startDate: null, endDate: null, salesRep: 'all' });
+                }}
+                className="text-slate-500 hover:text-red-500"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-x-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             </div>
-          ) : savedRows.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <Database className="w-12 h-12 mb-4" />
-              <p className="text-lg">אין נתונים שמורים עדיין</p>
-              <p className="text-sm mt-1">הוסף שורות מדף טבלת הנתונים</p>
+              <p className="text-lg">לא נמצאו נתונים תואמים לחיפוש</p>
+              <Button 
+                variant="link" 
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilters({ startDate: null, endDate: null, salesRep: 'all' });
+                }}
+              >
+                נקה סינונים
+              </Button>
             </div>
           ) : (
             <table className="w-full min-w-[1200px]">
@@ -251,7 +400,7 @@ export default function SavedData() {
                 </tr>
               </thead>
               <tbody>
-                {savedRows.map((row) => {
+                {filteredRows.map((row) => {
                   // Check if EUR status is negative (including all currencies)
                   const eurAmount = parseFloat(row.eur_amount) || 0;
                   const shekelAmount = parseFloat(row.shekel_amount) || 0;

@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Receipt } from "lucide-react";
+import { Loader2, Receipt, Search, Filter, X, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { he } from "date-fns/locale";
 import { toast } from "sonner";
 
 const COLUMNS = [
@@ -20,6 +25,12 @@ const COLUMNS = [
 
 export default function AllExpenses() {
   const [editingCell, setEditingCell] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    startDate: null,
+    endDate: null,
+    reason: 'all'
+  });
   const queryClient = useQueryClient();
 
   const { data: expenses = [], isLoading: isLoadingExpenses } = useQuery({
@@ -48,11 +59,47 @@ export default function AllExpenses() {
   const eventsMap = React.useMemo(() => {
     const map = {};
     events.forEach(event => {
-        // If there are duplicates, last one wins or we could handle arrays, but 1-to-1 is preferred here
         map[event.expense_id] = event;
     });
     return map;
   }, [events]);
+
+  // Filter Logic
+  const filteredExpenses = React.useMemo(() => {
+    return expenses.filter(expense => {
+      // Search Query
+      const searchLower = searchQuery.toLowerCase();
+      const event = eventsMap[expense.id] || {};
+      const matchesSearch = !searchQuery || 
+        (expense.recipient?.toLowerCase().includes(searchLower)) ||
+        (expense.reason?.toLowerCase().includes(searchLower)) ||
+        (event.event_name?.toLowerCase().includes(searchLower));
+
+      // Date Range Filter (based on created_date)
+      let matchesDate = true;
+      if (filters.startDate || filters.endDate) {
+        const rowDate = new Date(expense.created_date);
+        rowDate.setHours(0, 0, 0, 0);
+        
+        if (filters.startDate) {
+          const start = new Date(filters.startDate);
+          start.setHours(0, 0, 0, 0);
+          if (rowDate < start) matchesDate = false;
+        }
+        
+        if (filters.endDate && matchesDate) {
+          const end = new Date(filters.endDate);
+          end.setHours(23, 59, 59, 999);
+          if (rowDate > end) matchesDate = false;
+        }
+      }
+
+      // Reason Filter
+      const matchesReason = filters.reason === 'all' || expense.reason === filters.reason;
+
+      return matchesSearch && matchesDate && matchesReason;
+    });
+  }, [expenses, eventsMap, searchQuery, filters]);
 
   const updateExpenseMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
@@ -104,7 +151,7 @@ export default function AllExpenses() {
   };
 
   const handleKeyDown = (e, rowId, colKey) => {
-      const expensesList = expenses;
+      const expensesList = filteredExpenses;
       const currentRowIndex = expensesList.findIndex(r => r.id === rowId);
       const currentColIndex = COLUMNS.findIndex(c => c.key === colKey);
 
@@ -160,16 +207,109 @@ export default function AllExpenses() {
           </h1>
         </div>
 
+        {/* Filters Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
+            
+            {/* Search */}
+            <div className="relative flex-1 w-full">
+              <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="חיפוש לפי מקבל, סיבה, אירוע..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+
+            {/* Date Filter */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={`justify-start text-right font-normal ${!filters.startDate && "text-muted-foreground"}`}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {filters.startDate ? format(filters.startDate, "P", { locale: he }) : "מתאריך"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={filters.startDate}
+                    onSelect={(date) => setFilters(prev => ({ ...prev, startDate: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-slate-400">-</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={`justify-start text-right font-normal ${!filters.endDate && "text-muted-foreground"}`}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {filters.endDate ? format(filters.endDate, "P", { locale: he }) : "עד תאריך"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={filters.endDate}
+                    onSelect={(date) => setFilters(prev => ({ ...prev, endDate: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Reason Filter */}
+            <Select 
+              value={filters.reason} 
+              onValueChange={(val) => setFilters(prev => ({ ...prev, reason: val }))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="סינון לפי סיבה" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל הסיבות</SelectItem>
+                {COLUMNS.find(c => c.key === 'reason')?.options?.map(opt => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Clear Filters */}
+            {(searchQuery || filters.startDate || filters.endDate || filters.reason !== 'all') && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilters({ startDate: null, endDate: null, reason: 'all' });
+                }}
+                className="text-slate-500 hover:text-red-500"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-x-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             </div>
-          ) : expenses.length === 0 ? (
+          ) : filteredExpenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <Receipt className="w-12 h-12 mb-4" />
-              <p className="text-lg">אין הוצאות שמורות</p>
-              <p className="text-sm mt-1">הוסף שורות מדף צור הוצאה</p>
+              <p className="text-lg">לא נמצאו הוצאות תואמות לחיפוש</p>
+              <Button 
+                variant="link" 
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilters({ startDate: null, endDate: null, reason: 'all' });
+                }}
+              >
+                נקה סינונים
+              </Button>
             </div>
           ) : (
             <table className="w-full min-w-[800px]">
@@ -183,7 +323,7 @@ export default function AllExpenses() {
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((expense) => {
+                {filteredExpenses.map((expense) => {
                   const event = eventsMap[expense.id] || {};
 
                   return (
