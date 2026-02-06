@@ -10,8 +10,9 @@ import { Loader2 } from "lucide-react";
 export default function SellerDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [stats, setStats] = useState({ 
+  const [stats, setStats] = useState({
     totalIncome: 0, 
     totalGroups: 0,
     fullRefundsAmount: 0,
@@ -98,6 +99,7 @@ export default function SellerDashboard() {
         }
       } catch (error) {
         console.error("Failed to fetch data", error);
+        setError("אירעה שגיאה בטעינת הנתונים. אנא נסה לרענן את העמוד.");
       } finally {
         setLoading(false);
       }
@@ -109,6 +111,21 @@ export default function SellerDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
+        <div className="text-center space-y-4">
+            <div className="bg-red-100 p-4 rounded-full inline-flex">
+                <Users className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">שגיאה</h2>
+            <p className="text-slate-500">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">נסה שוב</Button>
+        </div>
       </div>
     );
   }

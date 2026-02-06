@@ -91,7 +91,7 @@ export default function AddEventToWristband() {
 
     } catch (e) {
       console.error(e);
-      toast.error("שגיאה בחיפוש");
+      toast.error(`שגיאה בחיפוש: ${e.message || 'אנא נסה שוב'}`);
     }
   };
 
@@ -113,7 +113,7 @@ export default function AddEventToWristband() {
     } catch (e) {
       console.error(e);
       setIsScanning(false);
-      toast.error("שגיאה בהפעלת הסורק");
+      toast.error(`שגיאה בהפעלת הסורק: ${e.message || 'וודא ש-NFC פעיל'}`);
     }
   };
 
@@ -191,7 +191,7 @@ export default function AddEventToWristband() {
 
     } catch (e) {
       console.error(e);
-      toast.error("שגיאה בשליחת הבקשה");
+      toast.error(`שגיאה בשליחת הבקשה: ${e.message || 'אנא נסה שוב מאוחר יותר'}`);
     } finally {
       setIsSubmitting(false);
     }

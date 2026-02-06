@@ -36,7 +36,7 @@ export default function EventScanner() {
                 setAttractions(data);
             } catch (error) {
                 console.error("Failed to fetch attractions", error);
-                toast.error("שגיאה בטעינת אירועים");
+                toast.error(`שגיאה בטעינת אירועים: ${error.message || 'אנא בדוק את החיבור'}`);
             }
         };
         
@@ -165,7 +165,7 @@ export default function EventScanner() {
             setIsSuccess(true);
         } catch (error) {
             console.error("Failed to create task", error);
-            toast.error("שגיאה ביצירת משימת תשלום");
+            toast.error(`שגיאה ביצירת משימת תשלום: ${error.message || 'נסה שוב מאוחר יותר'}`);
         } finally {
             setLoading(false);
         }
@@ -211,7 +211,7 @@ export default function EventScanner() {
                 };
             } catch (error) {
                 console.error("Error starting NFC scan", error);
-                toast.error("לא ניתן להפעיל NFC. וודא שהמכשיר תומך ו-NFC דלוק.");
+                toast.error(`לא ניתן להפעיל NFC: ${error.message}. וודא ש-NFC דלוק במכשיר והרשאות ניתנו.`);
                 setIsScanning(false);
             }
         } else {

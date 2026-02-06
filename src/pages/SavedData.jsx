@@ -51,9 +51,15 @@ export default function SavedData() {
     const attemptedRows = useRef(new Set());
     const queryClient = useQueryClient();
   
-  const { data: savedRows = [], isLoading } = useQuery({
+  const { data: savedRows = [], isLoading, isError, error } = useQuery({
     queryKey: ['tableData'],
-    queryFn: () => base44.entities.TableData.list('-created_date'),
+    queryFn: async () => {
+      try {
+        return await base44.entities.TableData.list('-created_date');
+      } catch (err) {
+        throw new Error(err.message || 'שגיאה בטעינת נתונים שמורים');
+      }
+    },
   });
 
   React.useEffect(() => {
@@ -195,6 +201,19 @@ export default function SavedData() {
       }
     }
   };
+
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
+        <div className="text-center space-y-4">
+            <Database className="w-12 h-12 text-red-500 mx-auto" />
+            <h2 className="text-xl font-bold text-slate-800">שגיאה בטעינת הנתונים</h2>
+            <p className="text-slate-500">{error?.message}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">נסה שוב</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 md:p-12">

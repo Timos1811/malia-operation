@@ -38,15 +38,19 @@ export default function Live() {
   });
 
   // Main Data Query
-  const { data: tableData = [], isLoading } = useQuery({
+  const { data: tableData = [], isLoading, isError, error } = useQuery({
     queryKey: ['tableData', filters],
     queryFn: async () => {
-      // Use the search backend function
-      const response = await base44.functions.invoke('searchGroups', filters);
-      return response.data;
+      try {
+        const response = await base44.functions.invoke('searchGroups', filters);
+        return response.data;
+      } catch (err) {
+        throw new Error(err.response?.data?.error || err.message || 'שגיאה בטעינת הנתונים');
+      }
     },
     staleTime: 60000,
     refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   const clearFilters = () => {
@@ -63,8 +67,8 @@ export default function Live() {
       queryClient.invalidateQueries({ queryKey: ['tableData'] });
       toast.success('סטטוס עזיבה עודכן');
     },
-    onError: () => {
-      toast.error('שגיאה בעדכון סטטוס');
+    onError: (err) => {
+      toast.error(`שגיאה בעדכון סטטוס: ${err.message || 'אנא נסה שוב'}`);
     }
   });
 
@@ -145,6 +149,21 @@ export default function Live() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4" dir="rtl">
+        <div className="bg-red-100 p-4 rounded-full">
+            <X className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800">שגיאה בטעינת הנתונים</h2>
+        <p className="text-slate-500">{error?.message || 'אנא נסה לרענן את העמוד'}</p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+            נסה שוב
+        </Button>
       </div>
     );
   }
