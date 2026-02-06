@@ -21,6 +21,46 @@ function TaskList() {
     queryFn: () => base44.entities.Task.list('-created_date'),
   });
 
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Task.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+
+  const sortedTasks = React.useMemo(() => {
+    const today = new Date();
+    const todayDateString = today.toISOString().split('T')[0];
+    const dayOfWeek = today.getDay(); // 0-6
+
+    // Filter Logic
+    const filtered = tasks.filter(task => {
+      if (task.is_recurring) {
+        // Show if recurring_days includes today
+        return task.recurring_days && task.recurring_days.includes(dayOfWeek);
+      }
+      return true; // Show all normal tasks
+    });
+
+    // Sort Logic: Recurring Todo -> Normal Todo -> Done
+    return filtered.sort((a, b) => {
+      // Determine effective status
+      let aDone = a.status === 'done';
+      let bDone = b.status === 'done';
+
+      if (a.is_recurring) aDone = a.last_completed_at && a.last_completed_at.startsWith(todayDateString);
+      if (b.is_recurring) bDone = b.last_completed_at && b.last_completed_at.startsWith(todayDateString);
+
+      if (aDone === bDone) {
+        // If both TODO, prioritize Recurring
+        if (!aDone) {
+          if (a.is_recurring && !b.is_recurring) return -1;
+          if (!a.is_recurring && b.is_recurring) return 1;
+        }
+        return 0;
+      }
+      return aDone ? 1 : -1;
+    });
+  }, [tasks]);
+
   const handleStatusToggle = async (task) => {
     const todayDateString = new Date().toISOString().split('T')[0];
     let isDone = task.status === 'done';
