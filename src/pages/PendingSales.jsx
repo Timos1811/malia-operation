@@ -91,6 +91,39 @@ export default function PendingSales() {
         updates.eur_status = status;
     }
 
+    // Check if order number changed
+    if (colKey === 'order_number' && value && value.trim().length > 2) {
+        try {
+            const existingOrders = await base44.entities.TableData.filter({ order_number: value.trim() });
+            if (existingOrders.length > 0) {
+                const existing = existingOrders[0];
+                const newUpdates = {
+                    ...updates,
+                    customer: existing.customer,
+                    departure_date: existing.departure_date,
+                    nights: existing.nights,
+                    gender: existing.gender,
+                    hotel: existing.hotel,
+                    company: existing.company,
+                    requested_amount: existing.requested_amount,
+                    eur_amount: existing.eur_amount,
+                    shekel_amount: existing.shekel_amount,
+                    dollar_amount: existing.dollar_amount,
+                    bit_amount: existing.bit_amount,
+                    eur_status: existing.eur_status,
+                    sales_rep: existing.sales_rep || row.sales_rep, // Keep current if empty
+                    comments: existing.comments
+                };
+                updateMutation.mutate({ id, data: newUpdates });
+                toast.success("נמצאה הזמנה קיימת - הנתונים נטענו לעריכה");
+                setEditingCell(null);
+                return;
+            }
+        } catch (e) {
+            console.error("Error checking existing order", e);
+        }
+    }
+
     updateMutation.mutate({ id, data: updates });
     setEditingCell(null);
   };
@@ -103,27 +136,28 @@ export default function PendingSales() {
           const existingOrders = await base44.entities.TableData.filter({ order_number: row.order_number });
           
           if (existingOrders.length > 0) {
-              // UPDATE EXISTING (Merge)
+              // UPDATE EXISTING (Overwrite/Update)
               const existing = existingOrders[0];
-              const newAmount = (parseFloat(existing.requested_amount || 0) + parseFloat(row.requested_amount || 0)).toString();
-              const newComments = (existing.comments || '') + (row.comments ? ` | ${row.comments}` : '');
-              
-              const newEur = (parseFloat(existing.eur_amount || 0) + parseFloat(row.eur_amount || 0)).toString();
-              const newShekel = (parseFloat(existing.shekel_amount || 0) + parseFloat(row.shekel_amount || 0)).toString();
-              const newDollar = (parseFloat(existing.dollar_amount || 0) + parseFloat(row.dollar_amount || 0)).toString();
-              const newBit = (parseFloat(existing.bit_amount || 0) + parseFloat(row.bit_amount || 0)).toString();
 
               await base44.entities.TableData.update(existing.id, {
-                  requested_amount: newAmount,
-                  eur_amount: newEur,
-                  shekel_amount: newShekel,
-                  dollar_amount: newDollar,
-                  bit_amount: newBit,
-                  comments: newComments,
+                  customer: row.customer,
+                  departure_date: row.departure_date,
+                  nights: row.nights,
+                  gender: row.gender,
+                  hotel: row.hotel,
+                  company: row.company,
+                  requested_amount: row.requested_amount,
+                  eur_amount: row.eur_amount,
+                  shekel_amount: row.shekel_amount,
+                  dollar_amount: row.dollar_amount,
+                  bit_amount: row.bit_amount,
+                  eur_status: row.eur_status,
+                  sales_rep: row.sales_rep,
+                  comments: row.comments,
                   updated_date: new Date().toISOString()
               });
               
-              toast.success(`הזמנה ${row.order_number} קיימת - הנתונים עודכנו ומוזגו בהצלחה!`);
+              toast.success(`הזמנה ${row.order_number} עודכנה בהצלחה!`);
           } else {
               // CREATE NEW
               await base44.entities.TableData.create({
