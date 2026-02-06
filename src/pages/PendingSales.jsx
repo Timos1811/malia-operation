@@ -92,11 +92,22 @@ export default function PendingSales() {
     }
 
     // Check if order number changed
-    if (colKey === 'order_number' && value && value.trim().length > 2) {
+    if (colKey === 'order_number' && value && String(value).trim().length > 0) {
         try {
-            const existingOrders = await base44.entities.TableData.filter({ order_number: value.trim() });
+            const trimmedValue = String(value).trim();
+            let existingOrders = await base44.entities.TableData.filter({ order_number: trimmedValue });
+            
+            // Fallback search if not found (handles type mismatches or indexing delays)
+            if (existingOrders.length === 0) {
+                const recentItems = await base44.entities.TableData.list('-created_date', 1000);
+                existingOrders = recentItems.filter(item => String(item.order_number).trim() === trimmedValue);
+            }
+
             if (existingOrders.length > 0) {
+                // Use the most recent one if multiple found in fallback
+                existingOrders.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
                 const existing = existingOrders[0];
+                
                 const newUpdates = {
                     ...updates,
                     customer: existing.customer,
@@ -134,7 +145,13 @@ export default function PendingSales() {
       try {
           // Check for existing order in TableData
           const orderNum = row.order_number ? String(row.order_number).trim() : "";
-          const existingOrders = await base44.entities.TableData.filter({ order_number: orderNum });
+          let existingOrders = await base44.entities.TableData.filter({ order_number: orderNum });
+
+          // Fallback search if not found (handles type mismatches or indexing delays)
+          if (existingOrders.length === 0) {
+              const recentItems = await base44.entities.TableData.list('-created_date', 1000);
+              existingOrders = recentItems.filter(item => String(item.order_number).trim() === orderNum);
+          }
           
           if (existingOrders.length > 0) {
               // Sort by created_date desc to keep the latest
