@@ -57,16 +57,16 @@ export default function PendingSales() {
 
   const handleAddRow = () => {
       createMutation.mutate({
-          order_number: "טיוטה", 
+          order_number: " ", 
           created_date: new Date().toISOString(),
-          requested_amount: "0",
-          eur_amount: "0",
-          shekel_amount: "0",
-          dollar_amount: "0",
-          bit_amount: "0",
-          eur_status: "0",
-          sales_rep: "ידני",
-          comments: "הוספה ידנית"
+          requested_amount: "",
+          eur_amount: "",
+          shekel_amount: "",
+          dollar_amount: "",
+          bit_amount: "",
+          eur_status: "",
+          sales_rep: "",
+          comments: ""
       });
   };
 
