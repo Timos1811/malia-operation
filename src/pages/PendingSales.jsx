@@ -81,7 +81,7 @@ export default function PendingSales() {
   const handleBlur = async (id, colKey, value, originalRow) => {
     if (value === originalRow[colKey]) return; // No change
 
-    const updates = { [colKey]: value };
+    const updates = { [colKey]: (colKey === 'order_number' && value) ? value.trim() : value };
 
     // If currency fields changed, recalculate status
     if (['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'requested_amount'].includes(colKey)) {
@@ -133,13 +133,15 @@ export default function PendingSales() {
 
       try {
           // Check for existing order in TableData
-          const existingOrders = await base44.entities.TableData.filter({ order_number: row.order_number });
+          const orderNum = row.order_number ? String(row.order_number).trim() : "";
+          const existingOrders = await base44.entities.TableData.filter({ order_number: orderNum });
           
           if (existingOrders.length > 0) {
               // UPDATE EXISTING (Overwrite/Update)
               const existing = existingOrders[0];
 
               await base44.entities.TableData.update(existing.id, {
+                  order_number: orderNum,
                   customer: row.customer,
                   departure_date: row.departure_date,
                   nights: row.nights,
@@ -160,10 +162,12 @@ export default function PendingSales() {
               toast.success(`הזמנה ${row.order_number} עודכנה בהצלחה!`);
           } else {
               // CREATE NEW
-              await base44.entities.TableData.create({
-                  ...row,
-                  created_date: new Date().toISOString()
-              });
+              const newRowData = { ...row };
+              delete newRowData.id; // Remove PendingSale ID
+              newRowData.order_number = orderNum;
+              newRowData.created_date = new Date().toISOString();
+              
+              await base44.entities.TableData.create(newRowData);
               toast.success("ההזמנה נשמרה בהצלחה והועברה לטבלת ההכנסות!");
           }
 
