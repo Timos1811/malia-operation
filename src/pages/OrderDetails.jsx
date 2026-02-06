@@ -91,11 +91,12 @@ export default function OrderDetails() {
           setData(results[0]);
         } else {
           console.log('Order not found:', trimmedOrderNumber);
-          setError(`הזמנה ${trimmedOrderNumber} לא נמצאה בנתונים השמורים`);
+          setError(`הזמנה מספר ${trimmedOrderNumber} לא נמצאה במערכת. אנא וודא שהמספר תקין ונסה שוב.`);
         }
       } catch (err) {
         console.error(err);
-        setError('שגיאה בטעינת הנתונים');
+        const errorMsg = err.message || err.toString();
+        setError(`שגיאה בטעינת הנתונים: ${errorMsg}. אנא בדוק את החיבור לאינטרנט ונסה שנית.`);
       } finally {
         setLoading(false);
       }

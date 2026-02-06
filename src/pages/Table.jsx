@@ -89,11 +89,12 @@ export default function Table() {
         });
         toast.success(`נתוני הזמנה ${trimmedOrder} נטענו בהצלחה`);
       } else {
-        toast.error('הזמנה לא נמצאה בגיליון');
+        toast.error(`הזמנה ${trimmedOrder} לא נמצאה בגיליון החיצוני`);
       }
     } catch (error) {
       console.error('Fetch error:', error);
-      toast.error('שגיאה במשיכת נתונים - וודא שהפונקציה מעודכנת ב-Base44');
+      const errorMessage = error.message || 'שגיאה לא ידועה';
+      toast.error(`שגיאה במשיכת נתונים: ${errorMessage}. וודא שהפונקציה תקינה ושמספר ההזמנה קיים.`);
     } finally {
       setFetchingRows(prev => {
         const newSet = new Set(prev);
@@ -216,7 +217,7 @@ export default function Table() {
       });
     } catch (error) {
       console.error(error);
-      toast.error('שגיאה בשמירה');
+      toast.error(`שגיאה בשמירה: ${error.message || 'אנא נסה שוב מאוחר יותר'}`);
     }
   };
 

@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [summaryData, setSummaryData] = useState([]);
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export default function ManagerDashboard() {
         setSummaryData(data);
       } catch (error) {
         console.error("Failed to fetch manager data", error);
+        setError("אירעה שגיאה בטעינת הנתונים. אנא נסה לרענן את העמוד.");
       } finally {
         setLoading(false);
       }
@@ -89,6 +91,19 @@ export default function ManagerDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
+        <div className="text-center space-y-4">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+            <h2 className="text-xl font-bold text-slate-800">שגיאה</h2>
+            <p className="text-slate-500">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">נסה שוב</Button>
+        </div>
       </div>
     );
   }

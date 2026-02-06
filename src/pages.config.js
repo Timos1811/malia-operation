@@ -62,6 +62,7 @@ import OrderDetails from './pages/OrderDetails';
 import OrderSuccess from './pages/OrderSuccess';
 import PendingSales from './pages/PendingSales';
 import ReturnedToIsrael from './pages/ReturnedToIsrael';
+import SalesRepDashboard from './pages/SalesRepDashboard';
 import SavedData from './pages/SavedData';
 import SellerDashboard from './pages/SellerDashboard';
 import SwapWristband from './pages/SwapWristband';
@@ -69,7 +70,6 @@ import Table from './pages/Table';
 import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
-import SalesRepDashboard from './pages/SalesRepDashboard';
 import __Layout from './Layout.jsx';
 
 
@@ -89,6 +89,7 @@ export const PAGES = {
     "OrderSuccess": OrderSuccess,
     "PendingSales": PendingSales,
     "ReturnedToIsrael": ReturnedToIsrael,
+    "SalesRepDashboard": SalesRepDashboard,
     "SavedData": SavedData,
     "SellerDashboard": SellerDashboard,
     "SwapWristband": SwapWristband,
@@ -96,7 +97,6 @@ export const PAGES = {
     "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
-    "SalesRepDashboard": SalesRepDashboard,
 }
 
 export const pagesConfig = {
