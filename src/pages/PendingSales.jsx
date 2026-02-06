@@ -137,9 +137,16 @@ export default function PendingSales() {
           const existingOrders = await base44.entities.TableData.filter({ order_number: orderNum });
           
           if (existingOrders.length > 0) {
-              // UPDATE EXISTING (Overwrite/Update)
+              // Sort by created_date desc to keep the latest
+              existingOrders.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
               const existing = existingOrders[0];
 
+              // Delete older duplicates
+              if (existingOrders.length > 1) {
+                  await Promise.all(existingOrders.slice(1).map(dup => base44.entities.TableData.delete(dup.id)));
+              }
+
+              // UPDATE EXISTING (Overwrite/Update)
               await base44.entities.TableData.update(existing.id, {
                   order_number: orderNum,
                   customer: row.customer,
