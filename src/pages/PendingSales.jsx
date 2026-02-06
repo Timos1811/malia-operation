@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Save } from "lucide-react";
+import { Loader2, RefreshCw, Save, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +44,31 @@ export default function PendingSales() {
     },
     onError: () => toast.error("שגיאה במחיקת השורה")
   });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (newRow) => base44.entities.PendingSale.create(newRow),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['pendingSales']);
+      toast.success("שורה חדשה נוספה");
+    },
+    onError: () => toast.error("שגיאה בהוספת שורה")
+  });
+
+  const handleAddRow = () => {
+      createMutation.mutate({
+          order_number: "טיוטה", 
+          created_date: new Date().toISOString(),
+          requested_amount: "0",
+          eur_amount: "0",
+          shekel_amount: "0",
+          dollar_amount: "0",
+          bit_amount: "0",
+          eur_status: "0",
+          sales_rep: "ידני",
+          comments: "הוספה ידנית"
+      });
+  };
 
   const handleCellChange = (id, colKey, value, originalRow) => {
     // Optimistic update logic could go here, but for simplicity we'll just mutate
@@ -167,6 +192,13 @@ export default function PendingSales() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-800">מכירה בהמתנה</h1>
           <div className="flex gap-4 items-center">
+            <Button 
+              onClick={handleAddRow}
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Plus className="w-4 h-4" /> 
+              הוסף מכירה
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => refetch()}
