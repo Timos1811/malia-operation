@@ -22,6 +22,7 @@ const COLUMNS = [
   'דולר',
   'ביט',
   'סטטוס בEUR',
+  'שם נציג',
   'הערות'
 ];
 
@@ -40,6 +41,7 @@ const COLUMN_KEYS = [
   'dollar_amount',
   'bit_amount',
   'eur_status',
+  'sales_rep',
   'comments'
 ];
 
