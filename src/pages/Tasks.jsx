@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckSquare, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckSquare, Plus, AlertCircle, CheckCircle2, Repeat, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function TaskList() {
   const queryClient = useQueryClient();
@@ -17,22 +21,29 @@ function TaskList() {
     queryFn: () => base44.entities.Task.list('-created_date'),
   });
 
-  const sortedTasks = React.useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      if (a.status === b.status) return 0;
-      return a.status === 'done' ? 1 : -1;
-    });
-  }, [tasks]);
-
-  const toggleStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => base44.entities.Task.update(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
-  });
-
   const handleStatusToggle = async (task) => {
-    const isDone = task.status === 'done';
+    const todayDateString = new Date().toISOString().split('T')[0];
+    let isDone = task.status === 'done';
+    
+    // For recurring tasks, check last_completed_at
+    if (task.is_recurring) {
+      isDone = task.last_completed_at && task.last_completed_at.startsWith(todayDateString);
+    }
+
     const newStatus = isDone ? 'todo' : 'done';
 
+    // Recurring Logic Update
+    if (task.is_recurring) {
+      updateTaskMutation.mutate({
+        id: task.id,
+        data: {
+          last_completed_at: !isDone ? new Date().toISOString() : null
+        }
+      });
+      return; // Stop here for recurring tasks (they don't trigger expenses/side-effects for now based on request simplicity)
+    }
+
+    // Normal Task Logic
     // add_event logic is now handled automatically in AddEventToWristband.js
     // We keep the task just for logging purposes
     if (newStatus === 'done' && task.task_type === 'add_event') {
@@ -125,7 +136,7 @@ function TaskList() {
       }
     }
 
-    toggleStatusMutation.mutate({ id: task.id, status: newStatus });
+    updateTaskMutation.mutate({ id: task.id, data: { status: newStatus } });
   };
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
@@ -144,7 +155,13 @@ function TaskList() {
         const isRefund = task.task_type === 'refund';
         const isSupplierPayment = task.task_type === 'supplier_payment';
         const isAddEvent = task.task_type === 'add_event';
-        const isDone = task.status === 'done';
+        
+        // Determine "Done" status
+        const todayDateString = new Date().toISOString().split('T')[0];
+        let isDone = task.status === 'done';
+        if (task.is_recurring) {
+          isDone = task.last_completed_at && task.last_completed_at.startsWith(todayDateString);
+        }
         
         // For supplier payments and add_event, amount is already total. For refunds, it's per person.
         const displayAmount = (isSupplierPayment || isAddEvent)
@@ -156,16 +173,23 @@ function TaskList() {
             key={task.id} 
             className={`transition-all ${
               !isDone 
-                ? 'bg-red-50 border border-red-200 shadow-sm' 
+                ? (task.is_recurring ? 'bg-amber-50 border-amber-200 shadow-md ring-1 ring-amber-100' : 'bg-red-50 border border-red-200 shadow-sm')
                 : 'bg-slate-50 opacity-70 border border-slate-200'
             }`}
           >
             <CardContent className="p-6 flex items-start justify-between gap-4">
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <h3 className={`font-bold text-lg ${!isDone ? (isAddEvent ? 'text-purple-900' : 'text-red-900') : 'text-slate-800'} ${isDone ? 'line-through' : ''}`}>
-                    {task.title}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    {task.is_recurring && (
+                      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
+                        <Repeat className="w-3 h-3" /> משימה קבועה
+                      </Badge>
+                    )}
+                    <h3 className={`font-bold text-lg ${!isDone ? (task.is_recurring ? 'text-amber-900' : isAddEvent ? 'text-purple-900' : 'text-red-900') : 'text-slate-800'} ${isDone ? 'line-through' : ''}`}>
+                      {task.title}
+                    </h3>
+                  </div>
                   {isRefund && (
                     <Badge variant={isDone ? "outline" : "destructive"}>
                       {task.refund_type === 'full' ? 'החזר מלא' : 'החזר חלקי'}
@@ -221,6 +245,50 @@ function TaskList() {
 }
 
 export default function Tasks() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isRecurringDialogOpen, setIsRecurringDialogOpen] = useState(false);
+  const [recurringTitle, setRecurringTitle] = useState('');
+  const [recurringDays, setRecurringDays] = useState([0, 1, 2, 3, 4, 5, 6]); // Default all days
+  const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    base44.auth.me().then(user => {
+      setIsAdmin(user?.role === 'admin');
+    }).catch(() => {});
+  }, []);
+
+  const createRecurringTask = async () => {
+    if (!recurringTitle.trim()) return;
+
+    try {
+      await base44.entities.Task.create({
+        title: recurringTitle,
+        is_recurring: true,
+        recurring_days: recurringDays,
+        status: 'todo',
+        task_type: 'general',
+        description: 'משימה קבועה'
+      });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      setIsRecurringDialogOpen(false);
+      setRecurringTitle('');
+      setRecurringDays([0, 1, 2, 3, 4, 5, 6]);
+      toast.success('משימה קבועה נוצרה בהצלחה');
+    } catch (e) {
+      toast.error('שגיאה ביצירת משימה');
+    }
+  };
+
+  const days = [
+    { label: 'א', value: 0 },
+    { label: 'ב', value: 1 },
+    { label: 'ג', value: 2 },
+    { label: 'ד', value: 3 },
+    { label: 'ה', value: 4 },
+    { label: 'ו', value: 5 },
+    { label: 'ש', value: 6 },
+  ];
+
   return (
     <div className="p-8 md:p-12 text-right" dir="rtl">
       <div className="max-w-7xl mx-auto">
@@ -229,12 +297,72 @@ export default function Tasks() {
             <CheckSquare className="w-8 h-8 text-slate-600" />
             <h1 className="text-3xl font-bold text-slate-800">משימות</h1>
           </div>
-          <Link to={createPageUrl('AddTask')}>
-            <Button className="bg-slate-900 text-white hover:bg-slate-800 gap-2">
-              <Plus className="w-4 h-4" />
-              הוסף בקשה חדשה
-            </Button>
-          </Link>
+          
+          <div className="flex gap-3">
+            {isAdmin && (
+              <Dialog open={isRecurringDialogOpen} onOpenChange={setIsRecurringDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 border-dashed border-slate-300">
+                    <Repeat className="w-4 h-4" />
+                    הוסף משימה קבועה
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>הוספת משימה קבועה (מנהל)</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>כותרת המשימה</Label>
+                      <Input 
+                        value={recurringTitle}
+                        onChange={(e) => setRecurringTitle(e.target.value)}
+                        placeholder="לדוגמה: בדיקת מלאי בוקר"
+                      />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Label>ימי הופעה</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {days.map(day => {
+                          const isSelected = recurringDays.includes(day.value);
+                          return (
+                            <div 
+                              key={day.value}
+                              onClick={() => {
+                                setRecurringDays(prev => 
+                                  isSelected 
+                                    ? prev.filter(d => d !== day.value)
+                                    : [...prev, day.value]
+                                );
+                              }}
+                              className={`
+                                w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all font-bold text-sm border
+                                ${isSelected ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'}
+                              `}
+                            >
+                              {day.label}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <Button onClick={createRecurringTask} className="w-full mt-4">
+                      צור משימה קבועה
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            <Link to={createPageUrl('AddTask')}>
+              <Button className="bg-slate-900 text-white hover:bg-slate-800 gap-2">
+                <Plus className="w-4 h-4" />
+                הוסף בקשה חדשה
+              </Button>
+            </Link>
+          </div>
         </div>
         
         <TaskList />
