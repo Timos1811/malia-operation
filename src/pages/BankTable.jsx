@@ -52,8 +52,11 @@ export default function BankTable() {
       if (row.company === 'נטו פאן') totals.bitNeto += bit;
       else totals.bitKishrei += bit;
 
-      // Count customers (parsing string to int)
-      totalCustomers += parseInt(row.customer) || 0;
+      // Count customers (parsing string to int, or extracting first number found)
+      const customerStr = String(row.customer || '');
+      const numberMatch = customerStr.match(/\d+/);
+      const customerCount = numberMatch ? parseInt(numberMatch[0]) : 0;
+      totalCustomers += customerCount;
 
       // Sales Rep Stats (Normalized to EUR)
       const repName = row.sales_rep || 'ללא נציג';
