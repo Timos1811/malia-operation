@@ -229,6 +229,8 @@ export default function CreateExpense() {
                                             <SelectItem value="תשלום לספק">תשלום לספק</SelectItem>
                                             <SelectItem value="פיצוי קשרי תעופה">פיצוי קשרי תעופה</SelectItem>
                                             <SelectItem value="פיצוי נטו פאן">פיצוי נטו פאן</SelectItem>
+                                            <SelectItem value="פינוק ללקוחות">פינוק ללקוחות</SelectItem>
+                                            <SelectItem value="פינוק לנציגים">פינוק לנציגים</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </td>

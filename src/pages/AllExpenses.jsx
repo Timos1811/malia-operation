@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const COLUMNS = [
   { key: 'created_date', label: 'תאריך יצירה', type: 'readonly' },
-  { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן'] },
+  { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן', 'פינוק ללקוחות', 'פינוק לנציגים'] },
   { key: 'recipient', label: 'למי הועבר', type: 'text' },
   { key: 'amount', label: 'סכום', type: 'number' },
   { key: 'currency', label: 'מטבע', type: 'select' },
