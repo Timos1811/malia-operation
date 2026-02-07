@@ -68,7 +68,7 @@ export default function CreateExpense() {
       reason: '',
       recipient: '',
       amount: '',
-      currency: 'ILS',
+      currency: 'EUR',
       expense_date: new Date().toISOString().split('T')[0],
       notes: ''
     }));
@@ -169,7 +169,7 @@ export default function CreateExpense() {
         reason: '',
         recipient: '',
         amount: '',
-        currency: 'ILS',
+        currency: 'EUR',
         expense_date: new Date().toISOString().split('T')[0],
         notes: ''
       };
