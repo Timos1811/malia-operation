@@ -13,10 +13,11 @@ import { toast } from "sonner";
 
 const COLUMNS = [
   { key: 'created_date', label: 'תאריך יצירה', type: 'readonly' },
-  { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן', 'פינוק ללקוחות', 'פינוק לנציגים'] },
+  { key: 'reason', label: 'סיבת הוצאה', type: 'select', options: ['יצא מהיעד', 'החזר מלא', 'החזר חלקי', 'רכב', 'אחר', 'משיכה לאדם', 'תשלום לספק', 'פיצוי קשרי תעופה', 'פיצוי נטו פאן', 'פינוק ללקוחות', 'פינוק לנציגים', 'אשל'] },
   { key: 'recipient', label: 'למי הועבר', type: 'text' },
   { key: 'amount', label: 'סכום', type: 'number' },
   { key: 'currency', label: 'מטבע', type: 'select' },
+  { key: 'notes', label: 'הערות', type: 'text' },
   { key: 'event_name', label: 'אירוע', type: 'select', options: ['קודו', 'קנדי', 'הסעות'] },
   { key: 'event_date', label: 'תאריך אירוע', type: 'date' },
   { key: 'buyers_count', label: 'קונים', type: 'number' },
@@ -73,6 +74,7 @@ export default function AllExpenses() {
       const matchesSearch = !searchQuery || 
         (expense.recipient?.toLowerCase().includes(searchLower)) ||
         (expense.reason?.toLowerCase().includes(searchLower)) ||
+        (expense.notes?.toLowerCase().includes(searchLower)) ||
         (event.event_name?.toLowerCase().includes(searchLower));
 
       // Date Range Filter (based on created_date)

@@ -14,6 +14,7 @@ const COLUMNS = [
   { key: 'recipient', label: 'למי הועבר' },
   { key: 'amount', label: 'סכום' },
   { key: 'currency', label: 'מטבע' },
+  { key: 'notes', label: 'הערות' },
 ];
 
 export default function CreateExpense() {
@@ -68,7 +69,8 @@ export default function CreateExpense() {
       recipient: '',
       amount: '',
       currency: 'ILS',
-      expense_date: new Date().toISOString().split('T')[0]
+      expense_date: new Date().toISOString().split('T')[0],
+      notes: ''
     }));
   });
 
@@ -138,7 +140,8 @@ export default function CreateExpense() {
           amount: parseFloat(row.amount),
           currency: row.currency,
           expense_date: new Date().toISOString(), // Automatic date (now)
-          sales_rep: currentUser?.full_name || ''
+          sales_rep: currentUser?.full_name || '',
+          notes: row.notes || ''
         });
 
         const detail = eventDetails[i];
@@ -167,7 +170,8 @@ export default function CreateExpense() {
         recipient: '',
         amount: '',
         currency: 'ILS',
-        expense_date: new Date().toISOString().split('T')[0]
+        expense_date: new Date().toISOString().split('T')[0],
+        notes: ''
       };
       
       setTableData(prev => {
@@ -231,6 +235,7 @@ export default function CreateExpense() {
                                             <SelectItem value="פיצוי נטו פאן">פיצוי נטו פאן</SelectItem>
                                             <SelectItem value="פינוק ללקוחות">פינוק ללקוחות</SelectItem>
                                             <SelectItem value="פינוק לנציגים">פינוק לנציגים</SelectItem>
+                                            <SelectItem value="אשל">אשל</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </td>
@@ -294,6 +299,14 @@ export default function CreateExpense() {
                                             <SelectItem value="EUR">€ (EUR)</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </td>
+                                <td className="px-2 py-2">
+                                    <Input 
+                                        value={row.notes} 
+                                        onChange={(e) => handleCellChange(rowIndex, 'notes', e.target.value)}
+                                        className="text-right h-10"
+                                        placeholder="הערות..."
+                                    />
                                 </td>
                             </tr>
                         ))}
