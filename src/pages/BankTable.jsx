@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet } from "lucide-react";
+import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16'];
 
 export default function BankTable() {
   const { data: incomeData = [], isLoading: isLoadingIncome } = useQuery({
@@ -30,6 +33,8 @@ export default function BankTable() {
       bitNeto: 0
     };
 
+    const categoryStats = {};
+
     // Calculate Income
     incomeData.forEach(row => {
       totals.shekel.income += parseFloat(row.shekel_amount) || 0;
@@ -48,7 +53,21 @@ export default function BankTable() {
       if (exp.currency === 'ILS') totals.shekel.expenses += amount;
       else if (exp.currency === 'USD') totals.usd.expenses += amount;
       else if (exp.currency === 'EUR') totals.eur.expenses += amount;
+
+      // Category breakdown (Normalized to EUR for visualization)
+      let amountInEur = amount;
+      if (exp.currency === 'ILS') amountInEur = amount * 0.26; // Approx rate
+      else if (exp.currency === 'USD') amountInEur = amount * 0.95; // Approx rate
+      
+      if (exp.reason) {
+        categoryStats[exp.reason] = (categoryStats[exp.reason] || 0) + amountInEur;
+      }
     });
+
+    const expensesByCategory = Object.entries(categoryStats)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .filter(item => item.value > 0);
 
     // Calculate Net
     const getNet = (key) => totals[key].income - totals[key].expenses;
@@ -78,7 +97,8 @@ export default function BankTable() {
           neto: totals.bitNeto,
           total: totals.bit.income
       },
-      destinationBalances
+      destinationBalances,
+      expensesByCategory
     };
   }, [incomeData, expenseData]);
 
@@ -174,6 +194,58 @@ export default function BankTable() {
                     <span>הוצאות: מסוכמות מתוך יומן ההוצאות לפי סוג המטבע</span>
                 </div>
             </div>
+
+            {/* Expenses Pie Chart */}
+            <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                    <CardTitle className="flex items-center gap-2 text-xl text-slate-800">
+                        <PieChartIcon className="w-5 h-5 text-indigo-600" />
+                        התפלגות הוצאות לפי קטגוריה (במונחי יורו)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                    <div className="h-[400px] w-full" dir="ltr">
+                        {summary.expensesByCategory.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={summary.expensesByCategory}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                            const RADIAN = Math.PI / 180;
+                                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                            return percent > 0.05 ? (
+                                                <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                                                    {`${(percent * 100).toFixed(0)}%`}
+                                                </text>
+                                            ) : null;
+                                        }}
+                                        outerRadius={150}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {summary.expensesByCategory.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip 
+                                        formatter={(value) => `€${value.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+                                    />
+                                    <Legend layout="vertical" align="right" verticalAlign="middle" />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-slate-400">
+                                אין נתונים להצגה
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
       </div>
     </div>
