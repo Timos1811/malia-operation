@@ -60,7 +60,7 @@ export default function CreateExpense() {
   }, []);
 
   const [tableData, setTableData] = useState(() => {
-    const saved = localStorage.getItem('expenseTableData');
+    const saved = localStorage.getItem('expenseTableData_v2');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -78,7 +78,7 @@ export default function CreateExpense() {
   const [eventDetails, setEventDetails] = useState({});
 
   useEffect(() => {
-    localStorage.setItem('expenseTableData', JSON.stringify(tableData));
+    localStorage.setItem('expenseTableData_v2', JSON.stringify(tableData));
   }, [tableData]);
 
   const handleCellChange = (rowIndex, key, value) => {
@@ -294,9 +294,9 @@ export default function CreateExpense() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="EUR">€ (EUR)</SelectItem>
                                             <SelectItem value="ILS">₪ (ILS)</SelectItem>
                                             <SelectItem value="USD">$ (USD)</SelectItem>
-                                            <SelectItem value="EUR">€ (EUR)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </td>
