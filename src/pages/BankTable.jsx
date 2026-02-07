@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon } from "lucide-react";
+import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon, Users, ShoppingBag, TrendingUp, UserCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -34,17 +34,31 @@ export default function BankTable() {
     };
 
     const categoryStats = {};
+    const salesRepStats = {};
+    let totalCustomers = 0;
 
     // Calculate Income
     incomeData.forEach(row => {
-      totals.shekel.income += parseFloat(row.shekel_amount) || 0;
-      totals.bit.income += parseFloat(row.bit_amount) || 0;
-      totals.usd.income += parseFloat(row.dollar_amount) || 0;
-      totals.eur.income += parseFloat(row.eur_amount) || 0;
+      const shekel = parseFloat(row.shekel_amount) || 0;
+      const bit = parseFloat(row.bit_amount) || 0;
+      const usd = parseFloat(row.dollar_amount) || 0;
+      const eur = parseFloat(row.eur_amount) || 0;
+
+      totals.shekel.income += shekel;
+      totals.bit.income += bit;
+      totals.usd.income += usd;
+      totals.eur.income += eur;
       
-      const bitAmount = parseFloat(row.bit_amount) || 0;
-      if (row.company === 'נטו פאן') totals.bitNeto += bitAmount;
-      else totals.bitKishrei += bitAmount;
+      if (row.company === 'נטו פאן') totals.bitNeto += bit;
+      else totals.bitKishrei += bit;
+
+      // Count customers (parsing string to int)
+      totalCustomers += parseInt(row.customer) || 0;
+
+      // Sales Rep Stats (Normalized to EUR)
+      const repName = row.sales_rep || 'ללא נציג';
+      const totalValueInEur = eur + (shekel * 0.26) + (bit * 0.26) + (usd * 0.95);
+      salesRepStats[repName] = (salesRepStats[repName] || 0) + totalValueInEur;
     });
 
     // Calculate Expenses
@@ -69,6 +83,11 @@ export default function BankTable() {
         .sort((a, b) => b.value - a.value)
         .filter(item => item.value > 0);
 
+    const salesByRep = Object.entries(salesRepStats)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .filter(item => item.value > 0);
+
     // Calculate Net
     const getNet = (key) => totals[key].income - totals[key].expenses;
 
@@ -86,6 +105,10 @@ export default function BankTable() {
         usd: getNet('usd')
     };
 
+    // Global Stats
+    const totalIncomeEurCombined = totals.eur.income + (totals.shekel.income * 0.26) + (totals.bit.income * 0.26) + (totals.usd.income * 0.95);
+    const avgRevenuePerCustomer = totalCustomers > 0 ? totalIncomeEurCombined / totalCustomers : 0;
+
     return {
       rows: [
         { label: 'יורו', ...totals.eur, currency: '€' },
@@ -98,7 +121,13 @@ export default function BankTable() {
           total: totals.bit.income
       },
       destinationBalances,
-      expensesByCategory
+      expensesByCategory,
+      salesByRep,
+      generalStats: {
+          totalCustomers,
+          totalGroups: incomeData.length,
+          avgRevenuePerCustomer
+      }
     };
   }, [incomeData, expenseData]);
 
@@ -119,6 +148,41 @@ export default function BankTable() {
         </div>
 
         <div className="grid gap-6">
+            
+            {/* General Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-slate-200 shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">סה"כ לקוחות</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summary.generalStats.totalCustomers}</div>
+                        <p className="text-xs text-muted-foreground">לקוחות בכל הקבוצות</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-slate-200 shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">סה"כ קבוצות/מכירות</CardTitle>
+                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summary.generalStats.totalGroups}</div>
+                        <p className="text-xs text-muted-foreground">הזמנות במערכת</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-slate-200 shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">ממוצע ללקוח</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">€{summary.generalStats.avgRevenuePerCustomer.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                        <p className="text-xs text-muted-foreground">הכנסה ממוצעת (משוערך ליורו)</p>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card className="border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-center">
@@ -195,57 +259,111 @@ export default function BankTable() {
                 </div>
             </div>
 
-            {/* Expenses Pie Chart */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
-                    <CardTitle className="flex items-center gap-2 text-xl text-slate-800">
-                        <PieChartIcon className="w-5 h-5 text-indigo-600" />
-                        התפלגות הוצאות לפי קטגוריה (במונחי יורו)
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <div className="h-[400px] w-full" dir="ltr">
-                        {summary.expensesByCategory.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={summary.expensesByCategory}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                                            const RADIAN = Math.PI / 180;
-                                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                            return percent > 0.05 ? (
-                                                <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
-                                                    {`${(percent * 100).toFixed(0)}%`}
-                                                </text>
-                                            ) : null;
-                                        }}
-                                        outerRadius={150}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                    >
-                                        {summary.expensesByCategory.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip 
-                                        formatter={(value) => `€${value.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
-                                    />
-                                    <Legend layout="vertical" align="right" verticalAlign="middle" />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-slate-400">
-                                אין נתונים להצגה
-                            </div>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+            <div className="grid md:grid-cols-2 gap-6">
+                {/* Sales By Rep Pie Chart */}
+                <Card className="border-slate-200 shadow-sm">
+                    <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                        <CardTitle className="flex items-center gap-2 text-xl text-slate-800">
+                            <UserCheck className="w-5 h-5 text-green-600" />
+                            מכירות לפי נציג (במונחי יורו)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="h-[300px] w-full" dir="ltr">
+                            {summary.salesByRep.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={summary.salesByRep}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                                const RADIAN = Math.PI / 180;
+                                                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                return percent > 0.1 ? (
+                                                    <text x={x} y={y} fill="white" fontSize={12} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                                                        {`${(percent * 100).toFixed(0)}%`}
+                                                    </text>
+                                                ) : null;
+                                            }}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {summary.salesByRep.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip 
+                                            formatter={(value) => `€${value.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
+                                        />
+                                        <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{fontSize: '12px'}} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-slate-400">
+                                    אין נתונים להצגה
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Expenses Pie Chart */}
+                <Card className="border-slate-200 shadow-sm">
+                    <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                        <CardTitle className="flex items-center gap-2 text-xl text-slate-800">
+                            <PieChartIcon className="w-5 h-5 text-indigo-600" />
+                            התפלגות הוצאות (במונחי יורו)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="h-[300px] w-full" dir="ltr">
+                            {summary.expensesByCategory.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={summary.expensesByCategory}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                                const RADIAN = Math.PI / 180;
+                                                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                return percent > 0.05 ? (
+                                                    <text x={x} y={y} fill="white" fontSize={12} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                                                        {`${(percent * 100).toFixed(0)}%`}
+                                                    </text>
+                                                ) : null;
+                                            }}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {summary.expensesByCategory.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip 
+                                            formatter={(value) => `€${value.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+                                        />
+                                        <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{fontSize: '12px'}} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-slate-400">
+                                    אין נתונים להצגה
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
       </div>
     </div>
