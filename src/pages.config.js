@@ -52,6 +52,8 @@ import AddTask from './pages/AddTask';
 import AgentGroups from './pages/AgentGroups';
 import AllExpenses from './pages/AllExpenses';
 import BankTable from './pages/BankTable';
+import CasparFilling from './pages/CasparFilling';
+import Caspars from './pages/Caspars';
 import CreateExpense from './pages/CreateExpense';
 import EventScanner from './pages/EventScanner';
 import EventsAndAttractions from './pages/EventsAndAttractions';
@@ -70,8 +72,6 @@ import Table from './pages/Table';
 import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
-import CasparFilling from './pages/CasparFilling';
-import Caspars from './pages/Caspars';
 import __Layout from './Layout.jsx';
 
 
@@ -81,6 +81,8 @@ export const PAGES = {
     "AgentGroups": AgentGroups,
     "AllExpenses": AllExpenses,
     "BankTable": BankTable,
+    "CasparFilling": CasparFilling,
+    "Caspars": Caspars,
     "CreateExpense": CreateExpense,
     "EventScanner": EventScanner,
     "EventsAndAttractions": EventsAndAttractions,
@@ -99,8 +101,6 @@ export const PAGES = {
     "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
-    "CasparFilling": CasparFilling,
-    "Caspars": Caspars,
 }
 
 export const pagesConfig = {
