@@ -137,11 +137,11 @@ export default function ManagerDashboard() {
                             <th className="px-6 py-4">שם נציג</th>
                             <th className="px-6 py-4">קבוצות</th>
                             <th className="px-6 py-4">סה"כ הכנסות</th>
-                            <th className="px-6 py-4">ממוצע ללקוח</th>
                             <th className="px-6 py-4">החזר מלא</th>
                             <th className="px-6 py-4">החזר חלקי</th>
                             <th className="px-6 py-4">משיכה לאדם</th>
                             <th className="px-6 py-4">חוסר</th>
+                            <th className="px-6 py-4">ממוצע ללקוח</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -154,11 +154,11 @@ export default function ManagerDashboard() {
                                 </td>
                                 <td className="px-6 py-4 text-slate-600">{row.groups}</td>
                                 <td className="px-6 py-4 text-emerald-600 font-bold">€{row.totalIncome.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
-                                <td className="px-6 py-4 text-blue-600 font-semibold">€{row.averagePerCustomer.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                                 <td className="px-6 py-4 text-red-500">€{row.fullRefunds.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                                 <td className="px-6 py-4 text-orange-500">€{row.partialRefunds.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                                 <td className="px-6 py-4 text-blue-500 font-medium">€{row.withdrawals.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                                 <td className="px-6 py-4 text-rose-600 font-bold">€{row.shortage.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+                                <td className="px-6 py-4 text-blue-600 font-semibold">€{row.averagePerCustomer.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                             </tr>
                         ))}
                         {summaryData.length === 0 && (
