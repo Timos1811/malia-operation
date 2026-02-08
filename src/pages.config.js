@@ -70,6 +70,7 @@ import Table from './pages/Table';
 import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
+import CasparFilling from './pages/CasparFilling';
 import __Layout from './Layout.jsx';
 
 
@@ -97,6 +98,7 @@ export const PAGES = {
     "TaskSentSuccess": TaskSentSuccess,
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
+    "CasparFilling": CasparFilling,
 }
 
 export const pagesConfig = {
