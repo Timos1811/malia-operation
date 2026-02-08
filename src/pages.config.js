@@ -71,6 +71,7 @@ import TaskSentSuccess from './pages/TaskSentSuccess';
 import Tasks from './pages/Tasks';
 import WristbandHistory from './pages/WristbandHistory';
 import CasparFilling from './pages/CasparFilling';
+import Caspars from './pages/Caspars';
 import __Layout from './Layout.jsx';
 
 
@@ -99,6 +100,7 @@ export const PAGES = {
     "Tasks": Tasks,
     "WristbandHistory": WristbandHistory,
     "CasparFilling": CasparFilling,
+    "Caspars": Caspars,
 }
 
 export const pagesConfig = {
