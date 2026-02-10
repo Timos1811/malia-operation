@@ -33,7 +33,7 @@ export default function GlobalDataChat() {
 
         try {
             const response = await base44.functions.invoke('analyzeGlobalData', { 
-                question: userMsg.content 
+                messages: [...messages, userMsg]
             });
             
             const answer = response.data.answer || 'לא הצלחתי למצוא תשובה, נסה שוב מאוחר יותר.';

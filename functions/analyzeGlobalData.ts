@@ -9,14 +9,13 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { question } = await req.json();
+        const { messages } = await req.json();
 
-        if (!question) {
-            return Response.json({ error: 'Question is required' }, { status: 400 });
+        if (!messages || !Array.isArray(messages)) {
+            return Response.json({ error: 'Messages array is required' }, { status: 400 });
         }
 
-        // Parallel fetch of extensive datasets (limit to recent 2000 records for performance/tokens)
-        // We fetch practically everything to give the "all data" feel.
+        // Parallel fetch of extensive datasets
         const [
             incomeData, 
             expenseData, 
@@ -37,7 +36,7 @@ export default Deno.serve(async (req) => {
             base44.asServiceRole.entities.ExpenseEvent.list()
         ]);
 
-        // Simplify Data for Context Window Efficiency
+        // Context Data
         const contextData = {
             incomes: incomeData.map(r => ({
                 order: r.order_number,
@@ -82,23 +81,30 @@ export default Deno.serve(async (req) => {
             }))
         };
 
+        // Format conversation history for the prompt
+        // We take the last 10 messages to keep context but save tokens
+        const recentMessages = messages.slice(-10);
+        const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+
         const prompt = `
-        You are a smart business intelligence AI.
-        You have access to the ENTIRE database of the company via the JSON data below.
+        You are a highly intelligent business analyst AI for a travel/events company.
+        You have access to the ENTIRE database in the context below.
 
         Data Context:
         ${JSON.stringify(contextData)}
 
-        User Question: "${question}"
+        Conversation History:
+        ${historyText}
 
         Instructions:
-        1. **Be Concise**: For simple questions (e.g., "How much did we earn?", "How many tasks are open?"), provide ONLY the direct answer/number. Do not explain the calculation or add fluff unless explicitly asked.
-        2. **Full Analysis**: You can cross-reference data. For example, if asked about a specific rep, check their sales (incomes), expenses, and tasks.
-        3. **Currency**: default to EUR if not specified. Approx rates: 1 ILS = 0.26 EUR, 1 USD = 0.95 EUR.
-        4. **Language**: Answer in Hebrew.
-        5. **Style**: Professional, direct, and helpful. 
+        1. **Contextual Awareness**: Use the conversation history to understand follow-up questions (e.g., "And how many of them were..." refers to the previous topic).
+        2. **Concise & Direct**: Give direct answers. Use bullet points for lists. Avoid generic intros like "Based on the data...".
+        3. **Calculations**: Perform math on the fly (sums, averages, counts).
+        4. **Currency**: Default to EUR. Approx rates: 1 ILS = 0.26 EUR, 1 USD = 0.95 EUR.
+        5. **Language**: Respond in Hebrew.
+        6. **Role**: You are helpful, professional, and sharp.
 
-        Answer the user's question now.
+        Respond to the last user message based on the history and data.
         `;
 
         const response = await base44.integrations.Core.InvokeLLM({
