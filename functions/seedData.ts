@@ -32,11 +32,11 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 1. Clear existing data (Limit to last 200 to avoid timeouts)
+        // 1. Clear existing data (Limit to last 50 to avoid timeouts)
         const [expenses, events, incomes] = await Promise.all([
-            base44.asServiceRole.entities.Expense.list('-created_date', 200),
-            base44.asServiceRole.entities.ExpenseEvent.list('-created_date', 200),
-            base44.asServiceRole.entities.TableData.list('-created_date', 200)
+            base44.asServiceRole.entities.Expense.list('-created_date', 50),
+            base44.asServiceRole.entities.ExpenseEvent.list('-created_date', 50),
+            base44.asServiceRole.entities.TableData.list('-created_date', 50)
         ]);
 
         await processInChunks(expenses, e => base44.asServiceRole.entities.Expense.delete(e.id));
