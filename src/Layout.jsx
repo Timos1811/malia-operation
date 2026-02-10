@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock, UserCircle, RefreshCcw, Loader2, LogIn, Scan } from 'lucide-react';
 import { Toaster } from "@/components/ui/sonner";
 import NotificationsManager from "@/components/NotificationsManager";
+import GlobalDataChat from "@/components/GlobalDataChat";
 
 export default function Layout({ children, currentPageName }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -198,6 +199,7 @@ export default function Layout({ children, currentPageName }) {
       </main>
       <Toaster />
       <NotificationsManager />
-    </div>
-  );
-}
+      <GlobalDataChat />
+      </div>
+      );
+      }
