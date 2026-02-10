@@ -15,11 +15,11 @@ const CUSTOMER_NAMES = [
 const HOTELS = ["Blue Lagoon", "Grand Beach", "City Center", "Mountain View", "Seaside Resort"];
 const COMPANIES = ["Caspar", "Neto Fun", "Kishrei Teufa"];
 
-async function processInChunks(items, processFn, chunkSize = 2) {
+async function processInChunks(items, processFn, chunkSize = 5) {
     for (let i = 0; i < items.length; i += chunkSize) {
         const chunk = items.slice(i, i + chunkSize);
         await Promise.all(chunk.map(processFn));
-        await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 100)); // Moderate delay
     }
 }
 
@@ -32,11 +32,11 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 1. Clear existing data
+        // 1. Clear existing data (Limit to last 200 to avoid timeouts)
         const [expenses, events, incomes] = await Promise.all([
-            base44.asServiceRole.entities.Expense.list('-created_date', 1000),
-            base44.asServiceRole.entities.ExpenseEvent.list('-created_date', 1000),
-            base44.asServiceRole.entities.TableData.list('-created_date', 1000)
+            base44.asServiceRole.entities.Expense.list('-created_date', 200),
+            base44.asServiceRole.entities.ExpenseEvent.list('-created_date', 200),
+            base44.asServiceRole.entities.TableData.list('-created_date', 200)
         ]);
 
         await processInChunks(expenses, e => base44.asServiceRole.entities.Expense.delete(e.id));
