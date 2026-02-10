@@ -41,9 +41,7 @@ export default function ManagerDashboard() {
 
           // Calculate Total Customers
           const totalCustomers = userSales.reduce((sum, sale) => {
-             const customerStr = String(sale.customer || '');
-             const numberMatch = customerStr.match(/\d+/);
-             const count = numberMatch ? parseInt(numberMatch[0]) : 0;
+             const count = parseInt(sale.customer) || 0;
              return sum + count;
           }, 0);
 

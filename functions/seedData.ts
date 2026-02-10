@@ -53,7 +53,7 @@ export default Deno.serve(async (req) => {
 
             incomeData.push({
                 order_number: `${20000 + i}`,
-                customer: `${name} ${pax}`, // Format: "Cohen 3" -> Regex matches 3
+                customer: `${pax}`, // Only the number of passengers
                 sales_rep: rep,
                 requested_amount: amount.toString(),
                 eur_amount: amount.toString(),
