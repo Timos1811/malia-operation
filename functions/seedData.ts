@@ -52,14 +52,33 @@ export default Deno.serve(async (req) => {
             const name = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
             const amount = pax * (Math.floor(Math.random() * 200) + 300); // 300-500 EUR per person
 
+            // Varied Balance Logic
+            let paidAmount = amount;
+            let statusStr = 'מאוזן';
+            const balanceRand = Math.random();
+            
+            if (balanceRand < 0.33) {
+                // Shortage (paid less)
+                paidAmount = amount - (Math.floor(Math.random() * 100) + 20);
+                statusStr = `חוסר ${amount - paidAmount}`;
+            } else if (balanceRand < 0.66) {
+                // Surplus (paid more)
+                paidAmount = amount + (Math.floor(Math.random() * 100) + 20);
+                statusStr = `יתרה ${paidAmount - amount}`;
+            }
+
+            // Varied Departure Date (Past and Future)
+            const daysOffset = Math.floor(Math.random() * 30) - 15; // -15 to +15 days from now
+            const departureDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
             incomeData.push({
                 order_number: `${20000 + i}`,
                 customer: `${pax}`, // Only the number of passengers
                 sales_rep: rep,
                 requested_amount: amount.toString(),
-                eur_amount: amount.toString(),
-                eur_status: 'מאוזן',
-                departure_date: new Date(Date.now() + Math.random() * 1000000000).toISOString().split('T')[0],
+                eur_amount: paidAmount.toString(),
+                eur_status: statusStr,
+                departure_date: departureDate,
                 nights: "4",
                 gender: Math.random() > 0.5 ? "Male" : "Female",
                 hotel: HOTELS[Math.floor(Math.random() * HOTELS.length)],
