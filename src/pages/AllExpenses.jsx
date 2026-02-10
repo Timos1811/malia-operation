@@ -359,7 +359,7 @@ export default function AllExpenses() {
                   return (
                   <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
                     {COLUMNS.map((col) => {
-                        const isRecipientSelect = col.key === 'recipient' && (expense.reason === 'תשלום לספק' || expense.reason === 'משיכה לאדם');
+                        const isRecipientSelect = col.key === 'recipient' && (expense.reason === 'תשלום לספק' || expense.reason === 'משיכה לאדם' || expense.reason === 'החזר מלא');
                         const isSelect = col.type === 'select' || isRecipientSelect;
                         const isEditable = col.type !== 'readonly';
 
@@ -389,7 +389,7 @@ export default function AllExpenses() {
                                             <SelectItem value="EUR">€ EUR</SelectItem>
                                           </>
                                         ) : isRecipientSelect ? (
-                                          expense.reason === 'משיכה לאדם' ? (
+                                          (expense.reason === 'משיכה לאדם' || expense.reason === 'החזר מלא') ? (
                                               users.map(u => (
                                                   <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
                                               ))
