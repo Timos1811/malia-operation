@@ -18,15 +18,13 @@ export default Deno.serve(async (req) => {
         const lastMessage = messages[messages.length - 1]?.content || '';
         
         // 1. Smart Search Detection
-        // Extract potential order numbers (4-10 digits)
         const potentialOrderNumbers = lastMessage.match(/\b\d{4,10}\b/g) || [];
-        // Extract potential names (simple heuristic: 2-3 words in Hebrew/English) - skipped for now to avoid noise, focusing on IDs and general recent context.
 
         // 2. Parallel Data Fetching
+        // INCREASED LIMITS to ensure accurate global stats calculation
         const promises = [
-            // General Recent Context (Reduced limits to prevent overflow/errors)
-            base44.asServiceRole.entities.TableData.list('-created_date', 400),
-            base44.asServiceRole.entities.Expense.list('-expense_date', 400),
+            base44.asServiceRole.entities.TableData.list('-created_date', 3000),
+            base44.asServiceRole.entities.Expense.list('-expense_date', 3000),
             base44.asServiceRole.entities.User.list(),
             base44.asServiceRole.entities.Task.list('-created_date', 200),
             base44.asServiceRole.entities.CasparFilling.list('-departure_date', 200),
@@ -35,17 +33,13 @@ export default Deno.serve(async (req) => {
             base44.asServiceRole.entities.ExpenseEvent.list(),
         ];
 
-        // Add Specific Search Queries if ID detected
         if (potentialOrderNumbers.length > 0) {
-            // Search in TableData
             promises.push(base44.asServiceRole.entities.TableData.filter({
                 order_number: { $in: potentialOrderNumbers }
             }));
-            // Search in Tasks
             promises.push(base44.asServiceRole.entities.Task.filter({
                 order_number: { $in: potentialOrderNumbers }
             }));
-             // Search in PendingSales
              promises.push(base44.asServiceRole.entities.PendingSale.filter({
                 order_number: { $in: potentialOrderNumbers }
             }));
@@ -62,29 +56,96 @@ export default Deno.serve(async (req) => {
             attractionsData,
             pendingSalesData,
             eventsData,
-            // Optional search results
             searchedIncomes,
             searchedTasks,
             searchedPendingSales
         ] = results;
 
-        // Merge search results into main arrays if they exist
         if (searchedIncomes) incomeData = [...incomeData, ...searchedIncomes];
         if (searchedTasks) tasksData = [...tasksData, ...searchedTasks];
         if (searchedPendingSales) pendingSalesData = [...pendingSalesData, ...searchedPendingSales];
 
-        // Deduplicate (in case search result is also in recent list)
+        // Deduplicate
         incomeData = Array.from(new Map(incomeData.map(item => [item.id, item])).values());
         tasksData = Array.from(new Map(tasksData.map(item => [item.id, item])).values());
         pendingSalesData = Array.from(new Map(pendingSalesData.map(item => [item.id, item])).values());
 
-        // 3. Optimized Context Construction (Minimal fields to save tokens)
+
+        // --- AGGREGATION LOGIC (Mirrors pages/ManagerDashboard.js) ---
+        const salesReps = new Set(incomeData.map(s => s.sales_rep).filter(Boolean));
+        const expenseReps = new Set(expenseData.map(e => e.sales_rep).filter(Boolean));
+        const recipients = new Set(expenseData.filter(e => e.reason === 'משיכה לאדם').map(e => e.recipient).filter(Boolean));
+        const allStatsUsers = new Set([...salesReps, ...expenseReps, ...recipients]);
+
+        const repsStats = Array.from(allStatsUsers).map(repName => {
+            const userSales = incomeData.filter(s => s.sales_rep === repName);
+            
+            // Total Income (EUR equivalent)
+            const totalIncome = userSales.reduce((sum, sale) => {
+                const eur = parseFloat(sale.eur_amount) || 0;
+                const nis = parseFloat(sale.shekel_amount) || 0;
+                const usd = parseFloat(sale.dollar_amount) || 0;
+                const bit = parseFloat(sale.bit_amount) || 0;
+                return sum + eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+            }, 0);
+
+            // Total Customers
+            const totalCustomers = userSales.reduce((sum, sale) => {
+                const customerStr = String(sale.customer || '');
+                const numberMatch = customerStr.match(/\d+/);
+                return sum + (numberMatch ? parseInt(numberMatch[0]) : 0);
+            }, 0);
+
+            // Average per Customer
+            const averagePerCustomer = totalCustomers > 0 ? totalIncome / totalCustomers : 0;
+
+            // Expenses logic
+            const userExpenses = expenseData.filter(e => e.sales_rep === repName);
+            
+            const fullRefunds = userExpenses
+                .filter(e => e.reason === 'החזר מלא')
+                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+            const partialRefunds = userExpenses
+                .filter(e => e.reason === 'החזר חלקי')
+                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+            const withdrawals = expenseData
+                .filter(e => e.reason === 'משיכה לאדם' && e.recipient === repName)
+                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+             const shortage = userSales.reduce((sum, sale) => {
+                if (sale.eur_status && sale.eur_status !== 'מאוזן') {
+                  const val = parseFloat(sale.eur_status);
+                  if (!isNaN(val) && val < 0) return sum + Math.abs(val);
+                }
+                return sum;
+              }, 0);
+
+            return {
+                name: repName,
+                total_income_eur: Math.round(totalIncome),
+                total_customers: totalCustomers,
+                avg_per_customer_eur: Math.round(averagePerCustomer),
+                full_refunds: Math.round(fullRefunds),
+                partial_refunds: Math.round(partialRefunds),
+                withdrawals: Math.round(withdrawals),
+                shortage: Math.round(shortage),
+                groups_count: userSales.length
+            };
+        });
+        // -----------------------------------------------------------
+
+
         const contextData = {
-            incomes: incomeData.map(r => ({
+            // PRE-CALCULATED STATS (The Source of Truth)
+            reps_stats: repsStats, 
+
+            // Raw data for other queries
+            incomes: incomeData.slice(0, 500).map(r => ({ // Slice raw data to save context, rely on stats for big picture
                 order: r.order_number,
                 rep: r.sales_rep,
                 customer: r.customer, 
-                // Only send relevant amount fields to save space
                 amounts: {
                     eur: r.eur_amount || 0,
                     ils: r.shekel_amount || 0,
@@ -93,14 +154,14 @@ export default Deno.serve(async (req) => {
                 hotel: r.hotel,
                 date: r.created_date ? r.created_date.split('T')[0] : null
             })),
-            expenses: expenseData.map(e => ({
+            expenses: expenseData.slice(0, 500).map(e => ({
                 reason: e.reason,
                 recipient: e.recipient,
                 amount: e.amount,
                 currency: e.currency,
                 date: e.expense_date,
                 rep: e.sales_rep,
-                notes: e.notes // Added notes for better context
+                notes: e.notes 
             })),
             reps: repsData.map(u => u.full_name),
             tasks: tasksData.map(t => ({
@@ -121,7 +182,7 @@ export default Deno.serve(async (req) => {
                 rep: p.sales_rep,
                 customer: p.customer
             })),
-            event_stats: eventsData.map(e => ({
+             event_stats: eventsData.map(e => ({
                 name: e.event_name,
                 date: e.event_date,
                 buyers: e.buyers_count,
@@ -129,23 +190,23 @@ export default Deno.serve(async (req) => {
             }))
         };
 
-        // 4. Smart Prompt
-        const recentMessages = messages.slice(-8); // Keep last 8 messages
+        const recentMessages = messages.slice(-8);
         const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
 
         const prompt = `
         You are a smart business analyst AI.
         
         CONSTRAINTS:
-        1. **Quantity vs Amount**: 
-           - "How many" / "כמה" / "quantity" = COUNT records.
+        1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. It contains pre-calculated, accurate data.
+        2. **Quantity vs Amount**: 
+           - "How many" / "כמה" / "quantity" = COUNT items.
            - "How much" / "סכום" / "amount" / "total" = SUM monetary value.
-        2. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
-        3. **Search**: If user asked for an Order ID and it's in the data -> Show details. If not -> Say "Not found".
-        4. **Language**: Hebrew.
-        5. **Style**: Professional, concise, data-driven.
+        3. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
+        4. **Search**: If user asked for an Order ID and it's in the data -> Show details. If not -> Say "Not found".
+        5. **Language**: Hebrew.
+        6. **Style**: Professional, concise, data-driven.
 
-        DATA CONTEXT (Recent & Searched):
+        DATA CONTEXT:
         ${JSON.stringify(contextData)}
 
         CONVERSATION:
