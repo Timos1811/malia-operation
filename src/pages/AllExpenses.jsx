@@ -30,7 +30,8 @@ export default function AllExpenses() {
   const [filters, setFilters] = useState({
     startDate: null,
     endDate: null,
-    reason: 'all'
+    reason: 'all',
+    recipient: 'all'
   });
   const queryClient = useQueryClient();
 
@@ -64,6 +65,11 @@ export default function AllExpenses() {
     });
     return map;
   }, [events]);
+
+  const uniqueRecipients = React.useMemo(() => {
+      const recipients = new Set(expenses.map(e => e.recipient).filter(Boolean));
+      return Array.from(recipients).sort();
+  }, [expenses]);
 
   // Filter Logic
   const filteredExpenses = React.useMemo(() => {
@@ -99,7 +105,10 @@ export default function AllExpenses() {
       // Reason Filter
       const matchesReason = filters.reason === 'all' || expense.reason === filters.reason;
 
-      return matchesSearch && matchesDate && matchesReason;
+      // Recipient Filter
+      const matchesRecipient = filters.recipient === 'all' || expense.recipient === filters.recipient;
+
+      return matchesSearch && matchesDate && matchesReason && matchesRecipient;
     });
   }, [expenses, eventsMap, searchQuery, filters]);
 
@@ -277,14 +286,30 @@ export default function AllExpenses() {
               </SelectContent>
             </Select>
 
+            {/* Recipient Filter */}
+            <Select 
+              value={filters.recipient} 
+              onValueChange={(val) => setFilters(prev => ({ ...prev, recipient: val }))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="סינון לפי מקבל" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">כל המקבלים</SelectItem>
+                {uniqueRecipients.map(recipient => (
+                  <SelectItem key={recipient} value={recipient}>{recipient}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* Clear Filters */}
-            {(searchQuery || filters.startDate || filters.endDate || filters.reason !== 'all') && (
+            {(searchQuery || filters.startDate || filters.endDate || filters.reason !== 'all' || filters.recipient !== 'all') && (
               <Button 
                 variant="ghost" 
                 size="icon"
                 onClick={() => {
                   setSearchQuery('');
-                  setFilters({ startDate: null, endDate: null, reason: 'all' });
+                  setFilters({ startDate: null, endDate: null, reason: 'all', recipient: 'all' });
                 }}
                 className="text-slate-500 hover:text-red-500"
               >
@@ -307,7 +332,7 @@ export default function AllExpenses() {
                 variant="link" 
                 onClick={() => {
                   setSearchQuery('');
-                  setFilters({ startDate: null, endDate: null, reason: 'all' });
+                  setFilters({ startDate: null, endDate: null, reason: 'all', recipient: 'all' });
                 }}
               >
                 נקה סינונים
