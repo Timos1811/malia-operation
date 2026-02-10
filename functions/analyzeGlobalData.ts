@@ -3,8 +3,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 export default Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        
         const user = await base44.auth.me();
+        
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -15,8 +15,45 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Messages array is required' }, { status: 400 });
         }
 
-        // Parallel fetch of extensive datasets
-        const [
+        const lastMessage = messages[messages.length - 1]?.content || '';
+        
+        // 1. Smart Search Detection
+        // Extract potential order numbers (4-10 digits)
+        const potentialOrderNumbers = lastMessage.match(/\b\d{4,10}\b/g) || [];
+        // Extract potential names (simple heuristic: 2-3 words in Hebrew/English) - skipped for now to avoid noise, focusing on IDs and general recent context.
+
+        // 2. Parallel Data Fetching
+        const promises = [
+            // General Recent Context (Reduced limits to prevent overflow/errors)
+            base44.asServiceRole.entities.TableData.list('-created_date', 400),
+            base44.asServiceRole.entities.Expense.list('-expense_date', 400),
+            base44.asServiceRole.entities.User.list(),
+            base44.asServiceRole.entities.Task.list('-created_date', 200),
+            base44.asServiceRole.entities.CasparFilling.list('-departure_date', 200),
+            base44.asServiceRole.entities.Attraction.list(),
+            base44.asServiceRole.entities.PendingSale.list('-created_date', 100),
+            base44.asServiceRole.entities.ExpenseEvent.list(),
+        ];
+
+        // Add Specific Search Queries if ID detected
+        if (potentialOrderNumbers.length > 0) {
+            // Search in TableData
+            promises.push(base44.asServiceRole.entities.TableData.filter({
+                order_number: { $in: potentialOrderNumbers }
+            }));
+            // Search in Tasks
+            promises.push(base44.asServiceRole.entities.Task.filter({
+                order_number: { $in: potentialOrderNumbers }
+            }));
+             // Search in PendingSales
+             promises.push(base44.asServiceRole.entities.PendingSale.filter({
+                order_number: { $in: potentialOrderNumbers }
+            }));
+        }
+
+        const results = await Promise.all(promises);
+
+        let [
             incomeData, 
             expenseData, 
             repsData,
@@ -24,29 +61,34 @@ export default Deno.serve(async (req) => {
             casparsData,
             attractionsData,
             pendingSalesData,
-            eventsData
-        ] = await Promise.all([
-            base44.asServiceRole.entities.TableData.list('-created_date', 2000),
-            base44.asServiceRole.entities.Expense.list('-expense_date', 2000),
-            base44.asServiceRole.entities.User.list(),
-            base44.asServiceRole.entities.Task.list('-created_date', 500),
-            base44.asServiceRole.entities.CasparFilling.list('-departure_date', 500),
-            base44.asServiceRole.entities.Attraction.list(),
-            base44.asServiceRole.entities.PendingSale.list('-created_date', 200),
-            base44.asServiceRole.entities.ExpenseEvent.list()
-        ]);
+            eventsData,
+            // Optional search results
+            searchedIncomes,
+            searchedTasks,
+            searchedPendingSales
+        ] = results;
 
-        // Context Data
+        // Merge search results into main arrays if they exist
+        if (searchedIncomes) incomeData = [...incomeData, ...searchedIncomes];
+        if (searchedTasks) tasksData = [...tasksData, ...searchedTasks];
+        if (searchedPendingSales) pendingSalesData = [...pendingSalesData, ...searchedPendingSales];
+
+        // Deduplicate (in case search result is also in recent list)
+        incomeData = Array.from(new Map(incomeData.map(item => [item.id, item])).values());
+        tasksData = Array.from(new Map(tasksData.map(item => [item.id, item])).values());
+        pendingSalesData = Array.from(new Map(pendingSalesData.map(item => [item.id, item])).values());
+
+        // 3. Optimized Context Construction (Minimal fields to save tokens)
         const contextData = {
             incomes: incomeData.map(r => ({
                 order: r.order_number,
                 rep: r.sales_rep,
-                customer_details: r.customer, 
-                totals: {
-                    eur: r.eur_amount,
-                    ils: r.shekel_amount,
-                    usd: r.dollar_amount,
-                    bit: r.bit_amount
+                customer: r.customer, 
+                // Only send relevant amount fields to save space
+                amounts: {
+                    eur: r.eur_amount || 0,
+                    ils: r.shekel_amount || 0,
+                    usd: r.dollar_amount || 0
                 },
                 hotel: r.hotel,
                 date: r.created_date ? r.created_date.split('T')[0] : null
@@ -57,22 +99,28 @@ export default Deno.serve(async (req) => {
                 amount: e.amount,
                 currency: e.currency,
                 date: e.expense_date,
-                rep: e.sales_rep
+                rep: e.sales_rep,
+                notes: e.notes // Added notes for better context
             })),
-            active_reps: repsData.map(u => ({ name: u.full_name, role: u.role })),
+            reps: repsData.map(u => u.full_name),
             tasks: tasksData.map(t => ({
                 title: t.title,
                 status: t.status,
                 assignee: t.sales_rep,
-                due: t.due_date
+                due: t.due_date,
+                order: t.order_number
             })),
             caspars: casparsData.map(c => ({
                 name: c.full_name,
                 hotel: c.hotel,
                 departure: c.departure_date
             })),
-            events_list: attractionsData.map(a => ({ name: a.name, price: a.price_eur })),
-            pending_sales: pendingSalesData.length,
+            events: attractionsData.map(a => ({ name: a.name, price: a.price_eur })),
+            pending: pendingSalesData.map(p => ({
+                order: p.order_number,
+                rep: p.sales_rep,
+                customer: p.customer
+            })),
             event_stats: eventsData.map(e => ({
                 name: e.event_name,
                 date: e.event_date,
@@ -81,31 +129,29 @@ export default Deno.serve(async (req) => {
             }))
         };
 
-        // Format conversation history for the prompt
-        // We take the last 10 messages to keep context but save tokens
-        const recentMessages = messages.slice(-10);
+        // 4. Smart Prompt
+        const recentMessages = messages.slice(-8); // Keep last 8 messages
         const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
 
         const prompt = `
-        You are a highly intelligent business analyst AI for a travel/events company.
-        You have access to the ENTIRE database in the context below.
+        You are a smart business analyst AI.
+        
+        CONSTRAINTS:
+        1. **Quantity vs Amount**: 
+           - "How many" / "כמה" / "quantity" = COUNT records.
+           - "How much" / "סכום" / "amount" / "total" = SUM monetary value.
+        2. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
+        3. **Search**: If user asked for an Order ID and it's in the data -> Show details. If not -> Say "Not found".
+        4. **Language**: Hebrew.
+        5. **Style**: Professional, concise, data-driven.
 
-        Data Context:
+        DATA CONTEXT (Recent & Searched):
         ${JSON.stringify(contextData)}
 
-        Conversation History:
+        CONVERSATION:
         ${historyText}
-
-        Instructions:
-        1. **Contextual Awareness**: Use the conversation history to understand follow-up questions (e.g., "And how many of them were..." refers to the previous topic).
-        2. **Concise & Direct**: Give direct answers. Use bullet points for lists. Avoid generic intros like "Based on the data...".
-        3. **Calculations**: Perform math on the fly (sums, averages, counts).
-        4. **Currency**: Present values in their original currency. Do NOT convert between currencies (e.g. ILS to EUR) unless explicitly asked by the user.
-        5. **Intent Detection**: Distinctly separate "Quantity" (כמות/כמה) which means COUNT of items, from "Amount" (סכום/כסף) which means SUM of monetary value. If the user asks "How many refunds...", they want the COUNT. If they ask "What is the amount of refunds...", they want the SUM.
-        6. **Language**: Respond in Hebrew.
-        7. **Role**: You are helpful, professional, and sharp.
-
-        Respond to the last user message based on the history and data.
+        
+        Analyze the data and answer the user's last question.
         `;
 
         const response = await base44.integrations.Core.InvokeLLM({
@@ -115,6 +161,7 @@ export default Deno.serve(async (req) => {
         return Response.json({ answer: response });
 
     } catch (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        console.error("Global Chat Error:", error);
+        return Response.json({ error: error.message || "An error occurred while processing your request." }, { status: 500 });
     }
 });
