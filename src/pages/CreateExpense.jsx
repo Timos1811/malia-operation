@@ -255,7 +255,7 @@ export default function CreateExpense() {
                                                 <SelectItem value="מגדה">מגדה</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    ) : (row.reason === 'משיכה לאדם' || row.reason === 'החזר מלא' || row.reason === 'החזר חלקי') ? (
+                                    ) : (row.reason === 'משיכה לאדם' || row.reason === 'החזר מלא' || row.reason === 'החזר חלקי' || row.reason === 'אשל') ? (
                                         <Select 
                                             value={row.recipient} 
                                             onValueChange={(val) => handleCellChange(rowIndex, 'recipient', val)}
