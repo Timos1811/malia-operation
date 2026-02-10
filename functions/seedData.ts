@@ -15,11 +15,11 @@ const CUSTOMER_NAMES = [
 const HOTELS = ["Blue Lagoon", "Grand Beach", "City Center", "Mountain View", "Seaside Resort"];
 const COMPANIES = ["Caspar", "Neto Fun", "Kishrei Teufa"];
 
-async function processInChunks(items, processFn, chunkSize = 3) {
+async function processInChunks(items, processFn, chunkSize = 2) {
     for (let i = 0; i < items.length; i += chunkSize) {
         const chunk = items.slice(i, i + chunkSize);
         await Promise.all(chunk.map(processFn));
-        await new Promise(resolve => setTimeout(resolve, 200)); // Add delay to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay to avoid rate limits
     }
 }
 
