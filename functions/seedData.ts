@@ -46,7 +46,7 @@ export default Deno.serve(async (req) => {
         // 2. Create Incomes (TableData)
         // Ensure "customer" field contains ONLY the pax count as a number, or "Name Count" where Count is the first number
         const incomeData = [];
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 20; i++) {
             const rep = REPS[i % REPS.length];
             const pax = Math.floor(Math.random() * 5) + 1; // 1-5 people
             const name = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
