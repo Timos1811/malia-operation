@@ -100,9 +100,10 @@ export default Deno.serve(async (req) => {
         1. **Contextual Awareness**: Use the conversation history to understand follow-up questions (e.g., "And how many of them were..." refers to the previous topic).
         2. **Concise & Direct**: Give direct answers. Use bullet points for lists. Avoid generic intros like "Based on the data...".
         3. **Calculations**: Perform math on the fly (sums, averages, counts).
-        4. **Currency**: Default to EUR. Approx rates: 1 ILS = 0.26 EUR, 1 USD = 0.95 EUR.
-        5. **Language**: Respond in Hebrew.
-        6. **Role**: You are helpful, professional, and sharp.
+        4. **Currency**: Present values in their original currency. Do NOT convert between currencies (e.g. ILS to EUR) unless explicitly asked by the user.
+        5. **Intent Detection**: Distinctly separate "Quantity" (כמות/כמה) which means COUNT of items, from "Amount" (סכום/כסף) which means SUM of monetary value. If the user asks "How many refunds...", they want the COUNT. If they ask "What is the amount of refunds...", they want the SUM.
+        6. **Language**: Respond in Hebrew.
+        7. **Role**: You are helpful, professional, and sharp.
 
         Respond to the last user message based on the history and data.
         `;
