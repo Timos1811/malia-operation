@@ -6,10 +6,16 @@ const REPS = [
     "Omer Friedman", "Maya Avraham"
 ];
 
+const CUSTOMER_NAMES = [
+    "Cohen", "Levi", "Mizrahi", "Peretz", "Biton", "Dahan", "Avraham", 
+    "Friedman", "Katz", "Azoulay", "Gabay", "Hadad", "Amar", "Ohana", 
+    "Bar", "Klein", "Shapira", "Segal", "Golan", "Baruch"
+];
+
 const HOTELS = ["Blue Lagoon", "Grand Beach", "City Center", "Mountain View", "Seaside Resort"];
 const COMPANIES = ["Caspar", "Neto Fun", "Kishrei Teufa"];
 
-async function processInChunks(items, processFn, chunkSize = 5) {
+async function processInChunks(items, processFn, chunkSize = 10) {
     for (let i = 0; i < items.length; i += chunkSize) {
         const chunk = items.slice(i, i + chunkSize);
         await Promise.all(chunk.map(processFn));
@@ -37,16 +43,20 @@ export default Deno.serve(async (req) => {
         await processInChunks(incomes, i => base44.asServiceRole.entities.TableData.delete(i.id));
 
         // 2. Create Incomes (TableData)
+        // Ensure "customer" field contains ONLY the pax count as a number, or "Name Count" where Count is the first number
         const incomeData = [];
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 50; i++) {
             const rep = REPS[i % REPS.length];
-            const amount = Math.floor(Math.random() * 500) + 200;
+            const pax = Math.floor(Math.random() * 5) + 1; // 1-5 people
+            const name = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
+            const amount = pax * (Math.floor(Math.random() * 200) + 300); // 300-500 EUR per person
+
             incomeData.push({
-                order_number: `${10000 + i}`,
-                customer: `Customer ${i} (${Math.floor(Math.random() * 4) + 1} pax)`,
+                order_number: `${20000 + i}`,
+                customer: `${name} ${pax}`, // Format: "Cohen 3" -> Regex matches 3
                 sales_rep: rep,
                 requested_amount: amount.toString(),
-                eur_amount: amount.toString(), // Fully paid in EUR
+                eur_amount: amount.toString(),
                 eur_status: 'מאוזן',
                 departure_date: new Date(Date.now() + Math.random() * 1000000000).toISOString().split('T')[0],
                 nights: "4",
@@ -63,78 +73,106 @@ export default Deno.serve(async (req) => {
         // 3. Create Expenses
         const expenseTasks = [];
 
-        // A. Refunds & Withdrawals (linked to Reps)
+        // For EACH rep, create varied expenses
         for (const rep of REPS) {
-            // Withdrawal
-            expenseTasks.push(async () => {
-                await base44.asServiceRole.entities.Expense.create({
-                    reason: 'משיכה לאדם',
-                    recipient: rep,
-                    amount: Math.floor(Math.random() * 200) + 50,
-                    currency: 'EUR',
-                    expense_date: new Date().toISOString(),
-                    sales_rep: rep,
-                    notes: 'Advance payment'
+            
+            // A. Withdrawals (Meshicha) - 1 to 3 records per rep
+            const numWithdrawals = Math.floor(Math.random() * 3) + 1;
+            for (let k = 0; k < numWithdrawals; k++) {
+                expenseTasks.push(async () => {
+                    await base44.asServiceRole.entities.Expense.create({
+                        reason: 'משיכה לאדם',
+                        recipient: rep,
+                        amount: Math.floor(Math.random() * 300) + 50,
+                        currency: 'EUR',
+                        expense_date: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+                        sales_rep: rep,
+                        notes: `Withdrawal #${k+1}`
+                    });
                 });
-            });
+            }
 
-            // Refund
-            if (Math.random() > 0.5) {
+            // B. Full Refunds (Hechzer Male) - 1 to 2 records per rep
+            const numFullRefunds = Math.floor(Math.random() * 2) + 1;
+            for (let k = 0; k < numFullRefunds; k++) {
                 expenseTasks.push(async () => {
                     await base44.asServiceRole.entities.Expense.create({
                         reason: 'החזר מלא',
                         recipient: rep,
-                        amount: Math.floor(Math.random() * 100) + 20,
+                        amount: Math.floor(Math.random() * 500) + 100,
                         currency: 'EUR',
-                        expense_date: new Date().toISOString(),
+                        expense_date: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
                         sales_rep: rep,
-                        notes: 'Customer cancellation'
+                        notes: `Full refund for cancellation #${k+1}`
+                    });
+                });
+            }
+
+            // C. Partial Refunds (Hechzer Helki) - 1 to 3 records per rep
+            const numPartialRefunds = Math.floor(Math.random() * 3) + 1;
+            for (let k = 0; k < numPartialRefunds; k++) {
+                expenseTasks.push(async () => {
+                    await base44.asServiceRole.entities.Expense.create({
+                        reason: 'החזר חלקי',
+                        recipient: rep,
+                        amount: Math.floor(Math.random() * 150) + 20,
+                        currency: 'EUR',
+                        expense_date: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+                        sales_rep: rep,
+                        notes: `Partial refund (compensation) #${k+1}`
+                    });
+                });
+            }
+
+             // D. Eshel (Allowance) - 1 to 2 records
+             const numEshel = Math.floor(Math.random() * 2) + 1;
+             for (let k = 0; k < numEshel; k++) {
+                expenseTasks.push(async () => {
+                    await base44.asServiceRole.entities.Expense.create({
+                        reason: 'אשל',
+                        recipient: rep,
+                        amount: 50,
+                        currency: 'EUR',
+                        expense_date: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+                        sales_rep: rep,
+                        notes: 'Daily food allowance'
                     });
                 });
             }
         }
-        
+
         await processInChunks(expenseTasks, task => task());
 
-        // B. Supplier Payments (with Events)
+        // 4. Supplier Payments (Independent of reps)
+        const supplierTasks = [];
         const SUPPLIERS = ["Manoos", "Temis", "Mike", "Magda"];
-        for (let i = 0; i < 5; i++) {
-            const expense = await base44.asServiceRole.entities.Expense.create({
-                reason: 'תשלום לספק',
-                recipient: SUPPLIERS[i % SUPPLIERS.length],
-                amount: Math.floor(Math.random() * 1000) + 500,
-                currency: 'EUR',
-                expense_date: new Date().toISOString(),
-                sales_rep: 'System',
-                notes: 'Event payment'
-            });
+        const EVENTS = ["Kodo", "Candy", "Shuttles"];
+        
+        for (let i = 0; i < 8; i++) {
+            supplierTasks.push(async () => {
+                const expense = await base44.asServiceRole.entities.Expense.create({
+                    reason: 'תשלום לספק',
+                    recipient: SUPPLIERS[i % SUPPLIERS.length],
+                    amount: Math.floor(Math.random() * 2000) + 500,
+                    currency: 'EUR',
+                    expense_date: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+                    sales_rep: 'System', // Supplier payments usually not linked to a specific rep sales-wise
+                    notes: 'Event production payment'
+                });
 
-            await base44.asServiceRole.entities.ExpenseEvent.create({
-                expense_id: expense.id,
-                event_name: 'Kodo Party',
-                event_date: new Date().toISOString().split('T')[0],
-                buyers_count: Math.floor(Math.random() * 50) + 10,
-                scanned_count: Math.floor(Math.random() * 40) + 5
+                await base44.asServiceRole.entities.ExpenseEvent.create({
+                    expense_id: expense.id,
+                    event_name: EVENTS[i % EVENTS.length],
+                    event_date: new Date(Date.now() + Math.random() * 1000000000).toISOString().split('T')[0],
+                    buyers_count: Math.floor(Math.random() * 100) + 20,
+                    scanned_count: Math.floor(Math.random() * 80) + 10
+                });
             });
         }
+        await processInChunks(supplierTasks, task => task());
 
-        // C. General Expenses (Eschel)
-        const eschelTasks = [];
-        for (let i = 0; i < 5; i++) {
-             const rep = REPS[Math.floor(Math.random() * REPS.length)];
-             eschelTasks.push(() => base44.asServiceRole.entities.Expense.create({
-                reason: 'אשל',
-                recipient: rep,
-                amount: 50,
-                currency: 'EUR',
-                expense_date: new Date().toISOString(),
-                sales_rep: rep,
-                notes: 'Daily allowance'
-            }));
-        }
-        await processInChunks(eschelTasks, task => task());
 
-        return Response.json({ success: true, message: "Data seeded successfully" });
+        return Response.json({ success: true, message: "Data seeded successfully with updated logic" });
 
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
