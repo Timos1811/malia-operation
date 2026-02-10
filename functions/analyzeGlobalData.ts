@@ -15,58 +15,90 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Question is required' }, { status: 400 });
         }
 
-        // Parallel fetch of key datasets
-        const [incomeData, expenseData, repsData] = await Promise.all([
-            base44.asServiceRole.entities.TableData.list('-created_date', 1000), // Last 1000 incomes
-            base44.asServiceRole.entities.Expense.list('-expense_date', 1000),   // Last 1000 expenses
-            base44.asServiceRole.entities.User.list()
+        // Parallel fetch of extensive datasets (limit to recent 2000 records for performance/tokens)
+        // We fetch practically everything to give the "all data" feel.
+        const [
+            incomeData, 
+            expenseData, 
+            repsData,
+            tasksData,
+            casparsData,
+            attractionsData,
+            pendingSalesData,
+            eventsData
+        ] = await Promise.all([
+            base44.asServiceRole.entities.TableData.list('-created_date', 2000),
+            base44.asServiceRole.entities.Expense.list('-expense_date', 2000),
+            base44.asServiceRole.entities.User.list(),
+            base44.asServiceRole.entities.Task.list('-created_date', 500),
+            base44.asServiceRole.entities.CasparFilling.list('-departure_date', 500),
+            base44.asServiceRole.entities.Attraction.list(),
+            base44.asServiceRole.entities.PendingSale.list('-created_date', 200),
+            base44.asServiceRole.entities.ExpenseEvent.list()
         ]);
 
-        // Simplify Income Data for Token Efficiency
-        const simplifiedIncome = incomeData.map(r => ({
-            rep: r.sales_rep,
-            customers: r.customer, // Keeping raw string to let LLM parse "7 people" etc if needed, or better, try to extract number if possible.
-            total_eur: r.eur_amount,
-            total_shekel: r.shekel_amount,
-            total_usd: r.dollar_amount,
-            total_bit: r.bit_amount,
-            date: r.created_date ? r.created_date.split('T')[0] : null
-        }));
-
-        // Simplify Expense Data
-        const simplifiedExpenses = expenseData.map(e => ({
-            reason: e.reason,
-            recipient: e.recipient,
-            amount: e.amount,
-            currency: e.currency,
-            date: e.expense_date
-        }));
-
-        const dataContext = JSON.stringify({
-            income_sample: simplifiedIncome,
-            expenses_sample: simplifiedExpenses,
-            active_reps: repsData.map(u => u.full_name)
-        });
+        // Simplify Data for Context Window Efficiency
+        const contextData = {
+            incomes: incomeData.map(r => ({
+                order: r.order_number,
+                rep: r.sales_rep,
+                customer_details: r.customer, 
+                totals: {
+                    eur: r.eur_amount,
+                    ils: r.shekel_amount,
+                    usd: r.dollar_amount,
+                    bit: r.bit_amount
+                },
+                hotel: r.hotel,
+                date: r.created_date ? r.created_date.split('T')[0] : null
+            })),
+            expenses: expenseData.map(e => ({
+                reason: e.reason,
+                recipient: e.recipient,
+                amount: e.amount,
+                currency: e.currency,
+                date: e.expense_date,
+                rep: e.sales_rep
+            })),
+            active_reps: repsData.map(u => ({ name: u.full_name, role: u.role })),
+            tasks: tasksData.map(t => ({
+                title: t.title,
+                status: t.status,
+                assignee: t.sales_rep,
+                due: t.due_date
+            })),
+            caspars: casparsData.map(c => ({
+                name: c.full_name,
+                hotel: c.hotel,
+                departure: c.departure_date
+            })),
+            events_list: attractionsData.map(a => ({ name: a.name, price: a.price_eur })),
+            pending_sales: pendingSalesData.length,
+            event_stats: eventsData.map(e => ({
+                name: e.event_name,
+                date: e.event_date,
+                buyers: e.buyers_count,
+                scanned: e.scanned_count
+            }))
+        };
 
         const prompt = `
-        You are a business intelligence AI for a travel/events company.
-        You have access to the following datasets (JSON format):
-        1. income_sample: Recent sales/income records.
-        2. expenses_sample: Recent expense records.
-        3. active_reps: List of sales representatives.
+        You are a smart business intelligence AI.
+        You have access to the ENTIRE database of the company via the JSON data below.
 
         Data Context:
-        ${dataContext}
+        ${JSON.stringify(contextData)}
 
         User Question: "${question}"
 
         Instructions:
-        1. Analyze the provided data to answer the user's question.
-        2. If asking for averages, totals, or performance, calculate them from the data provided.
-        3. Note that 'customers' field in income might need parsing (e.g. "5 pax" or just "5"). 
-        4. Currency conversion rates (approx): 1 USD = 0.95 EUR, 1 ILS = 0.26 EUR. Use these if aggregation is needed in one currency (usually EUR).
-        5. Provide a clear, concise answer in Hebrew.
-        6. If the data is insufficient to answer perfectly (e.g. asking for data older than the sample), mention that the answer is based on the recent 1000 records.
+        1. **Be Concise**: For simple questions (e.g., "How much did we earn?", "How many tasks are open?"), provide ONLY the direct answer/number. Do not explain the calculation or add fluff unless explicitly asked.
+        2. **Full Analysis**: You can cross-reference data. For example, if asked about a specific rep, check their sales (incomes), expenses, and tasks.
+        3. **Currency**: default to EUR if not specified. Approx rates: 1 ILS = 0.26 EUR, 1 USD = 0.95 EUR.
+        4. **Language**: Answer in Hebrew.
+        5. **Style**: Professional, direct, and helpful. 
+
+        Answer the user's question now.
         `;
 
         const response = await base44.integrations.Core.InvokeLLM({
