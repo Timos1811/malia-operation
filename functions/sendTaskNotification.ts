@@ -52,7 +52,6 @@ export default Deno.serve(async (req) => {
                        (task.description ? `*תיאור:* ${task.description}` : '');
         }
 
-        // Log attempt
         console.log(`Sending message to ${targetPhone}...`);
 
         const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
