@@ -190,6 +190,7 @@ export default function PendingSales() {
               // CREATE NEW
               const newRowData = { ...row };
               delete newRowData.id; // Remove PendingSale ID
+              delete newRowData.envelope_received; // Remove temporary field
               newRowData.order_number = orderNum;
               newRowData.created_date = new Date().toISOString();
               
