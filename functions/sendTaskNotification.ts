@@ -4,7 +4,7 @@ export default Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
-        // Check if secrets are set
+        // Secrets
         const idInstance = Deno.env.get("GREEN_API_ID_INSTANCE");
         const apiTokenInstance = Deno.env.get("GREEN_API_API_TOKEN_INSTANCE");
         const targetPhone = Deno.env.get("GREEN_API_PHONE_NUMBER");
@@ -14,19 +14,24 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: "Missing secrets" }, { status: 500 });
         }
 
-        // Parse payload (Entity Automation payload)
+        // Parse payload
         const payload = await req.json();
         const { event, data } = payload;
+        
+        console.log("Received payload:", JSON.stringify(payload, null, 2));
 
-        // Verify it's the correct event type (just in case)
         if (event?.type !== 'create' && event?.type !== 'update') {
+            console.log("Ignored event type:", event?.type);
             return Response.json({ message: "Event type not handled" });
         }
         
-        // For updates, we might want to be more selective, but for now let's focus on creation or status changes
-        // The user specifically asked for "new task creation"
         if (event?.type === 'create') {
              const task = data;
+             
+             if (!task) {
+                 console.error("Task data is null/undefined");
+                 return Response.json({ error: "No task data provided" });
+             }
 
              // Determine Task Type Display
              let typeDisplay = 'כללי';
@@ -49,14 +54,14 @@ export default Deno.serve(async (req) => {
                            `*לתשלום:* ${task.amount} ${task.currency || 'EUR'}\n` +
                            `*נסרקו:* ${task.scanned_count || 0}\n` +
                            `*כמות כרטיסים/חתימות:* ${task.people_count || 0}\n` +
-                           `*נוצרה על ידי:* ${task.created_by}\n` +
+                           `*נוצרה על ידי:* ${task.created_by || 'מערכת'}\n` +
                            (task.description ? `*הערות:* ${task.description}` : '');
              } else {
-                 // Standard formatting for other tasks
+                 // Standard formatting
                  message = `*נוספה לך משימה חדשה*\n\n` +
                            `*כותרת:* ${task.title}\n` +
                            `*סוג:* ${typeDisplay}\n` +
-                           `*נוצרה על ידי:* ${task.created_by}\n` +
+                           `*נוצרה על ידי:* ${task.created_by || 'מערכת'}\n` +
                            `*תאריך יעד:* ${task.due_date || 'לא הוגדר'}\n` +
                            `*סטטוס:* ${task.status}\n` +
                            (task.amount ? `*סכום:* ${task.amount} ${task.currency || 'EUR'}\n` : '') +
@@ -66,11 +71,11 @@ export default Deno.serve(async (req) => {
              // Send to Green API
              const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
              
+             console.log("Sending message to:", targetPhone);
+             
              const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chatId: `${targetPhone}@c.us`,
                     message: message
