@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw, Save, Plus, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות'
+  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות', 'מעטפה'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments'
+  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments', 'envelope_received'
 ];
 
 export default function PendingSales() {
@@ -66,7 +67,8 @@ export default function PendingSales() {
           bit_amount: "",
           eur_status: "",
           sales_rep: "",
-          comments: ""
+          comments: "",
+          envelope_received: false
       });
   };
 
@@ -312,6 +314,13 @@ export default function PendingSales() {
                           {colKey === 'eur_status' ? (
                             <div className={`px-4 py-2 rounded-lg text-center font-medium ${status.color}`}>
                               {status.text}
+                            </div>
+                          ) : colKey === 'envelope_received' ? (
+                            <div className="flex justify-center">
+                                <Checkbox 
+                                    checked={row.envelope_received || false} 
+                                    onCheckedChange={(checked) => handleBlur(row.id, colKey, checked, row)}
+                                />
                             </div>
                           ) : (
                             <EditableCell 
