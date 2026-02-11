@@ -9,7 +9,7 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { messages } = await req.json();
+        const { messages, type } = await req.json();
 
         if (!messages || !Array.isArray(messages)) {
             return Response.json({ error: 'Messages array is required' }, { status: 400 });
@@ -194,7 +194,7 @@ export default Deno.serve(async (req) => {
         const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
 
         const prompt = `
-        You are a smart business analyst AI.
+        You are a smart business analyst AI. ${type ? `Focus your analysis on: ${type}.` : ''}
         
         CONSTRAINTS:
         1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. It contains pre-calculated, accurate data.
