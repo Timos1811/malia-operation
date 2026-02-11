@@ -27,14 +27,41 @@ export default Deno.serve(async (req) => {
         // The user specifically asked for "new task creation"
         if (event?.type === 'create') {
              const task = data;
-             
-             const message = `*נוספה לך משימה חדשה*\n\n` +
-                             `*נוצרה על ידי:* ${task.created_by}\n` +
-                             `*כותרת:* ${task.title}\n` +
-                             `*סוג:* ${task.task_type || 'כללי'}\n` +
-                             `*תאריך יעד:* ${task.due_date || 'לא הוגדר'}\n` +
-                             `*סטטוס:* ${task.status}\n` +
-                             (task.description ? `*תיאור:* ${task.description}` : '');
+
+             // Determine Task Type Display
+             let typeDisplay = 'כללי';
+             if (task.is_recurring) {
+                 typeDisplay = 'משימה קבועה';
+             } else if (task.task_type === 'refund') {
+                 typeDisplay = task.refund_type === 'full' ? 'החזר מלא' : 'החזר חלקי';
+             } else if (task.task_type === 'supplier_payment') {
+                 typeDisplay = 'תשלום לספק (סיום אירוע)';
+             } else if (task.task_type === 'add_event') {
+                 typeDisplay = 'הוספת אירוע';
+             }
+
+             let message = '';
+
+             // Special formatting for Supplier Payment / Event Finished
+             if (task.task_type === 'supplier_payment') {
+                 message = `*סיום אירוע - דרישת תשלום*\n\n` +
+                           `*אירוע:* ${task.event_name || 'לא צוין'}\n` +
+                           `*לתשלום:* ${task.amount} ${task.currency || 'EUR'}\n` +
+                           `*נסרקו:* ${task.scanned_count || 0}\n` +
+                           `*כמות כרטיסים/חתימות:* ${task.people_count || 0}\n` +
+                           `*נוצרה על ידי:* ${task.created_by}\n` +
+                           (task.description ? `*הערות:* ${task.description}` : '');
+             } else {
+                 // Standard formatting for other tasks
+                 message = `*נוספה לך משימה חדשה*\n\n` +
+                           `*כותרת:* ${task.title}\n` +
+                           `*סוג:* ${typeDisplay}\n` +
+                           `*נוצרה על ידי:* ${task.created_by}\n` +
+                           `*תאריך יעד:* ${task.due_date || 'לא הוגדר'}\n` +
+                           `*סטטוס:* ${task.status}\n` +
+                           (task.amount ? `*סכום:* ${task.amount} ${task.currency || 'EUR'}\n` : '') +
+                           (task.description ? `*תיאור:* ${task.description}` : '');
+             }
 
              // Send to Green API
              const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
