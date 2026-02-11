@@ -28,12 +28,12 @@ export default Deno.serve(async (req) => {
         if (event?.type === 'create') {
              const task = data;
              
-             const message = `*משימה חדשה נוצרה*\n\n` +
+             const message = `*נוספה לך משימה חדשה*\n\n` +
+                             `*נוצרה על ידי:* ${task.created_by}\n` +
                              `*כותרת:* ${task.title}\n` +
                              `*סוג:* ${task.task_type || 'כללי'}\n` +
                              `*תאריך יעד:* ${task.due_date || 'לא הוגדר'}\n` +
                              `*סטטוס:* ${task.status}\n` +
-                             `*נוצר ע"י:* ${task.created_by}\n` +
                              (task.description ? `*תיאור:* ${task.description}` : '');
 
              // Send to Green API
