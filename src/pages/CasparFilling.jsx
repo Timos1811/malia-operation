@@ -14,7 +14,7 @@ export default function CasparFilling() {
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  const onSubmit = async (data) => {
+ const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
       await base44.entities.CasparFilling.create({
@@ -22,14 +22,14 @@ export default function CasparFilling() {
         phone_number: data.phone_number,
         hotel: data.hotel,
         departure_date: data.departure_date,
-        people_count: parseInt(data.people_count, 10)
+        people_count: parseInt(data.people_count, 10),
+        notification_sent: false // <--- השורה הקריטית שהוספנו!
       });
       
       setIsSuccess(true);
       toast.success("הפרטים נשמרו בהצלחה!");
       reset();
       
-      // Reset success message after 3 seconds to allow adding more
       setTimeout(() => setIsSuccess(false), 3000);
     } catch (error) {
       console.error(error);
