@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Scan, Home } from "lucide-react";
+import { CheckCircle2, Plus, Home } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function TaskSentSuccess() {
@@ -26,10 +26,10 @@ export default function TaskSentSuccess() {
                     </div>
 
                     <div className="grid gap-3 pt-4">
-                        <Link to={createPageUrl('EventScanner')}>
+                        <Link to={createPageUrl('AddTask')}>
                             <Button className="w-full bg-slate-900 hover:bg-slate-800 h-12 text-lg gap-2">
-                                <Scan className="w-5 h-5" />
-                                חזור לסורק
+                                <Plus className="w-5 h-5" />
+                                צור משימה נוספת
                             </Button>
                         </Link>
                         
