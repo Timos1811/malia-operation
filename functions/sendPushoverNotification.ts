@@ -3,88 +3,84 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 export default Deno.serve(async (req) => {
     try {
         const payload = await req.json();
-        // לוג קריטי לדיבאג בלייב
-        console.log("Pushover Triggered. Entity:", payload?.event?.entity_name, "Type:", payload?.event?.type);
-        
         const event = payload?.event;
         const data = payload?.data;
-        
+
+        // לוג לאבחון - יופיע בלשונית Logs ב-Base44
+        console.log(`[LOG] Triggered by entity: ${event?.entity_name}, Event: ${event?.type}`);
+
         const userKey = Deno.env.get("PUSHOVER_USER_KEY");
         const token = Deno.env.get("PUSHOVER_API_TOKEN");
 
         if (!userKey || !token) {
-            console.error("Missing Pushover secrets");
+            console.error("Missing Pushover secrets in Environment Variables");
             return Response.json({ error: "Missing secrets" }, { status: 500 });
         }
 
         const base44 = createClientFromRequest(req);
         let messagesToSend = [];
 
-        // --- תרחיש 1: Watchdog (ריצה ללא אירוע ספציפי) ---
+        // =========================================================
+        // תרחיש 1: Watchdog (ריצה ידנית או מתוזמנת)
+        // =========================================================
         if (!event) {
-            console.log("Running Watchdog Mode...");
+            console.log("Watchdog mode: Checking for unsent notifications...");
             
-            // בדיקת כספרים (CasparFilling)
+            // בדיקת כספרים שלא נשלחו
             const pendingCaspars = await base44.asServiceRole.entities.CasparFilling.filter({ notification_sent: false });
-            for (const caspar of pendingCaspars) {
+            for (const c of pendingCaspars) {
                 messagesToSend.push({
-                    title: "💰 כספר חדש (גיבוי)",
-                    message: `שם: ${caspar.full_name}\nמלון: ${caspar.hotel}\nעזיבה: ${caspar.departure_date}`,
+                    title: "💰 כספר (גיבוי Watchdog)",
+                    message: `שם: ${c.full_name}\nמלון: ${c.hotel}`,
                     priority: 0
                 });
-                await base44.asServiceRole.entities.CasparFilling.update(caspar.id, { notification_sent: true });
-            }
-
-            // בדיקת משימות (Tasks)
-            const pendingTasks = await base44.asServiceRole.entities.Task.filter({ notification_sent: false });
-            for (const task of pendingTasks) {
-                if (task.task_type === 'refund' || task.task_type === 'supplier_payment') {
-                    messagesToSend.push({
-                        title: `💸 ${task.task_type === 'refund' ? 'החזר' : 'תשלום'} (גיבוי)`,
-                        message: `כותרת: ${task.title}\nסכום: ${task.amount} ${task.currency}`,
-                        priority: task.task_type === 'refund' ? 1 : 0
-                    });
-                    await base44.asServiceRole.entities.Task.update(task.id, { notification_sent: true });
-                }
+                await base44.asServiceRole.entities.CasparFilling.update(c.id, { notification_sent: true });
             }
         }
 
-        // --- תרחיש 2: אירוע LIVE מ-Automation ---
-        else if (data) {
-            if (event.entity_name === 'Task' && event.type === 'create') {
-                const totalAmount = (data.amount || 0) * (data.people_count || 1);
-                
+        // =========================================================
+        // תרחיש 2: אירוע LIVE (יצירת משימה או כספר)
+        // =========================================================
+        else if (data && event.type === 'create') {
+            
+            // בדיקת כספר (תומך בשני שמות אופציונליים לישות)
+            if (event.entity_name === 'CasparFilling' || event.entity_name === 'Caspar') {
+                messagesToSend.push({
+                    title: "💰 כספר חדש נקלט",
+                    message: `שם: ${data.full_name || 'אורח'}\nמלון: ${data.hotel || 'לא צוין'}\nאנשים: ${data.people_count || 0}`,
+                    priority: 0
+                });
+                // עדכון סטטוס שליחה בישות המתאימה
+                const entityName = event.entity_name;
+                await base44.asServiceRole.entities[entityName].update(event.entity_id, { notification_sent: true });
+            }
+
+            // בדיקת משימה (החזר או ספק)
+            else if (event.entity_name === 'Task') {
                 if (data.task_type === 'refund') {
+                    const totalAmount = (data.amount || 0) * (data.people_count || 1);
                     messagesToSend.push({
                         title: "💸 בקשת החזר חדשה",
-                        message: `סוג: ${data.refund_type === 'full' ? 'מלא' : 'חלקי'}\nסכום כולל: ${totalAmount} ${data.currency}\nנציג: ${data.sales_rep}`,
+                        message: `סכום: ${totalAmount} ${data.currency}\nנציג: ${data.sales_rep}`,
                         priority: 1
                     });
                 } else if (data.task_type === 'supplier_payment') {
                     messagesToSend.push({
-                        title: "✅ דוח אירוע נשלח",
-                        message: `אירוע: ${data.event_name || data.title}\nסכום: ${data.amount} ${data.currency}`,
+                        title: "✅ דוח אירוע/ספק",
+                        message: `אירוע: ${data.event_name}\nסכום: ${data.amount}`,
                         priority: 0
                     });
                 }
-                // עדכון מיידי כדי למנוע מה-Watchdog לשלוח שוב
                 await base44.asServiceRole.entities.Task.update(event.entity_id, { notification_sent: true });
-            }
-
-            else if ((event.entity_name === 'CasparFilling' || event.entity_name === 'Caspar') && event.type === 'create') {
-                messagesToSend.push({
-                    title: "💰 כספר חדש נקלט",
-                    message: `שם: ${data.full_name}\nמלון: ${data.hotel}\nאנשים: ${data.people_count}`,
-                    priority: 0
-                });
-                await base44.asServiceRole.entities.CasparFilling.update(event.entity_id, { notification_sent: true });
             }
         }
 
-        // --- שליחה סופית ---
+        // =========================================================
+        // שליחה ל-Pushover
+        // =========================================================
         const results = [];
         for (const msg of messagesToSend) {
-            const res = await fetch("https://api.pushover.net/1/messages.json", {
+            const pushRes = await fetch("https://api.pushover.net/1/messages.json", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -92,13 +88,15 @@ export default Deno.serve(async (req) => {
                     user: userKey,
                     title: msg.title,
                     message: msg.message,
-                    priority: msg.priority
+                    priority: msg.priority || 0,
+                    sound: "pushover"
                 })
             });
-            results.push(await res.json());
+            results.push(await pushRes.json());
         }
 
-        return Response.json({ success: true, sent: results.length });
+        console.log(`Sent ${results.length} notifications.`);
+        return Response.json({ success: true, count: results.length });
 
     } catch (error) {
         console.error("Critical Error:", error.message);
