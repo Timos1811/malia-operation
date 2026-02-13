@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Save, Plus, Trash2, Filter, X, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, RefreshCw, Save, Plus, Trash2, Filter, X, ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,7 +25,7 @@ export default function PendingSales() {
   const [filters, setFilters] = useState({
       salesRep: 'all',
       envelopeStatus: 'all', // 'all', 'received', 'not_received'
-      date: null
+      sortOrder: 'newest' // 'newest', 'oldest'
   });
 
   // Fetch data from PendingSale entity
@@ -272,18 +269,18 @@ export default function PendingSales() {
       if (filters.envelopeStatus === 'received' && !sale.envelope_received) return false;
       if (filters.envelopeStatus === 'not_received' && sale.envelope_received) return false;
       
-      // Date Filter
-      if (filters.date) {
-          const saleDate = new Date(sale.created_date).toDateString();
-          const filterDate = new Date(filters.date).toDateString();
-          if (saleDate !== filterDate) return false;
-      }
-      
       return true;
   });
 
-  const clearFilters = () => setFilters({ salesRep: 'all', envelopeStatus: 'all', date: null });
-  const hasActiveFilters = filters.salesRep !== 'all' || filters.envelopeStatus !== 'all' || filters.date !== null;
+  // Sort Logic
+  filteredSales.sort((a, b) => {
+      const dateA = new Date(a.created_date || 0);
+      const dateB = new Date(b.created_date || 0);
+      return filters.sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+  });
+
+  const clearFilters = () => setFilters({ salesRep: 'all', envelopeStatus: 'all', sortOrder: 'newest' });
+  const hasActiveFilters = filters.salesRep !== 'all' || filters.envelopeStatus !== 'all' || filters.sortOrder !== 'newest';
 
   return (
     <div className="p-8 md:p-12 text-right" dir="rtl">
@@ -351,29 +348,29 @@ export default function PendingSales() {
                 </SelectContent>
             </Select>
 
-            {/* Date Filter */}
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant={"outline"}
-                        className={cn(
-                            "w-[200px] justify-start text-right font-normal",
-                            !filters.date && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="ml-2 h-4 w-4" />
-                        {filters.date ? format(filters.date, "dd/MM/yyyy") : <span>בחר תאריך יצירה</span>}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                    <Calendar
-                        mode="single"
-                        selected={filters.date}
-                        onSelect={(date) => setFilters(prev => ({ ...prev, date: date }))}
-                        initialFocus
-                    />
-                </PopoverContent>
-            </Popover>
+            {/* Sort Order Filter */}
+            <Select 
+                value={filters.sortOrder} 
+                onValueChange={(val) => setFilters(prev => ({ ...prev, sortOrder: val }))}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="מיון לפי תאריך" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="newest">
+                        <div className="flex items-center gap-2">
+                            <ArrowDownWideNarrow className="w-4 h-4" />
+                            מהחדש לישן
+                        </div>
+                    </SelectItem>
+                    <SelectItem value="oldest">
+                        <div className="flex items-center gap-2">
+                            <ArrowUpNarrowWide className="w-4 h-4" />
+                            מהישן לחדש
+                        </div>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
 
             {hasActiveFilters && (
                 <Button variant="ghost" onClick={clearFilters} className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-1">
