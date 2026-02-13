@@ -80,7 +80,8 @@ export default Deno.serve(async (req) => {
         // ---------------------------------------------------------
         // תרחיש 3: כספר חדש
         // ---------------------------------------------------------
-        else if (event.entity_name === 'CasparFilling' && event.type === 'create' && data) {
+        else if ((event.entity_name === 'CasparFilling' || event.entity_name === 'Caspar') && event.type === 'create' && data) {
+             console.log("Processing CasparFilling create event");
             messagesToSend.push({
                 title: "💰 כספר חדש נקלט",
                 message: `שם: ${data.full_name}\nמלון: ${data.hotel}\nעזיבה: ${data.departure_date}\nאנשים: ${data.people_count}`,
