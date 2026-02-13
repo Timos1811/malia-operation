@@ -1,13 +1,19 @@
-import React, { useMemo } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import React, { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon, Users, ShoppingBag, TrendingUp, UserCheck } from "lucide-react";
+import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon, Users, ShoppingBag, TrendingUp, UserCheck, Plus, Trash2, Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16'];
 
 export default function BankTable() {
+  const queryClient = useQueryClient();
+  const [newLocation, setNewLocation] = useState({ name: '', amount: '', currency: 'EUR' });
+
   const { data: incomeData = [], isLoading: isLoadingIncome } = useQuery({
     queryKey: ['tableDataAll'],
     queryFn: () => base44.entities.TableData.list('-created_date', 1000),
@@ -20,6 +26,24 @@ export default function BankTable() {
     queryFn: () => base44.entities.Expense.list('-expense_date', 1000),
     staleTime: 60000,
     refetchOnWindowFocus: false,
+  });
+
+  const { data: moneyLocations = [] } = useQuery({
+    queryKey: ['moneyLocations'],
+    queryFn: () => base44.entities.MoneyLocation.list(),
+  });
+
+  const addLocationMutation = useMutation({
+    mutationFn: (data) => base44.entities.MoneyLocation.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['moneyLocations']);
+      setNewLocation({ name: '', amount: '', currency: 'EUR' });
+    },
+  });
+
+  const deleteLocationMutation = useMutation({
+    mutationFn: (id) => base44.entities.MoneyLocation.delete(id),
+    onSuccess: () => queryClient.invalidateQueries(['moneyLocations']),
   });
 
   const summary = useMemo(() => {
@@ -112,7 +136,21 @@ export default function BankTable() {
     const totalIncomeEurCombined = totals.eur.income + (totals.shekel.income * 0.26) + (totals.bit.income * 0.26) + (totals.usd.income * 0.95);
     const avgRevenuePerCustomer = totalCustomers > 0 ? totalIncomeEurCombined / totalCustomers : 0;
 
+    // Money Locations Data Preparation
+    const locationsData = moneyLocations.map(loc => {
+        let valueInEur = parseFloat(loc.amount);
+        if (loc.currency === 'ILS') valueInEur *= 0.26;
+        if (loc.currency === 'USD') valueInEur *= 0.95;
+        return {
+            name: loc.name,
+            originalAmount: loc.amount,
+            currency: loc.currency,
+            value: valueInEur // For chart
+        };
+    }).filter(l => l.value > 0);
+
     return {
+      locationsData,
       rows: [
         { label: 'יורו', ...totals.eur, currency: '€' },
         { label: 'שקל (מזומן)', ...totals.shekel, currency: '₪' },
@@ -363,6 +401,135 @@ export default function BankTable() {
                                     אין נתונים להצגה
                                 </div>
                             )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Money Locations Chart & Input */}
+                <Card className="border-slate-200 shadow-sm col-span-1 md:col-span-2">
+                    <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                        <CardTitle className="flex items-center gap-2 text-xl text-slate-800">
+                            <Coins className="w-5 h-5 text-amber-500" />
+                            מיקום הכסף הפיזי (כספת, מנהל יעד, קופה קטנה)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="grid md:grid-cols-2 gap-8">
+                            {/* Chart */}
+                            <div className="h-[300px] w-full" dir="ltr">
+                                {summary.locationsData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={summary.locationsData}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                                    const RADIAN = Math.PI / 180;
+                                                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                    return percent > 0.05 ? (
+                                                        <text x={x} y={y} fill="white" fontSize={12} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                                                            {`${(percent * 100).toFixed(0)}%`}
+                                                        </text>
+                                                    ) : null;
+                                                }}
+                                                outerRadius={100}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {summary.locationsData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip 
+                                                formatter={(value, name, props) => {
+                                                    const item = props.payload;
+                                                    return [`${item.originalAmount} ${item.currency}`, item.name];
+                                                }}
+                                            />
+                                            <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{fontSize: '12px'}} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full flex items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                        אין נתונים להצגה - הוסף מיקומים בטופס
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Input Form & List */}
+                            <div className="space-y-6">
+                                <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <h3 className="font-semibold text-slate-700">הוסף מיקום חדש</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <Input 
+                                            placeholder="שם המיקום (לדוג' כספת)" 
+                                            value={newLocation.name}
+                                            onChange={e => setNewLocation({...newLocation, name: e.target.value})}
+                                            className="bg-white"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Input 
+                                                type="number" 
+                                                placeholder="סכום" 
+                                                value={newLocation.amount}
+                                                onChange={e => setNewLocation({...newLocation, amount: e.target.value})}
+                                                className="bg-white"
+                                            />
+                                            <Select 
+                                                value={newLocation.currency} 
+                                                onValueChange={val => setNewLocation({...newLocation, currency: val})}
+                                            >
+                                                <SelectTrigger className="w-[100px] bg-white">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="EUR">€ EUR</SelectItem>
+                                                    <SelectItem value="ILS">₪ ILS</SelectItem>
+                                                    <SelectItem value="USD">$ USD</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        className="w-full bg-slate-800 hover:bg-slate-700 gap-2"
+                                        disabled={!newLocation.name || !newLocation.amount || addLocationMutation.isPending}
+                                        onClick={() => addLocationMutation.mutate({
+                                            name: newLocation.name,
+                                            amount: parseFloat(newLocation.amount),
+                                            currency: newLocation.currency
+                                        })}
+                                    >
+                                        {addLocationMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                        הוסף מיקום
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                                    {moneyLocations.length === 0 && (
+                                        <p className="text-center text-sm text-slate-400 py-4">לא הוזנו מיקומים עדיין</p>
+                                    )}
+                                    {moneyLocations.map(loc => (
+                                        <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg shadow-sm group">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-800">{loc.name}</span>
+                                                <span className="text-sm text-slate-500">{loc.amount} {loc.currency}</span>
+                                            </div>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={() => deleteLocationMutation.mutate(loc.id)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
