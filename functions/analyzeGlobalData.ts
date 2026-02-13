@@ -23,14 +23,15 @@ export default Deno.serve(async (req) => {
         // 2. Parallel Data Fetching
         // INCREASED LIMITS to ensure accurate global stats calculation
         const promises = [
-            base44.asServiceRole.entities.TableData.list('-created_date', 3000),
-            base44.asServiceRole.entities.Expense.list('-expense_date', 3000),
+            base44.asServiceRole.entities.TableData.list('-created_date', 5000),
+            base44.asServiceRole.entities.Expense.list('-expense_date', 5000),
             base44.asServiceRole.entities.User.list(),
-            base44.asServiceRole.entities.Task.list('-created_date', 200),
-            base44.asServiceRole.entities.CasparFilling.list('-departure_date', 200),
+            base44.asServiceRole.entities.Task.list('-created_date', 5000),
+            base44.asServiceRole.entities.CasparFilling.list('-departure_date', 5000),
             base44.asServiceRole.entities.Attraction.list(),
-            base44.asServiceRole.entities.PendingSale.list('-created_date', 100),
+            base44.asServiceRole.entities.PendingSale.list('-created_date', 5000),
             base44.asServiceRole.entities.ExpenseEvent.list(),
+            base44.asServiceRole.entities.MoneyLocation.list(),
         ];
 
         if (potentialOrderNumbers.length > 0) {
@@ -56,6 +57,7 @@ export default Deno.serve(async (req) => {
             attractionsData,
             pendingSalesData,
             eventsData,
+            moneyLocationsData,
             searchedIncomes,
             searchedTasks,
             searchedPendingSales
@@ -142,10 +144,11 @@ export default Deno.serve(async (req) => {
             reps_stats: repsStats, 
 
             // Raw data for other queries
-            incomes: incomeData.slice(0, 500).map(r => ({ // Slice raw data to save context, rely on stats for big picture
+            incomes: incomeData.map(r => ({ 
                 order: r.order_number,
                 rep: r.sales_rep,
                 customer: r.customer, 
+                gender: r.gender, // Added for gender analysis
                 amounts: {
                     eur: r.eur_amount || 0,
                     ils: r.shekel_amount || 0,
@@ -154,7 +157,7 @@ export default Deno.serve(async (req) => {
                 hotel: r.hotel,
                 date: r.created_date ? r.created_date.split('T')[0] : null
             })),
-            expenses: expenseData.slice(0, 500).map(e => ({
+            expenses: expenseData.map(e => ({
                 reason: e.reason,
                 recipient: e.recipient,
                 amount: e.amount,
@@ -180,31 +183,40 @@ export default Deno.serve(async (req) => {
             pending: pendingSalesData.map(p => ({
                 order: p.order_number,
                 rep: p.sales_rep,
-                customer: p.customer
+                customer: p.customer,
+                gender: p.gender // Added for gender analysis
             })),
-             event_stats: eventsData.map(e => ({
+            event_stats: eventsData.map(e => ({
                 name: e.event_name,
                 date: e.event_date,
                 buyers: e.buyers_count,
                 scanned: e.scanned_count
+            })),
+            money_locations: moneyLocationsData.map(m => ({
+                name: m.name,
+                amount: m.amount,
+                currency: m.currency
             }))
-        };
+            };
 
         const recentMessages = messages.slice(-8);
         const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
 
         const prompt = `
-        You are a smart business analyst AI. ${type ? `Focus your analysis on: ${type}.` : ''}
+        You are a smart business analyst AI with access to ALL system data. ${type ? `Focus your analysis on: ${type}.` : ''}
         
         CONSTRAINTS:
         1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. It contains pre-calculated, accurate data.
-        2. **Quantity vs Amount**: 
+        2. **Deep Analysis**: You have access to raw data (incomes, expenses, etc.). Use it to answer complex questions like "which day had the most sales for females".
+           - For gender analysis: Check 'gender' field in 'incomes' and 'pending'.
+           - For money locations: Check 'money_locations'.
+        3. **Quantity vs Amount**: 
            - "How many" / "כמה" / "quantity" = COUNT items.
            - "How much" / "סכום" / "amount" / "total" = SUM monetary value.
-        3. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
-        4. **Search**: If user asked for an Order ID and it's in the data -> Show details. If not -> Say "Not found".
-        5. **Language**: Hebrew.
-        6. **Style**: Professional, concise, data-driven.
+        4. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
+        5. **Search**: If user asked for an Order ID and it's in the data -> Show details. If not -> Say "Not found".
+        6. **Language**: Hebrew.
+        7. **Style**: Professional, concise, data-driven.
 
         DATA CONTEXT:
         ${JSON.stringify(contextData)}
@@ -212,7 +224,7 @@ export default Deno.serve(async (req) => {
         CONVERSATION:
         ${historyText}
         
-        Analyze the data and answer the user's last question.
+        Analyze the data deeply and answer the user's last question.
         `;
 
         const response = await base44.integrations.Core.InvokeLLM({
