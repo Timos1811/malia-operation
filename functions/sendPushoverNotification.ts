@@ -21,31 +21,76 @@ export default Deno.serve(async (req) => {
         let messagesToSend = [];
 
         // ---------------------------------------------------------
-        // תרחיש 1: ריצה מתוזמנת (משימות קבועות)
+        // תרחיש 1: ריצה מתוזמנת (משימות קבועות + כספרים ממתינים)
         // ---------------------------------------------------------
         if (!event) {
-            // זיהוי היום בשבוע (0=ראשון, 6=שבת) לפי שעון ישראל
-            // מכיוון שהשרתים ב-UTC, נוסיף 2/3 שעות או נשתמש ב-Locale
-            const today = new Date();
-            const dayOfWeek = today.getDay(); // תלוי בשרת, לרוב UTC. 
-            // אם האוטומציה רצה בבוקר, ה-UTC דיי קרוב.
+            // --- בדיקת כספרים שלא נשלחו עדיין ---
+            const pendingCaspars = await base44.asServiceRole.entities.CasparFilling.filter({ notification_sent: false });
             
-            // שליפת כל המשימות
-            const tasks = await base44.asServiceRole.entities.Task.filter({ is_recurring: true });
-            
-            const todaysTasks = tasks.filter(t => {
-                // אם אין מערך ימים או שהוא ריק, מניחים שזה כל יום
-                if (!t.recurring_days || t.recurring_days.length === 0) return true;
-                return t.recurring_days.includes(dayOfWeek);
-            });
-
-            if (todaysTasks.length > 0) {
-                const taskList = todaysTasks.map(t => `• ${t.title}`).join('\n');
+            for (const caspar of pendingCaspars) {
                 messagesToSend.push({
-                    title: "📋 משימות קבועות להיום",
-                    message: `סה"כ ${todaysTasks.length} משימות לביצוע:\n\n${taskList}`,
+                    title: "💰 כספר חדש נקלט",
+                    message: `שם: ${caspar.full_name}\nמלון: ${caspar.hotel}\nעזיבה: ${caspar.departure_date}\nאנשים: ${caspar.people_count}`,
                     priority: 0
                 });
+                // סימון שנשלח
+                await base44.asServiceRole.entities.CasparFilling.update(caspar.id, { notification_sent: true });
+            }
+
+
+            // --- בדיקת משימות קבועות (רק אם זה "משימת בוקר") ---
+            // מכיוון שהפונקציה רצה כל 5 דקות עכשיו, עלינו לוודא שאנחנו לא שולחים את המשימות הקבועות 200 פעמים ביום.
+            // נשתמש בפרמטר שישלח מהאוטומציה או נבדוק שעה.
+            // אבל האוטומציה הקיימת של המשימות היא נפרדת! אז הקוד הזה (בלוק המשימות) ירוץ רק באוטומציה היומית.
+            
+            // נבדוק האם הריצה הנוכחית היא חלק מאוטומציה יומית (נניח לפי שעה ספציפית או פרמטר)
+            // מכיוון שאין לנו דרך קלה להבחין כרגע, נניח שהאוטומציה היומית מוגדרת לשעה ספציפית.
+            // אבל אם ניצור אוטומציה של 5 דקות, היא תריץ את הבלוק הזה כל 5 דקות...
+            // פתרון: בדיקת כספרים תהיה תמיד. בדיקת משימות תהיה רק אם השעה היא 14:00 (או השעה שנקבעה).
+            
+            const now = new Date();
+            // התאמה לזמן ישראל בערך (UTC+2/3). נניח UTC.
+            const currentHour = now.getUTCHours(); 
+            // 12:00 UTC is 14:00 Israel (winter) or 15:00 (summer). 
+            // האוטומציה היומית מוגדרת ל-12:00.
+            
+            // נבצע את בדיקת המשימות רק אם זו האוטומציה היומית.
+            // הדרך הכי טובה: לפצל לפונקציות נפרדות או לבדוק ארגומנטים.
+            // נשתמש בארגומנטים! אבל אי אפשר להוסיף ארגומנטים לאוטומציה קיימת בקלות.
+            
+            // פתרון פשוט: אם יש pendingCaspars, זה אומר שזה ה-catch-up.
+            // אבל מה אם אין?
+            
+            // בוא נבדוק אם השעה היא בין 11:55 ל-12:05 UTC (זמן הריצה של המשימות הקבועות)
+            // ורק אז נשלח את המשימות הקבועות.
+            // זה קצת "מלוכלך" אבל יעבוד.
+            
+            // או יותר טוב: ניצור פונקציה נפרדת לבדיקת כספרים וזהו.
+            // אבל אני רוצה לחסוך ביצירת קבצים.
+            
+            // בוא נניח שהקוד הזה רץ. 
+            // אם אוסיף את בדיקת הכספרים כאן, היא תרוץ גם ב-12:00 יחד עם המשימות. זה בסדר.
+            // אבל אם אצור אוטומציה שרצה כל 5 דקות, היא תריץ את בדיקת המשימות כל 5 דקות. זה רע.
+            
+            // לכן אני חייב להגן על בדיקת המשימות.
+            // אבדוק אם השעה היא 12 (UTC).
+            
+            if (currentHour === 12 && now.getUTCMinutes() < 10) { 
+                const dayOfWeek = now.getDay();
+                const tasks = await base44.asServiceRole.entities.Task.filter({ is_recurring: true });
+                const todaysTasks = tasks.filter(t => {
+                    if (!t.recurring_days || t.recurring_days.length === 0) return true;
+                    return t.recurring_days.includes(dayOfWeek);
+                });
+
+                if (todaysTasks.length > 0) {
+                    const taskList = todaysTasks.map(t => `• ${t.title}`).join('\n');
+                    messagesToSend.push({
+                        title: "📋 משימות קבועות להיום",
+                        message: `סה"כ ${todaysTasks.length} משימות לביצוע:\n\n${taskList}`,
+                        priority: 0
+                    });
+                }
             }
         }
 
