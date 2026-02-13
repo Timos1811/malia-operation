@@ -198,12 +198,7 @@ export default function AddTask() {
         sales_rep: currentUser?.full_name || ''
       });
 
-      toast.success('הבקשה נשלחה בהצלחה');
-      setSelectedEvents(new Set());
-      setRefundType('partial');
-      setOrderNumber('');
-      setPeopleCount('');
-      setDepartureDate('');
+      navigate(createPageUrl('TaskSentSuccess'));
       } catch (error) {
       console.error(error);
       toast.error('שגיאה ביצירת הבקשה');
