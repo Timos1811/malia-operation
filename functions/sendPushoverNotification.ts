@@ -16,20 +16,22 @@ export default Deno.serve(async (req) => {
         }
 
         const base44 = createClientFromRequest(req);
-        // payload already read above
         
         let messagesToSend = [];
 
-        // ---------------------------------------------------------
-        // תרחיש 1: ריצה מתוזמנת (משימות קבועות + כספרים ממתינים)
-        // ---------------------------------------------------------
+        // =========================================================
+        // תרחיש 1: ריצה מתוזמנת (Watchdog + משימות קבועות)
+        // =========================================================
         if (!event) {
-            // --- בדיקת כספרים שלא נשלחו עדיין ---
+            console.log("Running Scheduled Watchdog...");
+
+            // --- 1.1: בדיקת כספרים שלא נשלחו עדיין (גיבוי) ---
             const pendingCaspars = await base44.asServiceRole.entities.CasparFilling.filter({ notification_sent: false });
+            if (pendingCaspars.length > 0) console.log(`Found ${pendingCaspars.length} pending caspars`);
             
             for (const caspar of pendingCaspars) {
                 messagesToSend.push({
-                    title: "💰 כספר חדש נקלט",
+                    title: "💰 כספר חדש נקלט (גיבוי)",
                     message: `שם: ${caspar.full_name}\nמלון: ${caspar.hotel}\nעזיבה: ${caspar.departure_date}\nאנשים: ${caspar.people_count}`,
                     priority: 0
                 });
@@ -37,47 +39,46 @@ export default Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.CasparFilling.update(caspar.id, { notification_sent: true });
             }
 
+            // --- 1.2: בדיקת משימות (החזר/ספק) שלא נשלחו עדיין (גיבוי) ---
+            // מסננים רק משימות רלוונטיות שעדיין לא נשלחו
+            // נשלוף את כל המשימות שלא נשלחו ואז נסנן לפי סוג (כי אולי אין אפשרות ל-filter מורכב מדי)
+            // או שפשוט נשלוף הכל ונבדוק ב-JS
+            const pendingTasks = await base44.asServiceRole.entities.Task.filter({ notification_sent: false });
+            
+            for (const task of pendingTasks) {
+                let msg = null;
 
-            // --- בדיקת משימות קבועות (רק אם זה "משימת בוקר") ---
-            // מכיוון שהפונקציה רצה כל 5 דקות עכשיו, עלינו לוודא שאנחנו לא שולחים את המשימות הקבועות 200 פעמים ביום.
-            // נשתמש בפרמטר שישלח מהאוטומציה או נבדוק שעה.
-            // אבל האוטומציה הקיימת של המשימות היא נפרדת! אז הקוד הזה (בלוק המשימות) ירוץ רק באוטומציה היומית.
-            
-            // נבדוק האם הריצה הנוכחית היא חלק מאוטומציה יומית (נניח לפי שעה ספציפית או פרמטר)
-            // מכיוון שאין לנו דרך קלה להבחין כרגע, נניח שהאוטומציה היומית מוגדרת לשעה ספציפית.
-            // אבל אם ניצור אוטומציה של 5 דקות, היא תריץ את הבלוק הזה כל 5 דקות...
-            // פתרון: בדיקת כספרים תהיה תמיד. בדיקת משימות תהיה רק אם השעה היא 14:00 (או השעה שנקבעה).
-            
+                if (task.task_type === 'refund') {
+                    const typeText = task.refund_type === 'full' ? 'מלא' : 'חלקי';
+                    const totalAmount = (task.amount || 0) * (task.people_count || 1);
+                    msg = {
+                        title: "💸 בקשת החזר חדשה (גיבוי)",
+                        message: `סוג: ${typeText}\nסכום: ${totalAmount} ${task.currency || 'EUR'}\nעבור: ${task.people_count} אנשים\nנציג: ${task.sales_rep || 'לא צוין'}`,
+                        priority: 1
+                    };
+                } else if (task.task_type === 'supplier_payment') {
+                    msg = {
+                        title: "✅ דוח אירוע נשלח (גיבוי)",
+                        message: `אירוע: ${task.event_name || task.title}\nסכום לתשלום: ${task.amount} ${task.currency}\nנכחו: ${task.scanned_count} נסרקים`,
+                        priority: 0
+                    };
+                }
+
+                if (msg) {
+                    messagesToSend.push(msg);
+                    await base44.asServiceRole.entities.Task.update(task.id, { notification_sent: true });
+                }
+            }
+
+
+            // --- 1.3: משימות קבועות (רק בשעה 12:00 UTC) ---
             const now = new Date();
-            // התאמה לזמן ישראל בערך (UTC+2/3). נניח UTC.
             const currentHour = now.getUTCHours(); 
-            // 12:00 UTC is 14:00 Israel (winter) or 15:00 (summer). 
-            // האוטומציה היומית מוגדרת ל-12:00.
-            
-            // נבצע את בדיקת המשימות רק אם זו האוטומציה היומית.
-            // הדרך הכי טובה: לפצל לפונקציות נפרדות או לבדוק ארגומנטים.
-            // נשתמש בארגומנטים! אבל אי אפשר להוסיף ארגומנטים לאוטומציה קיימת בקלות.
-            
-            // פתרון פשוט: אם יש pendingCaspars, זה אומר שזה ה-catch-up.
-            // אבל מה אם אין?
-            
-            // בוא נבדוק אם השעה היא בין 11:55 ל-12:05 UTC (זמן הריצה של המשימות הקבועות)
-            // ורק אז נשלח את המשימות הקבועות.
-            // זה קצת "מלוכלך" אבל יעבוד.
-            
-            // או יותר טוב: ניצור פונקציה נפרדת לבדיקת כספרים וזהו.
-            // אבל אני רוצה לחסוך ביצירת קבצים.
-            
-            // בוא נניח שהקוד הזה רץ. 
-            // אם אוסיף את בדיקת הכספרים כאן, היא תרוץ גם ב-12:00 יחד עם המשימות. זה בסדר.
-            // אבל אם אצור אוטומציה שרצה כל 5 דקות, היא תריץ את בדיקת המשימות כל 5 דקות. זה רע.
-            
-            // לכן אני חייב להגן על בדיקת המשימות.
-            // אבדוק אם השעה היא 12 (UTC).
-            
+            // בודקים דקות כדי שלא ירוץ פעמיים בטווח של השעה 12
             if (currentHour === 12 && now.getUTCMinutes() < 10) { 
                 const dayOfWeek = now.getDay();
                 const tasks = await base44.asServiceRole.entities.Task.filter({ is_recurring: true });
+                
                 const todaysTasks = tasks.filter(t => {
                     if (!t.recurring_days || t.recurring_days.length === 0) return true;
                     return t.recurring_days.includes(dayOfWeek);
@@ -94,9 +95,9 @@ export default Deno.serve(async (req) => {
             }
         }
 
-        // ---------------------------------------------------------
+        // =========================================================
         // תרחיש 2: אירוע חדש בטבלת משימות (החזר או ספק)
-        // ---------------------------------------------------------
+        // =========================================================
         else if (event.entity_name === 'Task' && event.type === 'create' && data) {
             
             // התראה על החזר חדש
@@ -112,7 +113,6 @@ export default Deno.serve(async (req) => {
             }
             
             // התראה על תשלום לספק / דוח אירוע
-            // זה נוצר כאשר שולחים דוח מהסורק
             else if (data.task_type === 'supplier_payment') {
                 messagesToSend.push({
                     title: "✅ דוח אירוע נשלח (תשלום ספק)",
@@ -120,11 +120,16 @@ export default Deno.serve(async (req) => {
                     priority: 0
                 });
             }
+
+            // עדכון שההתראה נשלחה (כדי שה-watchdog לא ישלח שוב)
+            if (messagesToSend.length > 0) {
+                await base44.asServiceRole.entities.Task.update(event.entity_id, { notification_sent: true });
+            }
         }
 
-        // ---------------------------------------------------------
+        // =========================================================
         // תרחיש 3: כספר חדש
-        // ---------------------------------------------------------
+        // =========================================================
         else if ((event.entity_name === 'CasparFilling' || event.entity_name === 'Caspar') && event.type === 'create' && data) {
              console.log("Processing CasparFilling create event");
             messagesToSend.push({
@@ -132,12 +137,15 @@ export default Deno.serve(async (req) => {
                 message: `שם: ${data.full_name}\nמלון: ${data.hotel}\nעזיבה: ${data.departure_date}\nאנשים: ${data.people_count}`,
                 priority: 0
             });
+
+            // עדכון שההתראה נשלחה
+            await base44.asServiceRole.entities.CasparFilling.update(event.entity_id, { notification_sent: true });
         }
 
 
-        // ---------------------------------------------------------
+        // =========================================================
         // שליחה ל-Pushover
-        // ---------------------------------------------------------
+        // =========================================================
         const results = [];
         for (const msg of messagesToSend) {
             const pushRes = await fetch("https://api.pushover.net/1/messages.json", {
