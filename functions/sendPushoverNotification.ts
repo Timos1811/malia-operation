@@ -2,6 +2,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 export default Deno.serve(async (req) => {
     try {
+        const payload = await req.json();
+        console.log("Pushover Function Triggered. Payload:", JSON.stringify(payload));
+        
+        const { event, data } = payload;
+        
         const userKey = Deno.env.get("PUSHOVER_USER_KEY");
         const token = Deno.env.get("PUSHOVER_API_TOKEN");
 
@@ -11,8 +16,7 @@ export default Deno.serve(async (req) => {
         }
 
         const base44 = createClientFromRequest(req);
-        const payload = await req.json();
-        const { event, data } = payload;
+        // payload already read above
         
         let messagesToSend = [];
 
