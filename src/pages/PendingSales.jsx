@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Save, Plus, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Save, Plus, Trash2, Filter, X, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -20,6 +25,11 @@ const COLUMN_KEYS = [
 export default function PendingSales() {
   const queryClient = useQueryClient();
   const [editingCell, setEditingCell] = useState(null);
+  const [filters, setFilters] = useState({
+      salesRep: 'all',
+      envelopeStatus: 'all', // 'all', 'received', 'not_received'
+      date: null
+  });
 
   // Fetch data from PendingSale entity
   const { data: pendingSales = [], isLoading, isRefetching, refetch } = useQuery({
@@ -251,6 +261,30 @@ export default function PendingSales() {
     }
   };
 
+  // Filter Logic
+  const uniqueReps = Array.from(new Set(pendingSales.map(s => s.sales_rep).filter(Boolean)));
+  
+  const filteredSales = pendingSales.filter(sale => {
+      // Rep Filter
+      if (filters.salesRep !== 'all' && sale.sales_rep !== filters.salesRep) return false;
+      
+      // Envelope Filter
+      if (filters.envelopeStatus === 'received' && !sale.envelope_received) return false;
+      if (filters.envelopeStatus === 'not_received' && sale.envelope_received) return false;
+      
+      // Date Filter
+      if (filters.date) {
+          const saleDate = new Date(sale.created_date).toDateString();
+          const filterDate = new Date(filters.date).toDateString();
+          if (saleDate !== filterDate) return false;
+      }
+      
+      return true;
+  });
+
+  const clearFilters = () => setFilters({ salesRep: 'all', envelopeStatus: 'all', date: null });
+  const hasActiveFilters = filters.salesRep !== 'all' || filters.envelopeStatus !== 'all' || filters.date !== null;
+
   return (
     <div className="p-8 md:p-12 text-right" dir="rtl">
       <div className="max-w-7xl mx-auto">
@@ -279,6 +313,76 @@ export default function PendingSales() {
           </div>
         </div>
 
+        {/* Filters Bar */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2 text-slate-500 font-medium">
+                <Filter className="w-4 h-4" />
+                סינון:
+            </div>
+            
+            {/* Sales Rep Filter */}
+            <Select 
+                value={filters.salesRep} 
+                onValueChange={(val) => setFilters(prev => ({ ...prev, salesRep: val }))}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="בחר נציג" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">כל הנציגים</SelectItem>
+                    {uniqueReps.map(rep => (
+                        <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            {/* Envelope Status Filter */}
+            <Select 
+                value={filters.envelopeStatus} 
+                onValueChange={(val) => setFilters(prev => ({ ...prev, envelopeStatus: val }))}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="סטטוס מעטפה" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">הכל</SelectItem>
+                    <SelectItem value="received">התקבלה</SelectItem>
+                    <SelectItem value="not_received">לא התקבלה</SelectItem>
+                </SelectContent>
+            </Select>
+
+            {/* Date Filter */}
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-[200px] justify-start text-right font-normal",
+                            !filters.date && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="ml-2 h-4 w-4" />
+                        {filters.date ? format(filters.date, "dd/MM/yyyy") : <span>בחר תאריך יצירה</span>}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={filters.date}
+                        onSelect={(date) => setFilters(prev => ({ ...prev, date: date }))}
+                        initialFocus
+                    />
+                </PopoverContent>
+            </Popover>
+
+            {hasActiveFilters && (
+                <Button variant="ghost" onClick={clearFilters} className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-1">
+                    <X className="w-4 h-4" />
+                    נקה סינון
+                </Button>
+            )}
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
           <table className="w-full min-w-[1200px]">
             <thead>
@@ -299,14 +403,14 @@ export default function PendingSales() {
                       טוען נתונים...
                     </td>
                   </tr>
-              ) : pendingSales.length === 0 ? (
+              ) : filteredSales.length === 0 ? (
                 <tr>
                   <td colSpan={COLUMNS.length + 1} className="p-8 text-center text-slate-500">
-                    אין מכירות בהמתנה כרגע
+                    {pendingSales.length === 0 ? 'אין מכירות בהמתנה כרגע' : 'לא נמצאו תוצאות לסינון זה'}
                   </td>
                 </tr>
               ) : (
-                pendingSales.map((row) => {
+                filteredSales.map((row) => {
                   const status = calculateStatusDisplay(row);
                   return (
                     <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
