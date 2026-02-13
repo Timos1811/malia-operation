@@ -31,7 +31,7 @@ export default Deno.serve(async (req) => {
             for (const c of pendingCaspars) {
                 messagesToSend.push({
                     title: "💰 כספר (גיבוי Watchdog)",
-                    message: `שם: ${c.full_name}\nמלון: ${c.hotel}`,
+                    message: `שם: ${c.full_name}\nטלפון: ${c.phone_number || 'לא צוין'}\nמלון: ${c.hotel}\nעזיבה: ${c.departure_date || 'לא צוין'}\nאנשים: ${c.people_count || 0}`,
                     priority: 0
                 });
                 await base44.asServiceRole.entities.CasparFilling.update(c.id, { notification_sent: true });
@@ -47,7 +47,7 @@ export default Deno.serve(async (req) => {
             if (event.entity_name === 'CasparFilling' || event.entity_name === 'Caspar') {
                 messagesToSend.push({
                     title: "💰 כספר חדש נקלט",
-                    message: `שם: ${data.full_name || 'אורח'}\nמלון: ${data.hotel || 'לא צוין'}\nאנשים: ${data.people_count || 0}`,
+                    message: `שם: ${data.full_name || 'אורח'}\nטלפון: ${data.phone_number || 'לא צוין'}\nמלון: ${data.hotel || 'לא צוין'}\nעזיבה: ${data.departure_date || 'לא צוין'}\nאנשים: ${data.people_count || 0}`,
                     priority: 0
                 });
                 // עדכון סטטוס שליחה בישות המתאימה
@@ -67,7 +67,7 @@ export default Deno.serve(async (req) => {
                 } else if (data.task_type === 'supplier_payment') {
                     messagesToSend.push({
                         title: "✅ דוח אירוע/ספק",
-                        message: `אירוע: ${data.event_name}\nסכום: ${data.amount}`,
+                        message: `אירוע: ${data.event_name}\nסכום לתשלום: ${data.amount} ${data.currency}\nנסרקים: ${data.scanned_count || 0}\nחתימות: ${data.people_count || 0}`,
                         priority: 0
                     });
                 }
