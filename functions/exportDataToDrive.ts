@@ -349,7 +349,65 @@ export default Deno.serve(async (req) => {
         maps.CasparFilling = addSmartSheet(caspars, "כספרים", "CasparFilling");
         maps.MoneyLocation = addSmartSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
 
-        // --- Live Summary Sheet (Same as before) ---
+        // --- Summary Calculations in Code ---
+        
+        // 1. Calculate Income Totals
+        let incEur = 0, incIls = 0, incUsd = 0, incBit = 0;
+        let totalCustomers = 0;
+        let totalOrders = income.length;
+        const salesRepStats = {};
+
+        income.forEach(row => {
+            const eur = parseFloat(row.eur_amount) || 0;
+            const ils = parseFloat(row.shekel_amount) || 0;
+            const usd = parseFloat(row.dollar_amount) || 0;
+            const bit = parseFloat(row.bit_amount) || 0;
+            
+            incEur += eur;
+            incIls += ils;
+            incUsd += usd;
+            incBit += bit;
+            
+            totalCustomers += row.extracted_customer_count || 0;
+            
+            // Sales Rep Stats
+            const totalVal = eur + (ils * 0.26) + (usd * 0.95) + (bit * 0.26);
+            const rep = row.sales_rep || 'ללא נציג';
+            salesRepStats[rep] = (salesRepStats[rep] || 0) + totalVal;
+        });
+
+        // 2. Calculate Expense Totals
+        let expEur = 0, expIls = 0, expUsd = 0;
+        const catStats = {};
+
+        expenses.forEach(exp => {
+            const val = parseFloat(exp.amount) || 0;
+            if (exp.currency === 'EUR') expEur += val;
+            if (exp.currency === 'ILS') expIls += val;
+            if (exp.currency === 'USD') expUsd += val;
+            
+            // Category Stats
+            let valEur = val;
+            if (exp.currency === 'ILS') valEur *= 0.26;
+            if (exp.currency === 'USD') valEur *= 0.95;
+            const reason = exp.reason || 'אחר';
+            catStats[reason] = (catStats[reason] || 0) + valEur;
+        });
+
+        // 3. Calculate Location Balance
+        let locBalEur = 0;
+        moneyLocations.forEach(loc => {
+            let val = parseFloat(loc.amount) || 0;
+            if (loc.currency === 'ILS') val *= 0.26;
+            else if (loc.currency === 'USD') val *= 0.95;
+            locBalEur += val;
+        });
+
+        // 4. Derived Values
+        const totalIncEurEst = incEur + (incIls * 0.26) + (incUsd * 0.95) + (incBit * 0.26);
+        const avgRevPerCust = totalCustomers > 0 ? totalIncEurEst / totalCustomers : 0;
+        
+        // --- Live Summary Sheet (Static Values) ---
         const summarySheet = workbook.addWorksheet("סיכום בנק", {
             views: [{ rightToLeft: true, showGridLines: false }]
         });
@@ -362,19 +420,18 @@ export default Deno.serve(async (req) => {
         let currentRow = 2;
         summarySheet.mergeCells(`B${currentRow}:E${currentRow}`);
         const titleCell = summarySheet.getCell(`B${currentRow}`);
-        titleCell.value = "טבלת בנק - סיכום חי (מקושר)";
+        titleCell.value = "טבלת בנק - סיכום נתונים (סטטי)";
         titleCell.font = { bold: true, size: 24, name: 'Calibri', color: { argb: 'FF1E293B' } };
         titleCell.alignment = { horizontal: 'right' };
         currentRow += 2;
 
-        const drawFormulaCard = (startCol, row, title, formula, subtext, format = '#,##0') => {
-            const endCol = String.fromCharCode(startCol.charCodeAt(0) + 1);
+        const drawValueCard = (startCol, row, title, value, subtext, format = '#,##0') => {
             summarySheet.getCell(`${startCol}${row}`).value = title;
             summarySheet.getCell(`${startCol}${row}`).font = { bold: true, size: 11, color: { argb: 'FF64748B' } };
             summarySheet.getCell(`${startCol}${row}`).alignment = { vertical: 'bottom', horizontal: 'right' };
             
             const valCell = summarySheet.getCell(`${startCol}${row+1}`);
-            valCell.value = { formula: formula };
+            valCell.value = value;
             valCell.numFmt = format;
             valCell.font = { bold: true, size: 22, color: { argb: 'FF0F172A' } };
             
@@ -390,44 +447,18 @@ export default Deno.serve(async (req) => {
             });
         };
 
-        // Helpers for summary formulas
-        const getRange = (sheetKey, colName, isCalculated=false) => {
-            const map = maps[sheetKey];
-            if(!map) return 'A:A'; // Fallback
-            const letter = isCalculated ? map.nameMap[colName] : map.keyMap[colName];
-            const sheetName = {
-                TableData: 'הכנסות',
-                Expense: 'הוצאות',
-                MoneyLocation: 'מיקומי כסף'
-            }[sheetKey];
-            return `'${sheetName}'!${letter}:${letter}`;
-        };
-
-        // Row 1 of Cards
-        drawFormulaCard('B', currentRow, "סה\"כ לקוחות", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'extracted_customer_count')}), 0)`, "לקוחות בכל הקבוצות");
-        drawFormulaCard('E', currentRow, "סה\"כ קבוצות/מכירות", `=IFERROR(SUBTOTAL(103, ${getRange('TableData', 'order_number')}), 0)`, "הזמנות במערכת");
-        
-        // Calculate Total Income (Estimated) using raw columns: EUR + ILS*0.26 + USD*0.95 + BIT*0.26
-        const totalIncomeFormula = `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'eur_amount')}) + SUBTOTAL(109, ${getRange('TableData', 'shekel_amount')})*0.26 + SUBTOTAL(109, ${getRange('TableData', 'dollar_amount')})*0.95 + SUBTOTAL(109, ${getRange('TableData', 'bit_amount')})*0.26, 0)`;
-        
-        drawFormulaCard('H', currentRow, "ממוצע ללקוח", `=IFERROR(E${currentRow+5}/B${currentRow+1}, 0)`, "הכנסה ממוצעת", '#,##0 €'); // Pointing to Total Income below
-
+        // Row 1 Cards
+        drawValueCard('B', currentRow, "סה\"כ לקוחות", totalCustomers, "לקוחות בכל הקבוצות");
+        drawValueCard('E', currentRow, "סה\"כ קבוצות/מכירות", totalOrders, "הזמנות במערכת");
+        drawValueCard('H', currentRow, "ממוצע ללקוח", avgRevPerCust, "הכנסה ממוצעת", '#,##0 €');
         currentRow += 4;
 
-        // Row 2 of Cards
-        // Calculate Location Balance using SUMPRODUCT (approximate for summary) or SUMIFs. Since MoneyLocation is small and usually not filtered, SUMIF/SUMPRODUCT is fine.
-        // MoneyLocation Columns: Amount (B usually), Currency (C usually).
-        // Formula: SUMIF(Cur, "EUR", Amt) + SUMIF(Cur, "ILS", Amt)*0.26 + ...
-        const locAmt = getRange('MoneyLocation', 'amount');
-        const locCur = getRange('MoneyLocation', 'currency');
-        const locationBalanceFormula = `=IFERROR(SUMIF(${locCur}, "EUR", ${locAmt}) + SUMIF(${locCur}, "ILS", ${locAmt})*0.26 + SUMIF(${locCur}, "USD", ${locAmt})*0.95, 0)`;
-
-        drawFormulaCard('B', currentRow, "יתרה במיקומים", locationBalanceFormula, "כספות וארנקים", '#,##0 €');
-        
-        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", totalIncomeFormula, "שווי כולל ביורו", '#,##0 €');
-
+        // Row 2 Cards
+        drawValueCard('B', currentRow, "יתרה במיקומים", locBalEur, "כספות וארנקים", '#,##0 €');
+        drawValueCard('E', currentRow, "סה\"כ הכנסה כוללת", totalIncEurEst, "שווי כולל ביורו", '#,##0 €');
         currentRow += 4;
 
+        // Summary Table
         const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
         
         summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "תיאור";
@@ -444,10 +475,11 @@ export default Deno.serve(async (req) => {
         });
         currentRow++;
 
+        // Income Row
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הכנסות";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'eur_amount')}), 0)` };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'shekel_amount')}), 0)` };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'dollar_amount')}), 0)` };
+        summarySheet.getCell(`C${currentRow}`).value = incEur;
+        summarySheet.getCell(`D${currentRow}`).value = incIls;
+        summarySheet.getCell(`E${currentRow}`).value = incUsd;
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
@@ -457,10 +489,11 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
         currentRow++;
 
+        // Expense Row
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הוצאות";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: `=IFERROR(SUMIF(${getRange('Expense', 'currency')}, "EUR", ${getRange('Expense', 'amount')}), 0)` };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: `=IFERROR(SUMIF(${getRange('Expense', 'currency')}, "ILS", ${getRange('Expense', 'amount')}), 0)` };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: `=IFERROR(SUMIF(${getRange('Expense', 'currency')}, "USD", ${getRange('Expense', 'amount')}), 0)` };
+        summarySheet.getCell(`C${currentRow}`).value = expEur;
+        summarySheet.getCell(`D${currentRow}`).value = expIls;
+        summarySheet.getCell(`E${currentRow}`).value = expUsd;
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
@@ -470,10 +503,11 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
         currentRow++;
 
+        // Balance Row
         summarySheet.getCell(`B${currentRow}`).value = "יתרה בקופה";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: `=IFERROR(C${currentRow-2}-C${currentRow-1}, 0)` };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: `=IFERROR(D${currentRow-2}-D${currentRow-1}, 0)` };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: `=IFERROR(E${currentRow-2}-E${currentRow-1}, 0)` };
+        summarySheet.getCell(`C${currentRow}`).value = incEur - expEur;
+        summarySheet.getCell(`D${currentRow}`).value = incIls - expIls;
+        summarySheet.getCell(`E${currentRow}`).value = incUsd - expUsd;
         ['B','C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
@@ -483,9 +517,10 @@ export default Deno.serve(async (req) => {
         });
         currentRow++;
 
+        // Bit Total
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ ביט";
         summarySheet.mergeCells(`C${currentRow}:E${currentRow}`);
-        summarySheet.getCell(`C${currentRow}`).value = { formula: `=SUBTOTAL(109, ${getRange('TableData', 'bit_amount')})` };
+        summarySheet.getCell(`C${currentRow}`).value = incBit;
         summarySheet.getCell(`C${currentRow}`).numFmt = '₪#,##0';
         ['B','C'].forEach(col => {
              const cell = summarySheet.getCell(`${col}${currentRow}`);
@@ -494,19 +529,13 @@ export default Deno.serve(async (req) => {
         });
         currentRow += 3;
         
+        // Stats Lists
         const listStartRow = currentRow;
         summarySheet.mergeCells(`B${listStartRow}:C${listStartRow}`);
-        summarySheet.getCell(`B${listStartRow}`).value = "🏆 מכירות לפי נציג (תמונת מצב)";
+        summarySheet.getCell(`B${listStartRow}`).value = "🏆 מכירות לפי נציג";
         summarySheet.getCell(`B${listStartRow}`).font = { bold: true };
         
         let repRow = listStartRow + 1;
-        const salesRepStats = {};
-        income.forEach(row => {
-            const total = (parseFloat(row.eur_amount)||0) + (parseFloat(row.shekel_amount)||0)*0.26 + (parseFloat(row.dollar_amount)||0)*0.95 + (parseFloat(row.bit_amount)||0)*0.26;
-            const rep = row.sales_rep || 'ללא נציג';
-            salesRepStats[rep] = (salesRepStats[rep]||0) + total;
-        });
-
         Object.entries(salesRepStats).sort(([,a], [,b]) => b - a).forEach(([name, val]) => {
             summarySheet.getCell(`B${repRow}`).value = name;
             summarySheet.getCell(`C${repRow}`).value = val;
@@ -515,19 +544,10 @@ export default Deno.serve(async (req) => {
         });
 
         summarySheet.mergeCells(`G${listStartRow}:H${listStartRow}`);
-        summarySheet.getCell(`G${listStartRow}`).value = "📉 הוצאות לפי קטגוריה (תמונת מצב)";
+        summarySheet.getCell(`G${listStartRow}`).value = "📉 הוצאות לפי קטגוריה";
         summarySheet.getCell(`G${listStartRow}`).font = { bold: true };
         
         let expRow = listStartRow + 1;
-        const catStats = {};
-        expenses.forEach(exp => {
-            let val = parseFloat(exp.amount)||0;
-            if(exp.currency==='ILS') val*=0.26;
-            if(exp.currency==='USD') val*=0.95;
-            const reason = exp.reason || 'אחר';
-            catStats[reason] = (catStats[reason]||0) + val;
-        });
-
         Object.entries(catStats).sort(([,a], [,b]) => b - a).forEach(([name, val]) => {
             summarySheet.getCell(`G${expRow}`).value = name;
             summarySheet.getCell(`H${expRow}`).value = val;
