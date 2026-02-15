@@ -8,7 +8,7 @@ export default Deno.serve(async (req) => {
         // 1. Fetch Data
         const [income, expenses, pendingSales, tasks, caspars, moneyLocations] = await Promise.all([
             base44.asServiceRole.entities.TableData.list('-created_date', 1000),
-            base44.asServiceRole.entities.Expense.list('-expense_date', 1000), // Sort by expense date
+            base44.asServiceRole.entities.Expense.list('-expense_date', 1000), 
             base44.asServiceRole.entities.PendingSale.list('-created_date', 1000),
             base44.asServiceRole.entities.Task.list('-due_date', 1000),
             base44.asServiceRole.entities.CasparFilling.list('-created_date', 1000),
@@ -25,173 +25,244 @@ export default Deno.serve(async (req) => {
             rtl: true
         }];
 
-        // --- Column Mappings (Hebrew Headers) ---
-        const columnMappings = {
+        // --- Configuration: Headers & Validations ---
+        const sheetConfigs = {
             TableData: {
-                order_number: "מספר הזמנה",
-                customer: "לקוח/ות",
-                departure_date: "תאריך עזיבה",
-                nights: "לילות",
-                gender: "מגדר",
-                hotel: "מלון",
-                company: "חברה",
-                sales_rep: "נציג מטפל",
-                eur_amount: "יורו (EUR)",
-                shekel_amount: "שקל (ILS)",
-                dollar_amount: "דולר (USD)",
-                bit_amount: "ביט (BIT)",
-                comments: "הערות",
-                eur_status: "סטטוס יורו",
-                requested_amount: "סכום מבוקש"
+                headers: {
+                    order_number: "מספר הזמנה",
+                    customer: "לקוח/ות",
+                    departure_date: "תאריך עזיבה",
+                    nights: "לילות",
+                    gender: "מגדר",
+                    hotel: "מלון",
+                    company: "חברה",
+                    sales_rep: "נציג מטפל",
+                    eur_amount: "יורו (EUR)",
+                    shekel_amount: "שקל (ILS)",
+                    dollar_amount: "דולר (USD)",
+                    bit_amount: "ביט (BIT)",
+                    comments: "הערות",
+                    eur_status: "סטטוס יורו",
+                    requested_amount: "סכום מבוקש"
+                },
+                validations: {
+                    gender: ["זכר", "נקבה", "מעורב"],
+                    company: ["קשרי תעופה", "נטו פאן"]
+                }
             },
             Expense: {
-                expense_date: "תאריך",
-                reason: "סיבה/קטגוריה",
-                recipient: "עבור מי/ספק",
-                amount: "סכום",
-                currency: "מטבע",
-                sales_rep: "נציג מבצע",
-                notes: "הערות",
-                returned_to_in_israel: "הוחזר ל-"
+                headers: {
+                    expense_date: "תאריך",
+                    reason: "סיבה/קטגוריה",
+                    recipient: "עבור מי/ספק",
+                    amount: "סכום",
+                    currency: "מטבע",
+                    sales_rep: "נציג מבצע",
+                    notes: "הערות",
+                    returned_to_in_israel: "הוחזר ל-"
+                },
+                validations: {
+                    currency: ["EUR", "ILS", "USD"],
+                    reason: [
+                        "יצא מהיעד", "החזר מלא", "החזר חלקי", "רכב", "אחר", 
+                        "משיכה לאדם", "תשלום לספק", "פיצוי קשרי תעופה", 
+                        "פיצוי נטו פאן", "פינוק ללקוחות", "פינוק לנציגים", "אשל"
+                    ]
+                }
             },
             PendingSale: {
-                order_number: "מספר הזמנה",
-                customer: "לקוח/ות",
-                sales_rep: "נציג",
-                eur_amount: "יורו (EUR)",
-                shekel_amount: "שקל (ILS)",
-                dollar_amount: "דולר (USD)",
-                bit_amount: "ביט (BIT)",
-                envelope_received: "התקבל מעטפה?",
-                comments: "הערות"
+                headers: {
+                    order_number: "מספר הזמנה",
+                    customer: "לקוח/ות",
+                    sales_rep: "נציג",
+                    eur_amount: "יורו (EUR)",
+                    shekel_amount: "שקל (ILS)",
+                    dollar_amount: "דולר (USD)",
+                    bit_amount: "ביט (BIT)",
+                    envelope_received: "התקבל מעטפה?",
+                    comments: "הערות"
+                },
+                validations: {
+                    envelope_received: ["TRUE", "FALSE"] // Excel boolean check
+                }
             },
             Task: {
-                title: "כותרת",
-                description: "תיאור",
-                status: "סטטוס",
-                priority: "עדיפות",
-                due_date: "תאריך יעד",
-                sales_rep: "נציג אחראי",
-                task_type: "סוג משימה",
-                amount: "סכום",
-                currency: "מטבע"
+                headers: {
+                    title: "כותרת",
+                    description: "תיאור",
+                    status: "סטטוס",
+                    due_date: "תאריך יעד",
+                    sales_rep: "נציג אחראי",
+                    task_type: "סוג משימה",
+                    amount: "סכום",
+                    currency: "מטבע"
+                },
+                validations: {
+                    status: ["todo", "done"],
+                    task_type: ["general", "refund", "supplier_payment", "add_event"],
+                    currency: ["EUR", "ILS", "USD"]
+                }
             },
             CasparFilling: {
-                full_name: "שם מלא",
-                phone_number: "טלפון",
-                hotel: "מלון",
-                departure_date: "תאריך עזיבה",
-                people_count: "כמות אנשים",
-                notification_sent: "התראה נשלחה"
+                headers: {
+                    full_name: "שם מלא",
+                    phone_number: "טלפון",
+                    hotel: "מלון",
+                    departure_date: "תאריך עזיבה",
+                    people_count: "כמות אנשים",
+                    notification_sent: "התראה נשלחה"
+                },
+                validations: {}
+            },
+            MoneyLocation: {
+                headers: {
+                    name: "שם המיקום",
+                    amount: "סכום",
+                    currency: "מטבע"
+                },
+                validations: {
+                    currency: ["EUR", "ILS", "USD"]
+                }
             }
         };
 
-        // --- Helper: Add Styled Data Sheet ---
-        const addDataSheet = (data, sheetName, entityType) => {
+        // --- Helper: Add Smart Table Sheet ---
+        const addSmartSheet = (data, sheetName, entityType) => {
             const sheet = workbook.addWorksheet(sheetName, {
-                views: [{ rightToLeft: true, showGridLines: true, state: 'frozen', ySplit: 1 }]
+                views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 1 }]
             });
 
-            if (!data || data.length === 0) {
-                sheet.addRow(["אין נתונים"]);
-                return;
-            }
-
-            // Determine columns based on mapping or data keys
-            const sample = data[0];
-            const mapping = columnMappings[entityType] || {};
+            const config = sheetConfigs[entityType] || { headers: {}, validations: {} };
+            const mapping = config.headers;
             
-            // Filter keys: ignore system fields and keys not in mapping (optional: show all if no mapping)
-            const keys = Object.keys(sample).filter(k => 
+            // 1. Prepare Columns
+            // Use mapped keys primarily, allow raw keys if data exists but not mapped
+            let columns = [];
+            const sample = data.length > 0 ? data[0] : {};
+            const dataKeys = Object.keys(sample).filter(k => 
                 !['id', 'created_by', 'updated_date', 'created_date'].includes(k)
             );
 
-            // Sort keys to put mapped ones first? Or just use defined order in mapping?
-            // Let's use the order defined in mapping if available, then extras
-            const mappedKeys = Object.keys(mapping);
-            const sortedKeys = [...mappedKeys.filter(k => keys.includes(k)), ...keys.filter(k => !mappedKeys.includes(k))];
+            // Defined headers first
+            Object.entries(mapping).forEach(([key, label]) => {
+                columns.push({ name: label, key: key, filterButton: true });
+            });
 
-            sheet.columns = sortedKeys.map(key => ({
-                header: mapping[key] || key,
-                key: key,
-                width: 20,
-                style: { alignment: { vertical: 'middle', horizontal: 'right' }, font: { name: 'Calibri', size: 11 } }
-            }));
+            // Extra headers from data
+            dataKeys.forEach(key => {
+                if (!mapping[key]) {
+                    columns.push({ name: key, key: key, filterButton: true });
+                }
+            });
 
-            // Style Header Row
-            const headerRow = sheet.getRow(1);
-            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12, name: 'Calibri' };
-            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate-900
-            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            headerRow.height = 30;
-
-            // Enable AutoFilter
-            sheet.autoFilter = {
-                from: { row: 1, column: 1 },
-                to: { row: 1, column: sheet.columns.length }
-            };
-
-            // Add Data
-            sheet.addRows(data);
-
-            // Conditional Formatting / Data Types
-            sheet.eachRow((row, rowNumber) => {
-                if (rowNumber === 1) return; // Skip header
-
-                sortedKeys.forEach((key, colIndex) => {
-                    const cell = row.getCell(colIndex + 1);
-                    const val = data[rowNumber - 2][key];
-
-                    // Date Formatting
-                    if (key.includes('date') && val) {
-                        // Assuming val is ISO string or YYYY-MM-DD
-                        cell.value = new Date(val);
-                        cell.numFmt = 'dd/mm/yyyy';
-                    }
+            // 2. Prepare Rows
+            const rows = data.map(item => {
+                const row = [];
+                columns.forEach(col => {
+                    let val = item[col.key];
                     
-                    // Boolean Formatting
-                    if (typeof val === 'boolean') {
-                        cell.value = val ? '✅' : '❌';
-                        cell.alignment = { horizontal: 'center' };
-                    }
+                    // Formatting logic
+                    if (col.key.includes('date') && val) val = new Date(val);
+                    if (typeof val === 'boolean') val = val ? 'כן' : 'לא';
+                    if (['amount', 'people_count', 'nights'].some(k => col.key.includes(k)) && val) val = parseFloat(val);
+                    
+                    row.push(val);
+                });
+                return row;
+            });
 
-                    // Currency / Number Formatting
-                    if (['amount', 'people_count', 'nights', 'scanned_count'].some(k => key.includes(k)) && !isNaN(parseFloat(val))) {
-                         cell.value = parseFloat(val);
-                         if (key.includes('amount')) cell.numFmt = '#,##0.00';
-                    }
+            // 3. Add Table
+            if (columns.length > 0) {
+                const tableConfig = {
+                    name: `${entityType}Table`,
+                    ref: 'A1',
+                    headerRow: true,
+                    totalsRow: true, // Enable totals row
+                    style: {
+                        theme: 'TableStyleMedium9', // Blue/Light style
+                        showRowStripes: true,
+                    },
+                    columns: columns.map(col => {
+                        // Add totals for numeric amount columns
+                        if (col.key.includes('amount') || col.key === 'people_count') {
+                            return { ...col, totalsRowFunction: 'sum' };
+                        }
+                        return col;
+                    }),
+                    rows: rows,
+                };
+                
+                sheet.addTable(tableConfig);
 
-                    // Status Coloring (Specific to Task/Status fields)
-                    if (key === 'status') {
-                        if (val === 'done') {
-                            cell.font = { color: { argb: 'FF16A34A' } }; // Green
-                        } else if (val === 'todo') {
-                            cell.font = { color: { argb: 'FFEAB308' } }; // Yellow/Orange
+                // 4. Post-Table Styling & Validation
+                const lastRowIdx = 1 + rows.length + 1; // Header + Data + Total
+
+                // Set Column Widths
+                sheet.columns.forEach(col => {
+                    col.width = 20; 
+                    col.alignment = { vertical: 'middle', horizontal: 'center' };
+                    if (col.key && (col.key.includes('title') || col.key.includes('description') || col.key.includes('comments'))) {
+                        col.width = 35; // Wider for text
+                        col.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
+                    }
+                });
+
+                // Apply Data Validations
+                Object.entries(config.validations).forEach(([key, options]) => {
+                    const colIndex = columns.findIndex(c => c.key === key);
+                    if (colIndex !== -1) {
+                        // Apply validation to the whole data column (e.g. A2:A1000)
+                        const colLetter = sheet.getColumn(colIndex + 1).letter;
+                        // Range from 2 to 9999 to allow future entry
+                        const range = `${colLetter}2:${colLetter}9999`;
+                        
+                        // We can't easily set validation on range string in ExcelJS, 
+                        // we loop through existing rows + some extra empty ones?
+                        // Better: Apply to current rows. For "Working file", user might need to copy-paste validation.
+                        // Excel Tables usually extend validation automatically to new rows!
+                        
+                        for (let r = 2; r <= rows.length + 50; r++) { // Apply to existing + 50 buffer rows
+                            sheet.getCell(`${colLetter}${r}`).dataValidation = {
+                                type: 'list',
+                                allowBlank: true,
+                                formulae: [`"${options.join(',')}"`],
+                                showErrorMessage: true,
+                                errorTitle: 'ערך לא חוקי',
+                                error: 'אנא בחר ערך מהרשימה'
+                            };
                         }
                     }
                 });
 
-                // Borders
-                row.eachCell((cell) => {
-                    cell.border = {
-                        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-                        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-                        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-                        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-                    };
+                // Format Numbers & Dates
+                columns.forEach((col, idx) => {
+                    const colLetter = sheet.getColumn(idx + 1).letter;
+                    const cellRange = `${colLetter}2:${colLetter}${rows.length + 1}`;
+                    
+                    if (col.key.includes('amount')) {
+                        sheet.getColumn(idx + 1).numFmt = '#,##0.00';
+                    }
+                    if (col.key.includes('date')) {
+                        sheet.getColumn(idx + 1).numFmt = 'dd/mm/yyyy';
+                    }
                 });
-            });
+            } else {
+                 sheet.addRow(["אין נתונים להצגה"]);
+            }
         };
 
-        // Add Sheets
-        addDataSheet(income, "צור הכנסה (Table)", "TableData");
-        addDataSheet(expenses, "הוצאות (Expenses)", "Expense");
-        addDataSheet(pendingSales, "מכירות בהמתנה", "PendingSale");
-        addDataSheet(tasks, "משימות (Tasks)", "Task");
-        addDataSheet(caspars, "כספרים", "CasparFilling");
-        addDataSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
+        // Add Smart Sheets
+        addSmartSheet(income, "הכנסות", "TableData");
+        addSmartSheet(expenses, "הוצאות", "Expense");
+        addSmartSheet(pendingSales, "מכירות בהמתנה", "PendingSale");
+        addSmartSheet(tasks, "משימות", "Task");
+        addSmartSheet(caspars, "כספרים", "CasparFilling");
+        addSmartSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
 
-        // --- Stats Logic (Same as before) ---
+        // --- Summary Sheet (Same Visuals, just referencing data) ---
+        // Calculating stats in JS still, as cross-sheet formulas to tables can be brittle in generation.
+        
+        // ... (Keep existing stats logic)
         const totals = {
             shekel: { income: 0, expenses: 0 },
             bit: { income: 0, expenses: 0 }, 
@@ -244,36 +315,17 @@ export default Deno.serve(async (req) => {
         const totalIncomeEurCombined = totals.eur.income + (totals.shekel.income * 0.26) + (totals.bit.income * 0.26) + (totals.usd.income * 0.95);
         const avgRevenuePerCustomer = totalCustomers > 0 ? totalIncomeEurCombined / totalCustomers : 0;
 
-        // --- Build "Bank Summary" Sheet (Styled like Website) ---
+        // Build Summary
         const summarySheet = workbook.addWorksheet("סיכום בנק", {
             views: [{ rightToLeft: true, showGridLines: false }]
         });
-        
-        // Move Summary sheet to be the first one
-        workbook.views[0].activeTab = 6; // Actually we want it first, but order is by creation. 
-        // ExcelJS doesn't support reordering easily, let's keep it last or create first next time.
-        // Re-ordering logic: we can't reorder easily in exceljs, so I'll leave it as added last (or I could have added it first).
-        // Since user sees it as a "Report", having it last or first is fine. 
-        // For now I'll leave order as is: Data sheets first, Summary last? 
-        // Actually user likely wants Summary FIRST.
-        // Let's re-arrange code order next time. For now, let's stick to valid logic.
 
-        // Column Setup (simulating grid)
         summarySheet.columns = [
-            { width: 3 },  // Spacer
-            { width: 25 }, // Col B
-            { width: 20 }, // Col C
-            { width: 20 }, // Col D
-            { width: 20 }, // Col E
-            { width: 3 },  // Spacer
-            { width: 25 }, // Col G
-            { width: 20 }, // Col H
-            { width: 3 }   // Spacer
+            { width: 3 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
+            { width: 3 }, { width: 25 }, { width: 20 }, { width: 3 }
         ];
 
         let currentRow = 2;
-
-        // Title
         summarySheet.mergeCells(`B${currentRow}:E${currentRow}`);
         const titleCell = summarySheet.getCell(`B${currentRow}`);
         titleCell.value = "טבלת בנק - סיכום מנהלים";
@@ -281,15 +333,8 @@ export default Deno.serve(async (req) => {
         titleCell.alignment = { horizontal: 'right' };
         currentRow += 2;
 
-        // --- 1. Top Cards (Stats) ---
-        
         const drawCard = (startCol, row, title, value, subtext) => {
-            const endCol = String.fromCharCode(startCol.charCodeAt(0) + 1); // Next char
-            
-            // Card Box
-            const range = `${startCol}${row}:${endCol}${row + 2}`;
-            
-            // Styles
+            const endCol = String.fromCharCode(startCol.charCodeAt(0) + 1);
             summarySheet.getCell(`${startCol}${row}`).value = title;
             summarySheet.getCell(`${startCol}${row}`).font = { bold: true, size: 11, color: { argb: 'FF64748B' }, name: 'Calibri' };
             summarySheet.getCell(`${startCol}${row}`).alignment = { vertical: 'bottom', horizontal: 'right' };
@@ -301,13 +346,10 @@ export default Deno.serve(async (req) => {
             summarySheet.getCell(`${startCol}${row+2}`).font = { size: 10, color: { argb: 'FF94A3B8' }, name: 'Calibri' };
             summarySheet.getCell(`${startCol}${row+2}`).alignment = { vertical: 'top', horizontal: 'right' };
 
-            // Border for the "Card" effect
             const topUserData = summarySheet.getCell(`${startCol}${row}`);
             topUserData.border = { top: {style:'medium', color: {argb:'FFE2E8F0'}}, left: {style:'medium', color: {argb:'FFE2E8F0'}}, right: {style:'medium', color: {argb:'FFE2E8F0'}} };
-            
             const middleUserData = summarySheet.getCell(`${startCol}${row+1}`);
             middleUserData.border = { left: {style:'medium', color: {argb:'FFE2E8F0'}}, right: {style:'medium', color: {argb:'FFE2E8F0'}} };
-
             const bottomUserData = summarySheet.getCell(`${startCol}${row+2}`);
             bottomUserData.border = { bottom: {style:'medium', color: {argb:'FFE2E8F0'}}, left: {style:'medium', color: {argb:'FFE2E8F0'}}, right: {style:'medium', color: {argb:'FFE2E8F0'}} };
         };
@@ -315,13 +357,10 @@ export default Deno.serve(async (req) => {
         drawCard('B', currentRow, "סה\"כ לקוחות", totalCustomers, "לקוחות בכל הקבוצות");
         drawCard('D', currentRow, "סה\"כ קבוצות", income.length, "הזמנות במערכת");
         drawCard('G', currentRow, "ממוצע ללקוח", `€${Math.round(avgRevenuePerCustomer)}`, "הכנסה ממוצעת משוערת");
-        
-        currentRow += 4; // Space after cards
+        currentRow += 4;
 
-        // --- 2. Main Table ---
-        
         const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
-
+        
         // Headers
         summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "תיאור";
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = "יורו (EUR)";
@@ -343,11 +382,10 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.income;
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.income;
         summarySheet.getCell(`${colMap.usd}${currentRow}`).value = totals.usd.income;
-
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
-            cell.font = { color: { argb: 'FF16A34A' }, bold: true }; // Green
+            cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
             cell.alignment = { horizontal: 'center' };
         });
         summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
@@ -359,11 +397,10 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.expenses;
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.expenses;
         summarySheet.getCell(`${colMap.usd}${currentRow}`).value = totals.usd.expenses;
-
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
-            cell.font = { color: { argb: 'FFDC2626' }, bold: true }; // Red
+            cell.font = { color: { argb: 'FFDC2626' }, bold: true };
             cell.alignment = { horizontal: 'center' };
         });
         summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
@@ -375,10 +412,9 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.income - totals.eur.expenses;
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.income - totals.shekel.expenses;
         summarySheet.getCell(`${colMap.usd}${currentRow}`).value = totals.usd.income - totals.usd.expenses;
-
         ['B','C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Slate-50
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
             cell.font = { bold: true, size: 12 };
             cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -389,26 +425,22 @@ export default Deno.serve(async (req) => {
 
         // Bit Footer
         summarySheet.getCell(`B${currentRow}`).value = "סיכום ביט";
-        summarySheet.mergeCells(`C${currentRow}:E${currentRow}`); // Merge rest
-        
-        const bitSummaryText = `קשרי תעופה: ₪${totals.bitKishrei.toLocaleString()}  |  נטו פאן: ₪${totals.bitNeto.toLocaleString()}  |  סה"כ: ₪${totals.bit.income.toLocaleString()}`;
-        summarySheet.getCell(`C${currentRow}`).value = bitSummaryText;
-
+        summarySheet.mergeCells(`C${currentRow}:E${currentRow}`);
+        summarySheet.getCell(`C${currentRow}`).value = `קשרי תעופה: ₪${totals.bitKishrei.toLocaleString()}  |  נטו פאן: ₪${totals.bitNeto.toLocaleString()}  |  סה"כ: ₪${totals.bit.income.toLocaleString()}`;
         ['B', 'C'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; // Blue-50
-            cell.font = { color: { argb: 'FF1E40AF' }, bold: true }; // Blue-800
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+            cell.font = { color: { argb: 'FF1E40AF' }, bold: true };
             cell.border = { top: { style: 'thin', color: { argb: 'FFBFDBFE' } } };
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
         });
         summarySheet.getRow(currentRow).height = 35;
-        
         currentRow += 3;
 
-        // --- 3. Side Lists ---
+        // Side Tables
         const listStartRow = currentRow;
         
-        // Sales Reps
+        // Reps
         summarySheet.mergeCells(`B${listStartRow}:C${listStartRow}`);
         const repHeader = summarySheet.getCell(`B${listStartRow}`);
         repHeader.value = "🏆 מכירות לפי נציג (יורו)";
@@ -416,20 +448,18 @@ export default Deno.serve(async (req) => {
         repHeader.border = { bottom: { style: 'thick', color: { argb: 'FFCBD5E1' } } };
         
         let repRow = listStartRow + 1;
-        Object.entries(salesRepStats)
-            .sort(([,a], [,b]) => b - a)
-            .forEach(([name, val]) => {
-                summarySheet.getCell(`B${repRow}`).value = name;
-                summarySheet.getCell(`C${repRow}`).value = val;
-                summarySheet.getCell(`C${repRow}`).numFmt = '#,##0 €';
-                if ((repRow - listStartRow) % 2 === 0) {
-                     summarySheet.getCell(`B${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-                     summarySheet.getCell(`C${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-                }
-                repRow++;
-            });
+        Object.entries(salesRepStats).sort(([,a], [,b]) => b - a).forEach(([name, val]) => {
+            summarySheet.getCell(`B${repRow}`).value = name;
+            summarySheet.getCell(`C${repRow}`).value = val;
+            summarySheet.getCell(`C${repRow}`).numFmt = '#,##0 €';
+            if ((repRow - listStartRow) % 2 === 0) {
+                 summarySheet.getCell(`B${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                 summarySheet.getCell(`C${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+            }
+            repRow++;
+        });
 
-        // Expenses
+        // Expenses Categories
         summarySheet.mergeCells(`G${listStartRow}:H${listStartRow}`);
         const expHeader = summarySheet.getCell(`G${listStartRow}`);
         expHeader.value = "📉 הוצאות לפי קטגוריה (יורו)";
@@ -437,20 +467,18 @@ export default Deno.serve(async (req) => {
         expHeader.border = { bottom: { style: 'thick', color: { argb: 'FFCBD5E1' } } };
 
         let expRow = listStartRow + 1;
-        Object.entries(categoryStats)
-            .sort(([,a], [,b]) => b - a)
-            .forEach(([name, val]) => {
-                summarySheet.getCell(`G${expRow}`).value = name;
-                summarySheet.getCell(`H${expRow}`).value = val;
-                summarySheet.getCell(`H${expRow}`).numFmt = '#,##0 €';
-                if ((expRow - listStartRow) % 2 === 0) {
-                     summarySheet.getCell(`G${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-                     summarySheet.getCell(`H${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-                }
-                expRow++;
-            });
+        Object.entries(categoryStats).sort(([,a], [,b]) => b - a).forEach(([name, val]) => {
+            summarySheet.getCell(`G${expRow}`).value = name;
+            summarySheet.getCell(`H${expRow}`).value = val;
+            summarySheet.getCell(`H${expRow}`).numFmt = '#,##0 €';
+            if ((expRow - listStartRow) % 2 === 0) {
+                 summarySheet.getCell(`G${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                 summarySheet.getCell(`H${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+            }
+            expRow++;
+        });
 
-        // 3. Upload Logic (same as before)
+        // Upload
         const buffer = await workbook.xlsx.writeBuffer();
         
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
