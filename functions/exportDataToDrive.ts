@@ -47,23 +47,23 @@ export default Deno.serve(async (req) => {
                 headers: {
                     order_number: "מספר הזמנה",
                     customer: "לקוח/ות",
-                    extracted_customer_count: "כמות לקוחות (חישוב)",
+                    extracted_customer_count: "כמות לקוחות",
                     departure_date: "תאריך עזיבה",
                     nights: "לילות",
                     gender: "מגדר",
                     hotel: "מלון",
                     company: "חברה",
                     sales_rep: "נציג מטפל",
-                    eur_amount: "יורו (EUR)",
-                    shekel_amount: "שקל (ILS)",
-                    dollar_amount: "דולר (USD)",
-                    bit_amount: "ביט (BIT)",
+                    eur_amount: "יורו",
+                    shekel_amount: "שקל",
+                    dollar_amount: "דולר",
+                    bit_amount: "ביט",
                     comments: "הערות",
                     requested_amount: "סכום מבוקש"
                 },
                 calculatedColumns: [
-                    { header: "ערך יורו משוקלל", formula: "=IFERROR(N([@[יורו (EUR)]]) + N([@[שקל (ILS)]])*0.26 + N([@[דולר (USD)]])*0.95 + N([@[ביט (BIT)]])*0.26, 0)" },
-                    { header: "סטטוס (חישוב)", formula: "=IFERROR(ROUND([@[ערך יורו משוקלל]] - N([@[סכום מבוקש]]), 2), 0)" }
+                    { header: "שווי ביורו", formula: "=IFERROR(N([@יורו]) + N([@שקל])*0.26 + N([@דולר])*0.95 + N([@ביט])*0.26, 0)" },
+                    { header: "סטטוס", formula: "=IFERROR(ROUND([@[שווי ביורו]] - N([@[סכום מבוקש]]), 2), 0)" }
                 ],
                 validations: {
                     gender: dropdowns.gender,
@@ -74,15 +74,15 @@ export default Deno.serve(async (req) => {
             Expense: {
                 headers: {
                     expense_date: "תאריך",
-                    reason: "סיבה/קטגוריה",
-                    recipient: "עבור מי/ספק",
+                    reason: "סיבה",
+                    recipient: "עבור מי",
                     amount: "סכום",
                     currency: "מטבע",
-                    sales_rep: "נציג מבצע",
+                    sales_rep: "נציג",
                     notes: "הערות"
                 },
                 calculatedColumns: [
-                    { header: "ערך יורו משוקלל", formula: "=IFERROR(IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
+                    { header: "שווי ביורו", formula: "=IFERROR(IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
                 ],
                 validations: {
                     currency: dropdowns.currency,
@@ -95,10 +95,10 @@ export default Deno.serve(async (req) => {
                     order_number: "מספר הזמנה",
                     customer: "לקוח/ות",
                     sales_rep: "נציג",
-                    eur_amount: "יורו (EUR)",
-                    shekel_amount: "שקל (ILS)",
-                    dollar_amount: "דולר (USD)",
-                    bit_amount: "ביט (BIT)",
+                    eur_amount: "יורו",
+                    shekel_amount: "שקל",
+                    dollar_amount: "דולר",
+                    bit_amount: "ביט",
                     envelope_received: "התקבל מעטפה?",
                     comments: "הערות"
                 },
@@ -146,7 +146,7 @@ export default Deno.serve(async (req) => {
                     currency: "מטבע"
                 },
                 calculatedColumns: [
-                     { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]])))" }
+                     { header: "שווי ביורו", formula: "=IFERROR(IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
                 ],
                 validations: {
                     currency: dropdowns.currency
@@ -276,7 +276,7 @@ export default Deno.serve(async (req) => {
 
                 // Conditional Formatting (Same as before)
                 if (entityType === 'TableData') {
-                    const statusColIndex = columns.findIndex(c => c.name === 'סטטוס (חישוב)');
+                    const statusColIndex = columns.findIndex(c => c.name === 'סטטוס');
                     if (statusColIndex !== -1) {
                         const colLetter = sheet.getColumn(statusColIndex + 1).letter;
                         sheet.addConditionalFormatting({
@@ -361,18 +361,18 @@ export default Deno.serve(async (req) => {
         };
 
         // Row 1 of Cards
-        drawFormulaCard('B', currentRow, "סה\"כ לקוחות", "=IFERROR(SUBTOTAL(109, IncomeTable[כמות לקוחות (חישוב)]), 0)", "לקוחות בכל הקבוצות");
+        drawFormulaCard('B', currentRow, "סה\"כ לקוחות", "=IFERROR(SUBTOTAL(109, IncomeTable[כמות לקוחות]), 0)", "לקוחות בכל הקבוצות");
         drawFormulaCard('E', currentRow, "סה\"כ קבוצות/מכירות", "=IFERROR(SUBTOTAL(103, IncomeTable[מספר הזמנה]), 0)", "הזמנות במערכת");
         drawFormulaCard('H', currentRow, "ממוצע ללקוח", "=IFERROR(K" + (currentRow+1) + "/B" + (currentRow+1) + ", 0)", "הכנסה ממוצעת", '#,##0 €');
 
         currentRow += 4;
 
         // Row 2 of Cards
-        drawFormulaCard('B', currentRow, "יתרה במיקומים", "=IFERROR(SUBTOTAL(109, LocationTable[ערך יורו משוקלל]), 0)", "כספות וארנקים", '#,##0 €');
-        drawFormulaCard('K', currentRow - 4, "סה\"כ הכנסה (משוערך)", "=IFERROR(SUBTOTAL(109, IncomeTable[ערך יורו משוקלל]), 0)", "שווי כולל ביורו", '#,##0 €'); // Hidden or placed side
+        drawFormulaCard('B', currentRow, "יתרה במיקומים", "=IFERROR(SUBTOTAL(109, LocationTable[שווי ביורו]), 0)", "כספות וארנקים", '#,##0 €');
+        drawFormulaCard('K', currentRow - 4, "סה\"כ הכנסה (משוערך)", "=IFERROR(SUBTOTAL(109, IncomeTable[שווי ביורו]), 0)", "שווי כולל ביורו", '#,##0 €'); // Hidden or placed side
         
         // Let's place Total Income clearly. I'll put it at E in 2nd row
-        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", "=IFERROR(SUBTOTAL(109, IncomeTable[ערך יורו משוקלל]), 0)", "שווי כולל ביורו", '#,##0 €');
+        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", "=IFERROR(SUBTOTAL(109, IncomeTable[שווי ביורו]), 0)", "שווי כולל ביורו", '#,##0 €');
 
         currentRow += 4;
 
@@ -393,9 +393,9 @@ export default Deno.serve(async (req) => {
         currentRow++;
 
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הכנסות";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[יורו (EUR)]), 0)" };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[שקל (ILS)]), 0)" };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[דולר (USD)]), 0)" };
+        summarySheet.getCell(`C${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[יורו]), 0)" };
+        summarySheet.getCell(`D${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[שקל]), 0)" };
+        summarySheet.getCell(`E${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[דולר]), 0)" };
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
@@ -431,9 +431,9 @@ export default Deno.serve(async (req) => {
         });
         currentRow++;
 
-        summarySheet.getCell(`B${currentRow}`).value = "סה\"כ ביט (BIT)";
+        summarySheet.getCell(`B${currentRow}`).value = "סה\"כ ביט";
         summarySheet.mergeCells(`C${currentRow}:E${currentRow}`);
-        summarySheet.getCell(`C${currentRow}`).value = { formula: "=SUBTOTAL(109, IncomeTable[ביט (BIT)])" };
+        summarySheet.getCell(`C${currentRow}`).value = { formula: "=SUBTOTAL(109, IncomeTable[ביט])" };
         summarySheet.getCell(`C${currentRow}`).numFmt = '₪#,##0';
         ['B','C'].forEach(col => {
              const cell = summarySheet.getCell(`${col}${currentRow}`);
