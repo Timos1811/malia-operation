@@ -24,6 +24,17 @@ export default Deno.serve(async (req) => {
             rtl: true
         }];
 
+        // --- Dropdown Lists (Validations) ---
+        const dropdowns = {
+            gender: "\"זכר,נקבה\"",
+            company: "\"נטו פאן,קשרי תעופה\"",
+            boolean: "\"כן,לא\"",
+            currency: "\"EUR,ILS,USD,BIT\"",
+            taskStatus: "\"todo,done\"", // Using raw values to match conditional formatting
+            taskType: "\"general,refund,supplier_payment,add_event\"",
+            expenseReason: "\"יצא מהיעד,החזר מלא,החזר חלקי,רכב,אחר,משיכה לאדם,תשלום לספק,פיצוי קשרי תעופה,פיצוי נטו פאן,פינוק ללקוחות,פינוק לנציגים,אשל\""
+        };
+
         // --- Config ---
         const sheetConfigs = {
             TableData: {
@@ -47,6 +58,10 @@ export default Deno.serve(async (req) => {
                     { header: "ערך יורו משוקלל", formula: "=[@[יורו (EUR)]] + [@[שקל (ILS)]]*0.26 + [@[דולר (USD)]]*0.95 + [@[ביט (BIT)]]*0.26" },
                     { header: "סטטוס (חישוב)", formula: "=ROUND([@[ערך יורו משוקלל]] - [@[סכום מבוקש]], 2)" }
                 ],
+                validations: {
+                    gender: dropdowns.gender,
+                    company: dropdowns.company
+                },
                 tableName: "IncomeTable"
             },
             Expense: {
@@ -62,6 +77,10 @@ export default Deno.serve(async (req) => {
                 calculatedColumns: [
                     { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", [@[סכום]]*0.26, IF([@מטבע]=\"USD\", [@[סכום]]*0.95, [@[סכום]]))" }
                 ],
+                validations: {
+                    currency: dropdowns.currency,
+                    reason: dropdowns.expenseReason
+                },
                 tableName: "ExpenseTable"
             },
             PendingSale: {
@@ -76,6 +95,9 @@ export default Deno.serve(async (req) => {
                     envelope_received: "התקבל מעטפה?",
                     comments: "הערות"
                 },
+                validations: {
+                    envelope_received: dropdowns.boolean
+                },
                 tableName: "PendingTable"
             },
             Task: {
@@ -89,6 +111,11 @@ export default Deno.serve(async (req) => {
                     amount: "סכום",
                     currency: "מטבע"
                 },
+                validations: {
+                    status: dropdowns.taskStatus,
+                    task_type: dropdowns.taskType,
+                    currency: dropdowns.currency
+                },
                 tableName: "TaskTable"
             },
             CasparFilling: {
@@ -99,6 +126,9 @@ export default Deno.serve(async (req) => {
                     departure_date: "תאריך עזיבה",
                     people_count: "כמות אנשים",
                     notification_sent: "התראה נשלחה"
+                },
+                validations: {
+                    notification_sent: dropdowns.boolean
                 },
                 tableName: "CasparTable"
             },
@@ -111,11 +141,14 @@ export default Deno.serve(async (req) => {
                 calculatedColumns: [
                      { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", [@[סכום]]*0.26, IF([@מטבע]=\"USD\", [@[סכום]]*0.95, [@[סכום]]))" }
                 ],
+                validations: {
+                    currency: dropdowns.currency
+                },
                 tableName: "LocationTable"
             }
         };
 
-        // --- Helper: Add Smart Table Sheet ---
+        // --- Helper: Add Smart Sheet ---
         const addSmartSheet = (data, sheetName, entityType) => {
             const sheet = workbook.addWorksheet(sheetName, {
                 views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 1 }]
@@ -128,19 +161,17 @@ export default Deno.serve(async (req) => {
             let columns = [];
             const sample = data.length > 0 ? data[0] : {};
             const dataKeys = Object.keys(sample).filter(k => 
-                !['id', 'created_by', 'updated_date', 'created_date', 'eur_status'].includes(k) // Exclude eur_status as we calculate it
+                !['id', 'created_by', 'updated_date', 'created_date', 'eur_status'].includes(k)
             );
 
             Object.entries(mapping).forEach(([key, label]) => {
                 columns.push({ name: label, key: key, filterButton: true });
             });
             
-            // Add extra data keys if not mapped
             dataKeys.forEach(key => {
                 if (!mapping[key]) columns.push({ name: key, key: key, filterButton: true });
             });
 
-            // Add Calculated Columns Headers
             if (config.calculatedColumns) {
                 config.calculatedColumns.forEach(calc => {
                     columns.push({ name: calc.header, totalsRowFunction: 'sum' });
@@ -158,7 +189,7 @@ export default Deno.serve(async (req) => {
                         if (['amount', 'people_count', 'nights'].some(k => col.key.includes(k)) && val) val = parseFloat(val);
                         row.push(val);
                     } else {
-                        row.push(null); // Placeholder for calculated formula columns
+                        row.push(null); 
                     }
                 });
                 return row;
@@ -183,16 +214,46 @@ export default Deno.serve(async (req) => {
                 
                 sheet.addTable(tableConfig);
 
-                // 4. Post-Processing: Formulas & Formatting
-                const totalRows = rows.length;
-                
-                // Apply Formulas to Calculated Columns
+                // 4. Post-Processing
+                const totalRows = rows.length || 1; 
+                // Apply validations to entire column range (e.g. D2:D1000)
+                // We go up to 1000 or more to allow user to add new rows with validation
+                const validationRangeEnd = 5000;
+
+                columns.forEach((col, idx) => {
+                    const colLetter = sheet.getColumn(idx + 1).letter;
+                    const colKey = col.key;
+                    
+                    // Formatting
+                    if (colKey && colKey.includes('amount') || (col.name && col.name.includes('ערך'))) {
+                        sheet.getColumn(idx + 1).numFmt = '#,##0.00';
+                    }
+                    if (colKey && colKey.includes('date')) {
+                        sheet.getColumn(idx + 1).numFmt = 'dd/mm/yyyy';
+                    }
+
+                    // Validation
+                    if (config.validations && config.validations[colKey]) {
+                        for (let r = 2; r <= validationRangeEnd; r++) {
+                            sheet.getCell(`${colLetter}${r}`).dataValidation = {
+                                type: 'list',
+                                allowBlank: true,
+                                formulae: [config.validations[colKey]],
+                                showErrorMessage: true,
+                                errorStyle: 'warning', // Warning allows custom values if needed, Stop prevents it
+                                errorTitle: 'ערך לא חוקי',
+                                error: 'אנא בחר ערך מהרשימה'
+                            };
+                        }
+                    }
+                });
+
+                // Apply Formulas
                 if (config.calculatedColumns) {
                     config.calculatedColumns.forEach(calc => {
                         const colIndex = columns.findIndex(c => c.name === calc.header);
                         if (colIndex !== -1) {
                             const colLetter = sheet.getColumn(colIndex + 1).letter;
-                            // Apply to all data rows
                             for (let r = 2; r <= totalRows + 1; r++) {
                                 sheet.getCell(`${colLetter}${r}`).value = { formula: calc.formula };
                             }
@@ -200,19 +261,7 @@ export default Deno.serve(async (req) => {
                     });
                 }
 
-                // Format Numbers & Dates
-                columns.forEach((col, idx) => {
-                    const colIdx = idx + 1;
-                    if (col.key && col.key.includes('amount') || (col.name && col.name.includes('ערך'))) {
-                        sheet.getColumn(colIdx).numFmt = '#,##0.00';
-                    }
-                    if (col.key && col.key.includes('date')) {
-                        sheet.getColumn(colIdx).numFmt = 'dd/mm/yyyy';
-                    }
-                });
-
-                // Conditional Formatting
-                // Example: Status column in Income Table
+                // Conditional Formatting (Same as before)
                 if (entityType === 'TableData') {
                     const statusColIndex = columns.findIndex(c => c.name === 'סטטוס (חישוב)');
                     if (statusColIndex !== -1) {
@@ -220,9 +269,9 @@ export default Deno.serve(async (req) => {
                         sheet.addConditionalFormatting({
                             ref: `${colLetter}2:${colLetter}9999`,
                             rules: [
-                                { type: 'cellIs', operator: 'greaterThan', formula: ['0'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } }, // Green
-                                { type: 'cellIs', operator: 'lessThan', formula: ['-0.01'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } }, // Red
-                                { type: 'cellIs', operator: 'between', formula: ['-0.01', '0.01'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } } // Blue (Balanced)
+                                { type: 'cellIs', operator: 'greaterThan', formula: ['0'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } },
+                                { type: 'cellIs', operator: 'lessThan', formula: ['-0.01'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } },
+                                { type: 'cellIs', operator: 'between', formula: ['-0.01', '0.01'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } }
                             ]
                         });
                     }
@@ -257,19 +306,17 @@ export default Deno.serve(async (req) => {
         addSmartSheet(caspars, "כספרים", "CasparFilling");
         addSmartSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
 
-        // --- Live Summary Sheet with Formulas ---
+        // --- Live Summary Sheet (Same as before) ---
         const summarySheet = workbook.addWorksheet("סיכום בנק", {
             views: [{ rightToLeft: true, showGridLines: false }]
         });
-
-        // Setup Layout
+        
         summarySheet.columns = [
             { width: 3 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
             { width: 3 }, { width: 25 }, { width: 20 }, { width: 3 }
         ];
 
         let currentRow = 2;
-        // Title
         summarySheet.mergeCells(`B${currentRow}:E${currentRow}`);
         const titleCell = summarySheet.getCell(`B${currentRow}`);
         titleCell.value = "טבלת בנק - סיכום חי (מקושר)";
@@ -277,7 +324,6 @@ export default Deno.serve(async (req) => {
         titleCell.alignment = { horizontal: 'right' };
         currentRow += 2;
 
-        // Top Cards (Formulas)
         const drawFormulaCard = (startCol, row, title, formula, subtext, format = '#,##0') => {
             const endCol = String.fromCharCode(startCol.charCodeAt(0) + 1);
             summarySheet.getCell(`${startCol}${row}`).value = title;
@@ -293,7 +339,6 @@ export default Deno.serve(async (req) => {
             summarySheet.getCell(`${startCol}${row+2}`).font = { size: 10, color: { argb: 'FF94A3B8' } };
             summarySheet.getCell(`${startCol}${row+2}`).alignment = { vertical: 'top', horizontal: 'right' };
 
-            // Borders
             [0,1,2].forEach(off => {
                  const cell = summarySheet.getCell(`${startCol}${row+off}`);
                  cell.border = { left: {style:'medium', color:{argb:'FFE2E8F0'}}, right: {style:'medium', color:{argb:'FFE2E8F0'}} };
@@ -302,18 +347,14 @@ export default Deno.serve(async (req) => {
             });
         };
 
-        // Note: SUBTOTAL(103) is COUNTA
         drawFormulaCard('B', currentRow, "סה\"כ מכירות", "=SUBTOTAL(103, IncomeTable[מספר הזמנה])", "הזמנות בטבלה");
-        // For average, we approximate using Total / Count
         drawFormulaCard('D', currentRow, "סה\"כ הכנסה (משוערך)", "=SUBTOTAL(109, IncomeTable[ערך יורו משוקלל])", "שווי כולל ביורו", '#,##0 €');
         drawFormulaCard('G', currentRow, "יתרה במיקומים", "=SUBTOTAL(109, LocationTable[ערך יורו משוקלל])", "כספות וארנקים", '#,##0 €');
         
         currentRow += 4;
 
-        // Main Summary Table with Formulas
         const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
         
-        // Headers
         summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "תיאור";
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = "יורו (EUR)";
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = "שקל (ILS)";
@@ -328,7 +369,6 @@ export default Deno.serve(async (req) => {
         });
         currentRow++;
 
-        // Income Row
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הכנסות";
         summarySheet.getCell(`C${currentRow}`).value = { formula: "=SUBTOTAL(109, IncomeTable[יורו (EUR)])" };
         summarySheet.getCell(`D${currentRow}`).value = { formula: "=SUBTOTAL(109, IncomeTable[שקל (ILS)])" };
@@ -342,7 +382,6 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
         currentRow++;
 
-        // Expense Row
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הוצאות";
         summarySheet.getCell(`C${currentRow}`).value = { formula: "=SUMIF(ExpenseTable[מטבע], \"EUR\", ExpenseTable[סכום])" };
         summarySheet.getCell(`D${currentRow}`).value = { formula: "=SUMIF(ExpenseTable[מטבע], \"ILS\", ExpenseTable[סכום])" };
@@ -356,7 +395,6 @@ export default Deno.serve(async (req) => {
         summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
         currentRow++;
 
-        // Balance Row
         summarySheet.getCell(`B${currentRow}`).value = "יתרה בקופה";
         summarySheet.getCell(`C${currentRow}`).value = { formula: "=C" + (currentRow-2) + "-C" + (currentRow-1) };
         summarySheet.getCell(`D${currentRow}`).value = { formula: "=D" + (currentRow-2) + "-D" + (currentRow-1) };
@@ -370,7 +408,6 @@ export default Deno.serve(async (req) => {
         });
         currentRow++;
 
-        // Bit Footer
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ ביט (BIT)";
         summarySheet.mergeCells(`C${currentRow}:E${currentRow}`);
         summarySheet.getCell(`C${currentRow}`).value = { formula: "=SUBTOTAL(109, IncomeTable[ביט (BIT)])" };
@@ -381,21 +418,13 @@ export default Deno.serve(async (req) => {
              cell.font = { color: { argb: 'FF1E40AF' }, bold: true };
         });
         currentRow += 3;
-
-        // Side Pivot-like Tables (Static for now as ExcelJS can't create Pivot Tables, but we can use SUMIFs for known categories if list is small, or keep static)
-        // Since category lists are dynamic, static export of current state is safest, but we can make the totals "Live" if we list all known categories.
-        // Let's stick to the previous static generation for the Breakdown tables BUT with a note that they are snapshots, OR use simple formulas if possible.
-        // For robustness, I'll generate them as static values because dynamic spill arrays (=UNIQUE) might not be supported in all Excel versions/ExcelJS.
         
         const listStartRow = currentRow;
-        
-        // Reps
         summarySheet.mergeCells(`B${listStartRow}:C${listStartRow}`);
         summarySheet.getCell(`B${listStartRow}`).value = "🏆 מכירות לפי נציג (תמונת מצב)";
         summarySheet.getCell(`B${listStartRow}`).font = { bold: true };
         
         let repRow = listStartRow + 1;
-        // Calculating stats here for snapshot
         const salesRepStats = {};
         income.forEach(row => {
             const total = (parseFloat(row.eur_amount)||0) + (parseFloat(row.shekel_amount)||0)*0.26 + (parseFloat(row.dollar_amount)||0)*0.95 + (parseFloat(row.bit_amount)||0)*0.26;
@@ -410,7 +439,6 @@ export default Deno.serve(async (req) => {
             repRow++;
         });
 
-        // Expenses
         summarySheet.mergeCells(`G${listStartRow}:H${listStartRow}`);
         summarySheet.getCell(`G${listStartRow}`).value = "📉 הוצאות לפי קטגוריה (תמונת מצב)";
         summarySheet.getCell(`G${listStartRow}`).font = { bold: true };
@@ -432,7 +460,6 @@ export default Deno.serve(async (req) => {
             expRow++;
         });
 
-        // Upload
         const buffer = await workbook.xlsx.writeBuffer();
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
         if (!accessToken) return Response.json({ error: "No Google Drive token" }, { status: 400 });
