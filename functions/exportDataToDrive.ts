@@ -269,9 +269,9 @@ export default Deno.serve(async (req) => {
                         sheet.addConditionalFormatting({
                             ref: `${colLetter}2:${colLetter}9999`,
                             rules: [
-                                { type: 'cellIs', operator: 'greaterThan', formula: ['0'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } },
-                                { type: 'cellIs', operator: 'lessThan', formula: ['-0.01'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } },
-                                { type: 'cellIs', operator: 'between', formula: ['-0.01', '0.01'], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } }
+                                { type: 'cellIs', operator: 'greaterThan', formulae: ['0'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } },
+                                { type: 'cellIs', operator: 'lessThan', formulae: ['-0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } },
+                                { type: 'cellIs', operator: 'between', formulae: ['-0.01', '0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } }
                             ]
                         });
                     }
@@ -284,8 +284,8 @@ export default Deno.serve(async (req) => {
                          sheet.addConditionalFormatting({
                             ref: `${colLetter}2:${colLetter}9999`,
                             rules: [
-                                { type: 'expression', formula: [`=$${colLetter}2="done"`], style: { fill: { type: 'pattern', bgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' }, strike: true } } },
-                                { type: 'expression', formula: [`=$${colLetter}2="todo"`], style: { fill: { type: 'pattern', bgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } }
+                                { type: 'expression', formulae: [`=$${colLetter}2="done"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' }, strike: true } } },
+                                { type: 'expression', formulae: [`=$${colLetter}2="todo"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } }
                             ]
                         });
                     }
