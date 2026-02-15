@@ -1,11 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import * as XLSX from 'npm:xlsx@0.18.5';
+import ExcelJS from 'npm:exceljs@4.4.0';
 
 export default Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
-        // 1. Fetch Data (Limit 1000 most recent records per entity)
+        // 1. Fetch Data
         const [income, expenses, pendingSales, tasks, caspars, moneyLocations] = await Promise.all([
             base44.asServiceRole.entities.TableData.list('-created_date', 1000),
             base44.asServiceRole.entities.Expense.list('-created_date', 1000),
@@ -16,31 +16,72 @@ export default Deno.serve(async (req) => {
         ]);
 
         // 2. Create Workbook
-        const wb = XLSX.utils.book_new();
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Base44 System';
+        workbook.created = new Date();
+        workbook.views = [{
+            x: 0, y: 0, width: 10000, height: 20000,
+            firstSheet: 0, activeTab: 0, visibility: 'visible',
+            rtl: true // Global RTL preference
+        }];
 
-        const addSheet = (data, name) => {
-            if (data && data.length > 0) {
-                const cleanData = data.map(item => {
-                    const { id, created_by, updated_date, ...rest } = item;
-                    return rest;
-                });
-                const ws = XLSX.utils.json_to_sheet(cleanData);
-                XLSX.utils.book_append_sheet(wb, ws, name);
-            } else {
-                const ws = XLSX.utils.json_to_sheet([{info: "אין נתונים"}]);
-                XLSX.utils.book_append_sheet(wb, ws, name);
+        // --- Helper: Add Styled Data Sheet ---
+        const addDataSheet = (data, sheetName) => {
+            const sheet = workbook.addWorksheet(sheetName, {
+                views: [{ rightToLeft: true, showGridLines: true }]
+            });
+
+            if (!data || data.length === 0) {
+                sheet.addRow(["אין נתונים"]);
+                return;
             }
+
+            // Clean data (remove system fields)
+            const cleanData = data.map(item => {
+                const { id, created_by, updated_date, ...rest } = item;
+                return rest;
+            });
+
+            // Set Columns based on keys
+            const keys = Object.keys(cleanData[0]);
+            sheet.columns = keys.map(key => ({
+                header: key,
+                key: key,
+                width: 20,
+                style: { alignment: { vertical: 'middle', horizontal: 'right' } }
+            }));
+
+            // Style Header Row
+            const headerRow = sheet.getRow(1);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate-900
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            headerRow.height = 30;
+
+            // Add Data
+            sheet.addRows(cleanData);
+
+            // Add Borders
+            sheet.eachRow((row, rowNumber) => {
+                row.eachCell((cell) => {
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                    };
+                });
+            });
         };
 
-        addSheet(income, "הכנסות");
-        addSheet(expenses, "הוצאות");
-        addSheet(pendingSales, "מכירות בהמתנה");
-        addSheet(tasks, "משימות");
-        addSheet(caspars, "כספרים");
-        addSheet(moneyLocations, "מיקומי כסף");
+        addDataSheet(income, "הכנסות");
+        addDataSheet(expenses, "הוצאות");
+        addDataSheet(pendingSales, "מכירות בהמתנה");
+        addDataSheet(tasks, "משימות");
+        addDataSheet(caspars, "כספרים");
+        addDataSheet(moneyLocations, "מיקומי כסף");
 
-        // --- Calculate Bank Table Summary (Replicating BankTable.js logic) ---
-        
+        // --- Calculate Summary Stats ---
         const totals = {
             shekel: { income: 0, expenses: 0 },
             bit: { income: 0, expenses: 0 }, 
@@ -54,7 +95,7 @@ export default Deno.serve(async (req) => {
         const salesRepStats = {};
         let totalCustomers = 0;
 
-        // Calculate Income
+        // Process Income
         income.forEach(row => {
             const shekel = parseFloat(row.shekel_amount) || 0;
             const bit = parseFloat(row.bit_amount) || 0;
@@ -69,113 +110,202 @@ export default Deno.serve(async (req) => {
             if (row.company === 'נטו פאן') totals.bitNeto += bit;
             else totals.bitKishrei += bit;
 
-            // Count customers
             const customerStr = String(row.customer || '');
             const numberMatch = customerStr.match(/\d+/);
-            const customerCount = numberMatch ? parseInt(numberMatch[0]) : 0;
-            totalCustomers += customerCount;
+            totalCustomers += numberMatch ? parseInt(numberMatch[0]) : 0;
 
-            // Sales Rep Stats (Normalized to EUR)
             const repName = row.sales_rep || 'ללא נציג';
             const totalValueInEur = eur + (shekel * 0.26) + (bit * 0.26) + (usd * 0.95);
             salesRepStats[repName] = (salesRepStats[repName] || 0) + totalValueInEur;
         });
 
-        // Calculate Expenses
+        // Process Expenses
         expenses.forEach(exp => {
             const amount = parseFloat(exp.amount) || 0;
             if (exp.currency === 'ILS') totals.shekel.expenses += amount;
             else if (exp.currency === 'USD') totals.usd.expenses += amount;
             else if (exp.currency === 'EUR') totals.eur.expenses += amount;
 
-            // Category breakdown (Normalized to EUR)
             let amountInEur = amount;
             if (exp.currency === 'ILS') amountInEur = amount * 0.26;
             else if (exp.currency === 'USD') amountInEur = amount * 0.95;
             
-            if (exp.reason) {
-                categoryStats[exp.reason] = (categoryStats[exp.reason] || 0) + amountInEur;
-            }
+            if (exp.reason) categoryStats[exp.reason] = (categoryStats[exp.reason] || 0) + amountInEur;
         });
 
-        // Global Stats
         const totalIncomeEurCombined = totals.eur.income + (totals.shekel.income * 0.26) + (totals.bit.income * 0.26) + (totals.usd.income * 0.95);
         const avgRevenuePerCustomer = totalCustomers > 0 ? totalIncomeEurCombined / totalCustomers : 0;
 
-        // --- Build "Bank" Sheet ---
-        const wsBank = XLSX.utils.aoa_to_sheet([["דוח בנק מקיף"]]); // Start with title
+        // --- Build Styled "Bank Summary" Sheet ---
+        const summarySheet = workbook.addWorksheet("סיכום בנק", {
+            views: [{ rightToLeft: true, showGridLines: false }]
+        });
 
-        let currentRow = 2; // 0-indexed in code logic, but let's track row number for placement
+        // Title
+        summarySheet.mergeCells('A1:E1');
+        const titleCell = summarySheet.getCell('A1');
+        titleCell.value = "דוח בנק מקיף";
+        titleCell.font = { bold: true, size: 20, color: { argb: 'FF1E293B' } };
+        titleCell.alignment = { horizontal: 'center' };
 
-        // 1. General Stats
-        XLSX.utils.sheet_add_json(wsBank, [
-            { "מדד": "סה\"כ לקוחות", "ערך": totalCustomers },
-            { "מדד": "סה\"כ קבוצות/מכירות", "ערך": income.length },
-            { "מדד": "ממוצע הכנסה ללקוח (יורו)", "ערך": Math.round(avgRevenuePerCustomer) }
-        ], { origin: `A${currentRow}` });
-        currentRow += 5;
+        // --- 1. General Stats Table ---
+        let currentRow = 3;
+        const addSectionTitle = (title, row) => {
+            summarySheet.mergeCells(`A${row}:C${row}`);
+            const cell = summarySheet.getCell(`A${row}`);
+            cell.value = title;
+            cell.font = { bold: true, size: 14, color: { argb: 'FF334155' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+            cell.border = { bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
+        };
 
-        // 2. Main Currency Table
-        const currencyTable = [
-            { "מטבע": "יורו (EUR)", "הכנסות": totals.eur.income, "הוצאות": totals.eur.expenses, "יתרה": totals.eur.income - totals.eur.expenses },
-            { "מטבע": "שקל (ILS)", "הכנסות": totals.shekel.income, "הוצאות": totals.shekel.expenses, "יתרה": totals.shekel.income - totals.shekel.expenses },
-            { "מטבע": "דולר (USD)", "הכנסות": totals.usd.income, "הוצאות": totals.usd.expenses, "יתרה": totals.usd.income - totals.usd.expenses },
-            { "מטבע": "ביט (BIT)", "הכנסות": totals.bit.income, "הוצאות": 0, "יתרה": totals.bit.income } // Bit expenses not tracked separately in totals object structure but usually 0
+        addSectionTitle("מדדים כלליים", currentRow);
+        currentRow++;
+
+        const generalStatsData = [
+            ["סה\"כ לקוחות", totalCustomers],
+            ["סה\"כ מכירות", income.length],
+            ["הכנסה ממוצעת ללקוח (€)", Math.round(avgRevenuePerCustomer)]
         ];
-        XLSX.utils.sheet_add_json(wsBank, currencyTable, { origin: `A${currentRow}` });
-        currentRow += 6;
 
-        // 3. Bit Breakdown
-        XLSX.utils.sheet_add_json(wsBank, [
-            { "פירוט ביט": "קשרי תעופה", "סכום": totals.bitKishrei },
-            { "פירוט ביט": "נטו פאן", "סכום": totals.bitNeto },
-            { "פירוט ביט": "סה\"כ ביט", "סכום": totals.bit.income }
-        ], { origin: `A${currentRow}` });
-        currentRow += 5;
+        generalStatsData.forEach(([label, value]) => {
+            const row = summarySheet.getRow(currentRow);
+            row.getCell(1).value = label;
+            row.getCell(2).value = value;
+            row.getCell(1).font = { bold: true };
+            currentRow++;
+        });
+        currentRow += 2;
 
-        // 4. Money Locations
-        const locationsTable = moneyLocations.map(loc => ({
-            "שם המיקום": loc.name,
-            "סכום": loc.amount,
-            "מטבע": loc.currency
-        }));
-        if (locationsTable.length > 0) {
-             XLSX.utils.sheet_add_json(wsBank, locationsTable, { origin: `A${currentRow}` });
-             currentRow += locationsTable.length + 2;
-        }
+        // --- 2. Main Currency Table ---
+        addSectionTitle("סיכום לפי מטבעות", currentRow);
+        currentRow++;
 
-        XLSX.utils.book_append_sheet(wb, wsBank, "סיכום בנק");
+        // Headers
+        const currencyHeaders = ["מטבע", "הכנסות", "הוצאות", "יתרה"];
+        const headerRow = summarySheet.getRow(currentRow);
+        currencyHeaders.forEach((h, i) => {
+            const cell = headerRow.getCell(i + 1);
+            cell.value = h;
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
+            cell.alignment = { horizontal: 'center' };
+        });
+        currentRow++;
 
-        // 5. Sales by Rep (New Sheet)
-        const salesRepData = Object.entries(salesRepStats)
-            .map(([name, value]) => ({ "נציג": name, "סה\"כ מכירות (יורו)": Math.round(value) }))
-            .sort((a, b) => b["סה\"כ מכירות (יורו)"] - a["סה\"כ מכירות (יורו)"]);
+        const currencyData = [
+            ["יורו (EUR)", totals.eur.income, totals.eur.expenses],
+            ["שקל (ILS)", totals.shekel.income, totals.shekel.expenses],
+            ["דולר (USD)", totals.usd.income, totals.usd.expenses],
+            ["ביט (BIT)", totals.bit.income, 0]
+        ];
+
+        currencyData.forEach(([currency, inc, exp]) => {
+            const balance = inc - exp;
+            const row = summarySheet.getRow(currentRow);
+            
+            row.getCell(1).value = currency;
+            
+            const incCell = row.getCell(2);
+            incCell.value = inc;
+            incCell.numFmt = '#,##0';
+            incCell.font = { color: { argb: 'FF16A34A' } }; // Green
+
+            const expCell = row.getCell(3);
+            expCell.value = exp;
+            expCell.numFmt = '#,##0';
+            expCell.font = { color: { argb: 'FFDC2626' } }; // Red
+
+            const balCell = row.getCell(4);
+            balCell.value = balance;
+            balCell.numFmt = '#,##0';
+            balCell.font = { bold: true, color: { argb: balance >= 0 ? 'FF000000' : 'FFDC2626' } };
+
+            currentRow++;
+        });
+        currentRow += 2;
+
+        // --- 3. Additional Tables (Side by Side) ---
+        const startRow = currentRow;
         
-        const wsRep = XLSX.utils.json_to_sheet(salesRepData);
-        XLSX.utils.book_append_sheet(wb, wsRep, "מכירות לפי נציג");
+        // Bit Table (Left)
+        addSectionTitle("פירוט ביט", startRow);
+        let bitRow = startRow + 1;
+        
+        [["קשרי תעופה", totals.bitKishrei], ["נטו פאן", totals.bitNeto]].forEach(([label, val]) => {
+            summarySheet.getCell(`A${bitRow}`).value = label;
+            summarySheet.getCell(`B${bitRow}`).value = val;
+            summarySheet.getCell(`B${bitRow}`).numFmt = '#,##0';
+            bitRow++;
+        });
 
-        // 6. Expenses by Category (New Sheet)
-        const expensesCatData = Object.entries(categoryStats)
-            .map(([name, value]) => ({ "קטגוריית הוצאה": name, "סה\"כ (יורו)": Math.round(value) }))
-            .sort((a, b) => b["סה\"כ (יורו)"] - a["סה\"כ (יורו)"]);
+        // Sales Reps (Right - Column E)
+        const repStartRow = startRow;
+        summarySheet.mergeCells(`E${repStartRow}:F${repStartRow}`);
+        const repTitle = summarySheet.getCell(`E${repStartRow}`);
+        repTitle.value = "מכירות לפי נציג (יורו)";
+        repTitle.font = { bold: true, color: { argb: 'FF334155' } };
+        repTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        
+        let repRow = repStartRow + 1;
+        // Headers
+        summarySheet.getCell(`E${repRow}`).value = "נציג";
+        summarySheet.getCell(`F${repRow}`).value = "סה\"כ";
+        summarySheet.getRow(repRow).getCell(5).font = { bold: true };
+        summarySheet.getRow(repRow).getCell(6).font = { bold: true };
+        repRow++;
 
-        const wsExpCat = XLSX.utils.json_to_sheet(expensesCatData);
-        XLSX.utils.book_append_sheet(wb, wsExpCat, "התפלגות הוצאות");
+        Object.entries(salesRepStats)
+            .sort(([,a], [,b]) => b - a)
+            .forEach(([name, val]) => {
+                summarySheet.getCell(`E${repRow}`).value = name;
+                summarySheet.getCell(`F${repRow}`).value = Math.round(val);
+                summarySheet.getCell(`F${repRow}`).numFmt = '#,##0 €';
+                repRow++;
+            });
 
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        // Expenses (Far Right - Column H)
+        const expStartRow = startRow;
+        summarySheet.mergeCells(`H${expStartRow}:I${expStartRow}`);
+        const expTitle = summarySheet.getCell(`H${expStartRow}`);
+        expTitle.value = "הוצאות לפי קטגוריה (יורו)";
+        expTitle.font = { bold: true, color: { argb: 'FF334155' } };
+        expTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+        let expRow = expStartRow + 1;
+        summarySheet.getCell(`H${expRow}`).value = "קטגוריה";
+        summarySheet.getCell(`I${expRow}`).value = "סה\"כ";
+        summarySheet.getRow(expRow).getCell(8).font = { bold: true };
+        summarySheet.getRow(expRow).getCell(9).font = { bold: true };
+        expRow++;
+
+        Object.entries(categoryStats)
+            .sort(([,a], [,b]) => b - a)
+            .forEach(([name, val]) => {
+                summarySheet.getCell(`H${expRow}`).value = name;
+                summarySheet.getCell(`I${expRow}`).value = Math.round(val);
+                summarySheet.getCell(`I${expRow}`).numFmt = '#,##0 €';
+                expRow++;
+            });
+
+        // Adjust Column Widths
+        summarySheet.columns = [
+            { width: 20 }, { width: 15 }, { width: 15 }, { width: 15 }, // A-D
+            { width: 20 }, { width: 15 }, // E-F
+            { width: 5 }, // G (Spacer)
+            { width: 25 }, { width: 15 } // H-I
+        ];
 
         // 3. Upload to Google Drive
-        const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
+        const buffer = await workbook.xlsx.writeBuffer();
         
-        if (!accessToken) {
-            return Response.json({ error: "No Google Drive access token found" }, { status: 400 });
-        }
+        const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
+        if (!accessToken) return Response.json({ error: "No Google Drive token" }, { status: 400 });
 
-        // --- Folder Handling ---
+        // ... Folder and Upload Logic ...
         const folderName = "אקסל";
         let folderId = null;
 
-        // Search for existing folder
         const searchRes = await fetch(
             `https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`, 
             { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -183,47 +313,30 @@ export default Deno.serve(async (req) => {
 
         if (searchRes.ok) {
             const searchData = await searchRes.json();
-            if (searchData.files && searchData.files.length > 0) {
-                folderId = searchData.files[0].id;
-            }
+            if (searchData.files?.length > 0) folderId = searchData.files[0].id;
         }
 
-        // Create folder if not found
         if (!folderId) {
-            const createFolderRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+            const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: folderName,
-                    mimeType: 'application/vnd.google-apps.folder'
-                })
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' })
             });
-            
-            if (createFolderRes.ok) {
-                const folderData = await createFolderRes.json();
-                folderId = folderData.id;
-            } else {
-                console.error("Failed to create folder", await createFolderRes.text());
-                // Fallback to root if folder creation fails
-            }
+            if (createRes.ok) folderId = (await createRes.json()).id;
         }
 
-        // --- File Upload ---
         const dateStr = new Date().toISOString().split('T')[0];
         const fileName = `Backup_Data_${dateStr}.xlsx`;
-
+        
         const metadata = {
             name: fileName,
             mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            parents: folderId ? [folderId] : [] // Upload to folder if exists
+            parents: folderId ? [folderId] : []
         };
 
         const formData = new FormData();
         formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        formData.append('file', new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        formData.append('file', new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
 
         const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
             method: 'POST',
@@ -231,12 +344,10 @@ export default Deno.serve(async (req) => {
             body: formData
         });
 
-        if (!uploadRes.ok) {
-            throw new Error(`Drive Upload Failed: ${await uploadRes.text()}`);
-        }
-
+        if (!uploadRes.ok) throw new Error(await uploadRes.text());
         const driveData = await uploadRes.json();
-        return Response.json({ success: true, fileId: driveData.id, fileName, folderId });
+        
+        return Response.json({ success: true, fileId: driveData.id });
 
     } catch (error) {
         console.error(error);
