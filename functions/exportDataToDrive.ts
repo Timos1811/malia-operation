@@ -61,16 +61,7 @@ export default Deno.serve(async (req) => {
                     comments: "הערות",
                     requested_amount: "סכום מבוקש"
                 },
-                calculatedColumns: [
-                    { 
-                        header: "שווי ביורו", 
-                        formula: (r, kMap) => `=IFERROR(N(${kMap.eur_amount}${r}) + N(${kMap.shekel_amount}${r})*0.26 + N(${kMap.dollar_amount}${r})*0.95 + N(${kMap.bit_amount}${r})*0.26, 0)` 
-                    },
-                    { 
-                        header: "סטטוס", 
-                        formula: (r, kMap, nMap) => `=IFERROR(ROUND(${nMap['שווי ביורו']}${r} - N(${kMap.requested_amount}${r}), 2), 0)` 
-                    }
-                ],
+
                 validations: {
                     gender: dropdowns.gender,
                     company: dropdowns.company
@@ -87,12 +78,7 @@ export default Deno.serve(async (req) => {
                     sales_rep: "נציג",
                     notes: "הערות"
                 },
-                calculatedColumns: [
-                    { 
-                        header: "שווי ביורו", 
-                        formula: (r, kMap) => `=IFERROR(IF(${kMap.currency}${r}="ILS", N(${kMap.amount}${r})*0.26, IF(${kMap.currency}${r}="USD", N(${kMap.amount}${r})*0.95, N(${kMap.amount}${r}))), 0)` 
-                    }
-                ],
+
                 validations: {
                     currency: dropdowns.currency,
                     reason: dropdowns.expenseReason
@@ -154,12 +140,7 @@ export default Deno.serve(async (req) => {
                     amount: "סכום",
                     currency: "מטבע"
                 },
-                calculatedColumns: [
-                     { 
-                        header: "שווי ביורו", 
-                        formula: (r, kMap) => `=IFERROR(IF(${kMap.currency}${r}="ILS", N(${kMap.amount}${r})*0.26, IF(${kMap.currency}${r}="USD", N(${kMap.amount}${r})*0.95, N(${kMap.amount}${r}))), 0)` 
-                     }
-                ],
+
                 validations: {
                     currency: dropdowns.currency
                 },
@@ -425,15 +406,25 @@ export default Deno.serve(async (req) => {
         // Row 1 of Cards
         drawFormulaCard('B', currentRow, "סה\"כ לקוחות", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'extracted_customer_count')}), 0)`, "לקוחות בכל הקבוצות");
         drawFormulaCard('E', currentRow, "סה\"כ קבוצות/מכירות", `=IFERROR(SUBTOTAL(103, ${getRange('TableData', 'order_number')}), 0)`, "הזמנות במערכת");
-        drawFormulaCard('H', currentRow, "ממוצע ללקוח", `=IFERROR(K${currentRow+1}/B${currentRow+1}, 0)`, "הכנסה ממוצעת", '#,##0 €');
+        
+        // Calculate Total Income (Estimated) using raw columns: EUR + ILS*0.26 + USD*0.95 + BIT*0.26
+        const totalIncomeFormula = `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'eur_amount')}) + SUBTOTAL(109, ${getRange('TableData', 'shekel_amount')})*0.26 + SUBTOTAL(109, ${getRange('TableData', 'dollar_amount')})*0.95 + SUBTOTAL(109, ${getRange('TableData', 'bit_amount')})*0.26, 0)`;
+        
+        drawFormulaCard('H', currentRow, "ממוצע ללקוח", `=IFERROR(E${currentRow+5}/B${currentRow+1}, 0)`, "הכנסה ממוצעת", '#,##0 €'); // Pointing to Total Income below
 
         currentRow += 4;
 
         // Row 2 of Cards
-        drawFormulaCard('B', currentRow, "יתרה במיקומים", `=IFERROR(SUBTOTAL(109, ${getRange('MoneyLocation', 'שווי ביורו', true)}), 0)`, "כספות וארנקים", '#,##0 €');
-        // drawFormulaCard('K', currentRow - 4, "סה\"כ הכנסה (משוערך)", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'שווי ביורו', true)}), 0)`, "שווי כולל ביורו", '#,##0 €'); // Hidden/Dup
+        // Calculate Location Balance using SUMPRODUCT (approximate for summary) or SUMIFs. Since MoneyLocation is small and usually not filtered, SUMIF/SUMPRODUCT is fine.
+        // MoneyLocation Columns: Amount (B usually), Currency (C usually).
+        // Formula: SUMIF(Cur, "EUR", Amt) + SUMIF(Cur, "ILS", Amt)*0.26 + ...
+        const locAmt = getRange('MoneyLocation', 'amount');
+        const locCur = getRange('MoneyLocation', 'currency');
+        const locationBalanceFormula = `=IFERROR(SUMIF(${locCur}, "EUR", ${locAmt}) + SUMIF(${locCur}, "ILS", ${locAmt})*0.26 + SUMIF(${locCur}, "USD", ${locAmt})*0.95, 0)`;
+
+        drawFormulaCard('B', currentRow, "יתרה במיקומים", locationBalanceFormula, "כספות וארנקים", '#,##0 €');
         
-        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'שווי ביורו', true)}), 0)`, "שווי כולל ביורו", '#,##0 €');
+        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", totalIncomeFormula, "שווי כולל ביורו", '#,##0 €');
 
         currentRow += 4;
 
