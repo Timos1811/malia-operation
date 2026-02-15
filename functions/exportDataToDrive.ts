@@ -15,6 +15,12 @@ export default Deno.serve(async (req) => {
             base44.asServiceRole.entities.MoneyLocation.list('-created_date', 1000)
         ]);
 
+        // Pre-process income to extract customer count
+        income.forEach(item => {
+            const match = String(item.customer || '').match(/\d+/);
+            item.extracted_customer_count = match ? parseInt(match[0]) : 0;
+        });
+
         const workbook = new ExcelJS.Workbook();
         workbook.creator = 'Base44 System';
         workbook.created = new Date();
@@ -41,6 +47,7 @@ export default Deno.serve(async (req) => {
                 headers: {
                     order_number: "מספר הזמנה",
                     customer: "לקוח/ות",
+                    extracted_customer_count: "כמות לקוחות (חישוב)",
                     departure_date: "תאריך עזיבה",
                     nights: "לילות",
                     gender: "מגדר",
@@ -318,8 +325,8 @@ export default Deno.serve(async (req) => {
         });
         
         summarySheet.columns = [
-            { width: 3 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
-            { width: 3 }, { width: 25 }, { width: 20 }, { width: 3 }
+            { width: 3 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 25 },
+            { width: 3 }, { width: 25 }, { width: 20 }, { width: 3 }, { width: 3 }, { width: 25 }
         ];
 
         let currentRow = 2;
@@ -353,10 +360,20 @@ export default Deno.serve(async (req) => {
             });
         };
 
-        drawFormulaCard('B', currentRow, "סה\"כ מכירות", "=IFERROR(SUBTOTAL(103, IncomeTable[מספר הזמנה]), 0)", "הזמנות בטבלה");
-        drawFormulaCard('D', currentRow, "סה\"כ הכנסה (משוערך)", "=IFERROR(SUBTOTAL(109, IncomeTable[ערך יורו משוקלל]), 0)", "שווי כולל ביורו", '#,##0 €');
-        drawFormulaCard('G', currentRow, "יתרה במיקומים", "=IFERROR(SUBTOTAL(109, LocationTable[ערך יורו משוקלל]), 0)", "כספות וארנקים", '#,##0 €');
+        // Row 1 of Cards
+        drawFormulaCard('B', currentRow, "סה\"כ לקוחות", "=IFERROR(SUBTOTAL(109, IncomeTable[כמות לקוחות (חישוב)]), 0)", "לקוחות בכל הקבוצות");
+        drawFormulaCard('E', currentRow, "סה\"כ קבוצות/מכירות", "=IFERROR(SUBTOTAL(103, IncomeTable[מספר הזמנה]), 0)", "הזמנות במערכת");
+        drawFormulaCard('H', currentRow, "ממוצע ללקוח", "=IFERROR(K" + (currentRow+1) + "/B" + (currentRow+1) + ", 0)", "הכנסה ממוצעת", '#,##0 €');
+
+        currentRow += 4;
+
+        // Row 2 of Cards
+        drawFormulaCard('B', currentRow, "יתרה במיקומים", "=IFERROR(SUBTOTAL(109, LocationTable[ערך יורו משוקלל]), 0)", "כספות וארנקים", '#,##0 €');
+        drawFormulaCard('K', currentRow - 4, "סה\"כ הכנסה (משוערך)", "=IFERROR(SUBTOTAL(109, IncomeTable[ערך יורו משוקלל]), 0)", "שווי כולל ביורו", '#,##0 €'); // Hidden or placed side
         
+        // Let's place Total Income clearly. I'll put it at E in 2nd row
+        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", "=IFERROR(SUBTOTAL(109, IncomeTable[ערך יורו משוקלל]), 0)", "שווי כולל ביורו", '#,##0 €');
+
         currentRow += 4;
 
         const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
