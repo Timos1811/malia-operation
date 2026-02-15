@@ -39,6 +39,38 @@ export default Deno.serve(async (req) => {
         addSheet(caspars, "כספרים");
         addSheet(moneyLocations, "מיקומי כסף");
 
+        // Calculate Bank Table Summary
+        const summary = {
+            EUR: { income: 0, expense: 0 },
+            ILS: { income: 0, expense: 0 },
+            USD: { income: 0, expense: 0 },
+            BIT: { income: 0, expense: 0 }
+        };
+
+        income.forEach(row => {
+            summary.EUR.income += parseFloat(row.eur_amount) || 0;
+            summary.ILS.income += parseFloat(row.shekel_amount) || 0;
+            summary.USD.income += parseFloat(row.dollar_amount) || 0;
+            summary.BIT.income += parseFloat(row.bit_amount) || 0;
+        });
+
+        expenses.forEach(exp => {
+            const amt = parseFloat(exp.amount) || 0;
+            if (exp.currency === 'EUR') summary.EUR.expense += amt;
+            if (exp.currency === 'ILS') summary.ILS.expense += amt;
+            if (exp.currency === 'USD') summary.USD.expense += amt;
+        });
+
+        const bankTableData = [
+            { "מטבע": "EUR", "הכנסות": summary.EUR.income, "הוצאות": summary.EUR.expense, "יתרה": summary.EUR.income - summary.EUR.expense },
+            { "מטבע": "ILS", "הכנסות": summary.ILS.income, "הוצאות": summary.ILS.expense, "יתרה": summary.ILS.income - summary.ILS.expense },
+            { "מטבע": "USD", "הכנסות": summary.USD.income, "הוצאות": summary.USD.expense, "יתרה": summary.USD.income - summary.USD.expense },
+            { "מטבע": "BIT", "הכנסות": summary.BIT.income, "הוצאות": summary.BIT.expense, "יתרה": summary.BIT.income - summary.BIT.expense },
+        ];
+        
+        const wsSummary = XLSX.utils.json_to_sheet(bankTableData);
+        XLSX.utils.book_append_sheet(wb, wsSummary, "סיכום בנק");
+
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
         // 3. Upload to Google Drive

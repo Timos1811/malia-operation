@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon, Users, ShoppingBag, TrendingUp, UserCheck, Plus, Trash2, Coins } from "lucide-react";
+import { Landmark, Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, PieChart as PieChartIcon, Users, ShoppingBag, TrendingUp, UserCheck, Plus, Trash2, Coins, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,21 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 export default function BankTable() {
   const queryClient = useQueryClient();
   const [newLocation, setNewLocation] = useState({ name: '', amount: '', currency: 'EUR' });
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+        setIsExporting(true);
+        toast.info("מתחיל בייצוא נתונים לדרייב...");
+        await base44.functions.invoke('exportDataToDrive');
+        toast.success("הנתונים יוצאו בהצלחה לתיקיית אקסל בדרייב!");
+    } catch (error) {
+        console.error(error);
+        toast.error("שגיאה בייצוא הנתונים");
+    } finally {
+        setIsExporting(false);
+    }
+  };
 
   const { data: incomeData = [], isLoading: isLoadingIncome } = useQuery({
     queryKey: ['tableDataAll'],
@@ -183,9 +199,19 @@ export default function BankTable() {
   return (
     <div className="p-8 md:p-12 text-right" dir="rtl">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-8 text-slate-800">
-          <Landmark className="w-8 h-8" />
-          <h1 className="text-3xl font-bold">טבלת בנק</h1>
+        <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3 text-slate-800">
+              <Landmark className="w-8 h-8" />
+              <h1 className="text-3xl font-bold">טבלת בנק</h1>
+            </div>
+            <Button 
+                onClick={handleExport}
+                disabled={isExporting}
+                className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+            >
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+                ייצוא לדרייב
+            </Button>
         </div>
 
         <div className="grid gap-6">
