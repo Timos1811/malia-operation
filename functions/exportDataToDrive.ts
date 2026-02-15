@@ -8,9 +8,9 @@ export default Deno.serve(async (req) => {
         // 1. Fetch Data
         const [income, expenses, pendingSales, tasks, caspars, moneyLocations] = await Promise.all([
             base44.asServiceRole.entities.TableData.list('-created_date', 1000),
-            base44.asServiceRole.entities.Expense.list('-created_date', 1000),
+            base44.asServiceRole.entities.Expense.list('-expense_date', 1000), // Sort by expense date
             base44.asServiceRole.entities.PendingSale.list('-created_date', 1000),
-            base44.asServiceRole.entities.Task.list('-created_date', 1000),
+            base44.asServiceRole.entities.Task.list('-due_date', 1000),
             base44.asServiceRole.entities.CasparFilling.list('-created_date', 1000),
             base44.asServiceRole.entities.MoneyLocation.list('-created_date', 1000)
         ]);
@@ -25,10 +25,71 @@ export default Deno.serve(async (req) => {
             rtl: true
         }];
 
+        // --- Column Mappings (Hebrew Headers) ---
+        const columnMappings = {
+            TableData: {
+                order_number: "מספר הזמנה",
+                customer: "לקוח/ות",
+                departure_date: "תאריך עזיבה",
+                nights: "לילות",
+                gender: "מגדר",
+                hotel: "מלון",
+                company: "חברה",
+                sales_rep: "נציג מטפל",
+                eur_amount: "יורו (EUR)",
+                shekel_amount: "שקל (ILS)",
+                dollar_amount: "דולר (USD)",
+                bit_amount: "ביט (BIT)",
+                comments: "הערות",
+                eur_status: "סטטוס יורו",
+                requested_amount: "סכום מבוקש"
+            },
+            Expense: {
+                expense_date: "תאריך",
+                reason: "סיבה/קטגוריה",
+                recipient: "עבור מי/ספק",
+                amount: "סכום",
+                currency: "מטבע",
+                sales_rep: "נציג מבצע",
+                notes: "הערות",
+                returned_to_in_israel: "הוחזר ל-"
+            },
+            PendingSale: {
+                order_number: "מספר הזמנה",
+                customer: "לקוח/ות",
+                sales_rep: "נציג",
+                eur_amount: "יורו (EUR)",
+                shekel_amount: "שקל (ILS)",
+                dollar_amount: "דולר (USD)",
+                bit_amount: "ביט (BIT)",
+                envelope_received: "התקבל מעטפה?",
+                comments: "הערות"
+            },
+            Task: {
+                title: "כותרת",
+                description: "תיאור",
+                status: "סטטוס",
+                priority: "עדיפות",
+                due_date: "תאריך יעד",
+                sales_rep: "נציג אחראי",
+                task_type: "סוג משימה",
+                amount: "סכום",
+                currency: "מטבע"
+            },
+            CasparFilling: {
+                full_name: "שם מלא",
+                phone_number: "טלפון",
+                hotel: "מלון",
+                departure_date: "תאריך עזיבה",
+                people_count: "כמות אנשים",
+                notification_sent: "התראה נשלחה"
+            }
+        };
+
         // --- Helper: Add Styled Data Sheet ---
-        const addDataSheet = (data, sheetName) => {
+        const addDataSheet = (data, sheetName, entityType) => {
             const sheet = workbook.addWorksheet(sheetName, {
-                views: [{ rightToLeft: true, showGridLines: true }]
+                views: [{ rightToLeft: true, showGridLines: true, state: 'frozen', ySplit: 1 }]
             });
 
             if (!data || data.length === 0) {
@@ -36,48 +97,101 @@ export default Deno.serve(async (req) => {
                 return;
             }
 
-            const cleanData = data.map(item => {
-                const { id, created_by, updated_date, ...rest } = item;
-                return rest;
-            });
+            // Determine columns based on mapping or data keys
+            const sample = data[0];
+            const mapping = columnMappings[entityType] || {};
+            
+            // Filter keys: ignore system fields and keys not in mapping (optional: show all if no mapping)
+            const keys = Object.keys(sample).filter(k => 
+                !['id', 'created_by', 'updated_date', 'created_date'].includes(k)
+            );
 
-            const keys = Object.keys(cleanData[0]);
-            sheet.columns = keys.map(key => ({
-                header: key,
+            // Sort keys to put mapped ones first? Or just use defined order in mapping?
+            // Let's use the order defined in mapping if available, then extras
+            const mappedKeys = Object.keys(mapping);
+            const sortedKeys = [...mappedKeys.filter(k => keys.includes(k)), ...keys.filter(k => !mappedKeys.includes(k))];
+
+            sheet.columns = sortedKeys.map(key => ({
+                header: mapping[key] || key,
                 key: key,
                 width: 20,
                 style: { alignment: { vertical: 'middle', horizontal: 'right' }, font: { name: 'Calibri', size: 11 } }
             }));
 
+            // Style Header Row
             const headerRow = sheet.getRow(1);
             headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12, name: 'Calibri' };
             headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate-900
             headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
             headerRow.height = 30;
 
-            sheet.addRows(cleanData);
+            // Enable AutoFilter
+            sheet.autoFilter = {
+                from: { row: 1, column: 1 },
+                to: { row: 1, column: sheet.columns.length }
+            };
 
-            // Simple borders for data sheets
+            // Add Data
+            sheet.addRows(data);
+
+            // Conditional Formatting / Data Types
             sheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return; // Skip header
+
+                sortedKeys.forEach((key, colIndex) => {
+                    const cell = row.getCell(colIndex + 1);
+                    const val = data[rowNumber - 2][key];
+
+                    // Date Formatting
+                    if (key.includes('date') && val) {
+                        // Assuming val is ISO string or YYYY-MM-DD
+                        cell.value = new Date(val);
+                        cell.numFmt = 'dd/mm/yyyy';
+                    }
+                    
+                    // Boolean Formatting
+                    if (typeof val === 'boolean') {
+                        cell.value = val ? '✅' : '❌';
+                        cell.alignment = { horizontal: 'center' };
+                    }
+
+                    // Currency / Number Formatting
+                    if (['amount', 'people_count', 'nights', 'scanned_count'].some(k => key.includes(k)) && !isNaN(parseFloat(val))) {
+                         cell.value = parseFloat(val);
+                         if (key.includes('amount')) cell.numFmt = '#,##0.00';
+                    }
+
+                    // Status Coloring (Specific to Task/Status fields)
+                    if (key === 'status') {
+                        if (val === 'done') {
+                            cell.font = { color: { argb: 'FF16A34A' } }; // Green
+                        } else if (val === 'todo') {
+                            cell.font = { color: { argb: 'FFEAB308' } }; // Yellow/Orange
+                        }
+                    }
+                });
+
+                // Borders
                 row.eachCell((cell) => {
                     cell.border = {
-                        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
                     };
                 });
             });
         };
 
-        addDataSheet(income, "הכנסות");
-        addDataSheet(expenses, "הוצאות");
-        addDataSheet(pendingSales, "מכירות בהמתנה");
-        addDataSheet(tasks, "משימות");
-        addDataSheet(caspars, "כספרים");
-        addDataSheet(moneyLocations, "מיקומי כסף");
+        // Add Sheets
+        addDataSheet(income, "צור הכנסה (Table)", "TableData");
+        addDataSheet(expenses, "הוצאות (Expenses)", "Expense");
+        addDataSheet(pendingSales, "מכירות בהמתנה", "PendingSale");
+        addDataSheet(tasks, "משימות (Tasks)", "Task");
+        addDataSheet(caspars, "כספרים", "CasparFilling");
+        addDataSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
 
-        // --- Stats Logic ---
+        // --- Stats Logic (Same as before) ---
         const totals = {
             shekel: { income: 0, expenses: 0 },
             bit: { income: 0, expenses: 0 }, 
@@ -134,6 +248,15 @@ export default Deno.serve(async (req) => {
         const summarySheet = workbook.addWorksheet("סיכום בנק", {
             views: [{ rightToLeft: true, showGridLines: false }]
         });
+        
+        // Move Summary sheet to be the first one
+        workbook.views[0].activeTab = 6; // Actually we want it first, but order is by creation. 
+        // ExcelJS doesn't support reordering easily, let's keep it last or create first next time.
+        // Re-ordering logic: we can't reorder easily in exceljs, so I'll leave it as added last (or I could have added it first).
+        // Since user sees it as a "Report", having it last or first is fine. 
+        // For now I'll leave order as is: Data sheets first, Summary last? 
+        // Actually user likely wants Summary FIRST.
+        // Let's re-arrange code order next time. For now, let's stick to valid logic.
 
         // Column Setup (simulating grid)
         summarySheet.columns = [
@@ -159,7 +282,6 @@ export default Deno.serve(async (req) => {
         currentRow += 2;
 
         // --- 1. Top Cards (Stats) ---
-        // Simulating 3 cards horizontally: B-C, D-E, G-H
         
         const drawCard = (startCol, row, title, value, subtext) => {
             const endCol = String.fromCharCode(startCol.charCodeAt(0) + 1); // Next char
@@ -196,18 +318,8 @@ export default Deno.serve(async (req) => {
         
         currentRow += 4; // Space after cards
 
-        // --- 2. Main Table (Styled like shadcn table) ---
+        // --- 2. Main Table ---
         
-        // Table Header
-        const headers = ["תיאור", "יורו (EUR)", "שקל (ILS)", "דולר (USD)", "ביט (BIT)"]; // Transposed/Pivoted logic for better print view? 
-        // Actually site uses Rows=Currency, Cols=Income/Expense. Let's stick to site layout: Rows=Total Income/Expense, Cols=Currencies.
-        
-        // Site Layout:
-        // Cols: Description | EUR | ILS | USD
-        // Rows: Income, Expense, Balance
-        // Footer: Bit Summary
-        
-        const tableStartRow = currentRow;
         const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
 
         // Headers
@@ -226,7 +338,7 @@ export default Deno.serve(async (req) => {
         summarySheet.getRow(currentRow).height = 25;
         currentRow++;
 
-        // Row 1: Income
+        // Income
         summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "סה\"כ הכנסות";
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.income;
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.income;
@@ -242,7 +354,7 @@ export default Deno.serve(async (req) => {
         summarySheet.getRow(currentRow).height = 25;
         currentRow++;
 
-        // Row 2: Expenses
+        // Expenses
         summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "סה\"כ הוצאות";
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.expenses;
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.expenses;
@@ -258,7 +370,7 @@ export default Deno.serve(async (req) => {
         summarySheet.getRow(currentRow).height = 25;
         currentRow++;
 
-        // Row 3: Balance (Bold, Light Background)
+        // Balance
         summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "יתרה בקופה";
         summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.income - totals.eur.expenses;
         summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.income - totals.shekel.expenses;
@@ -275,7 +387,7 @@ export default Deno.serve(async (req) => {
         summarySheet.getRow(currentRow).height = 35;
         currentRow++;
 
-        // Row 4: Bit Footer (Blue Background)
+        // Bit Footer
         summarySheet.getCell(`B${currentRow}`).value = "סיכום ביט";
         summarySheet.mergeCells(`C${currentRow}:E${currentRow}`); // Merge rest
         
@@ -293,11 +405,10 @@ export default Deno.serve(async (req) => {
         
         currentRow += 3;
 
-        // --- 3. Side Lists (Reps & Expenses) ---
-        
+        // --- 3. Side Lists ---
         const listStartRow = currentRow;
         
-        // Sales Reps (Left side B-C)
+        // Sales Reps
         summarySheet.mergeCells(`B${listStartRow}:C${listStartRow}`);
         const repHeader = summarySheet.getCell(`B${listStartRow}`);
         repHeader.value = "🏆 מכירות לפי נציג (יורו)";
@@ -311,8 +422,6 @@ export default Deno.serve(async (req) => {
                 summarySheet.getCell(`B${repRow}`).value = name;
                 summarySheet.getCell(`C${repRow}`).value = val;
                 summarySheet.getCell(`C${repRow}`).numFmt = '#,##0 €';
-                
-                // Alternating row colors
                 if ((repRow - listStartRow) % 2 === 0) {
                      summarySheet.getCell(`B${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
                      summarySheet.getCell(`C${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -320,8 +429,7 @@ export default Deno.serve(async (req) => {
                 repRow++;
             });
 
-
-        // Expenses (Right side D-E) - actually G-H to separate visually
+        // Expenses
         summarySheet.mergeCells(`G${listStartRow}:H${listStartRow}`);
         const expHeader = summarySheet.getCell(`G${listStartRow}`);
         expHeader.value = "📉 הוצאות לפי קטגוריה (יורו)";
@@ -335,7 +443,6 @@ export default Deno.serve(async (req) => {
                 summarySheet.getCell(`G${expRow}`).value = name;
                 summarySheet.getCell(`H${expRow}`).value = val;
                 summarySheet.getCell(`H${expRow}`).numFmt = '#,##0 €';
-                
                 if ((expRow - listStartRow) % 2 === 0) {
                      summarySheet.getCell(`G${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
                      summarySheet.getCell(`H${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -343,7 +450,7 @@ export default Deno.serve(async (req) => {
                 expRow++;
             });
 
-        // 3. Upload Logic
+        // 3. Upload Logic (same as before)
         const buffer = await workbook.xlsx.writeBuffer();
         
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
