@@ -6,12 +6,13 @@ export default Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         
         // 1. Fetch Data (Limit 1000 most recent records per entity)
-        const [income, expenses, pendingSales, tasks, caspars] = await Promise.all([
+        const [income, expenses, pendingSales, tasks, caspars, moneyLocations] = await Promise.all([
             base44.asServiceRole.entities.TableData.list('-created_date', 1000),
             base44.asServiceRole.entities.Expense.list('-created_date', 1000),
             base44.asServiceRole.entities.PendingSale.list('-created_date', 1000),
             base44.asServiceRole.entities.Task.list('-created_date', 1000),
-            base44.asServiceRole.entities.CasparFilling.list('-created_date', 1000)
+            base44.asServiceRole.entities.CasparFilling.list('-created_date', 1000),
+            base44.asServiceRole.entities.MoneyLocation.list('-created_date', 1000)
         ]);
 
         // 2. Create Workbook
@@ -36,6 +37,7 @@ export default Deno.serve(async (req) => {
         addSheet(pendingSales, "מכירות בהמתנה");
         addSheet(tasks, "משימות");
         addSheet(caspars, "כספרים");
+        addSheet(moneyLocations, "מיקומי כסף");
 
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
