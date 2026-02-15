@@ -355,15 +355,18 @@ export default Deno.serve(async (req) => {
                     });
                 }
             }
+
+            return { keyMap: keyToLetter, nameMap: nameToLetter };
         };
 
-        // Add Sheets
-        addSmartSheet(income, "הכנסות", "TableData");
-        addSmartSheet(expenses, "הוצאות", "Expense");
-        addSmartSheet(pendingSales, "מכירות בהמתנה", "PendingSale");
-        addSmartSheet(tasks, "משימות", "Task");
-        addSmartSheet(caspars, "כספרים", "CasparFilling");
-        addSmartSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
+        // Add Sheets and capture maps
+        const maps = {};
+        maps.TableData = addSmartSheet(income, "הכנסות", "TableData");
+        maps.Expense = addSmartSheet(expenses, "הוצאות", "Expense");
+        maps.PendingSale = addSmartSheet(pendingSales, "מכירות בהמתנה", "PendingSale");
+        maps.Task = addSmartSheet(tasks, "משימות", "Task");
+        maps.CasparFilling = addSmartSheet(caspars, "כספרים", "CasparFilling");
+        maps.MoneyLocation = addSmartSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
 
         // --- Live Summary Sheet (Same as before) ---
         const summarySheet = workbook.addWorksheet("סיכום בנק", {
@@ -406,19 +409,31 @@ export default Deno.serve(async (req) => {
             });
         };
 
+        // Helpers for summary formulas
+        const getRange = (sheetKey, colName, isCalculated=false) => {
+            const map = maps[sheetKey];
+            if(!map) return 'A:A'; // Fallback
+            const letter = isCalculated ? map.nameMap[colName] : map.keyMap[colName];
+            const sheetName = {
+                TableData: 'הכנסות',
+                Expense: 'הוצאות',
+                MoneyLocation: 'מיקומי כסף'
+            }[sheetKey];
+            return `'${sheetName}'!${letter}:${letter}`;
+        };
+
         // Row 1 of Cards
-        drawFormulaCard('B', currentRow, "סה\"כ לקוחות", "=IFERROR(SUBTOTAL(109, IncomeTable[כמות לקוחות]), 0)", "לקוחות בכל הקבוצות");
-        drawFormulaCard('E', currentRow, "סה\"כ קבוצות/מכירות", "=IFERROR(SUBTOTAL(103, IncomeTable[מספר הזמנה]), 0)", "הזמנות במערכת");
-        drawFormulaCard('H', currentRow, "ממוצע ללקוח", "=IFERROR(K" + (currentRow+1) + "/B" + (currentRow+1) + ", 0)", "הכנסה ממוצעת", '#,##0 €');
+        drawFormulaCard('B', currentRow, "סה\"כ לקוחות", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'extracted_customer_count')}), 0)`, "לקוחות בכל הקבוצות");
+        drawFormulaCard('E', currentRow, "סה\"כ קבוצות/מכירות", `=IFERROR(SUBTOTAL(103, ${getRange('TableData', 'order_number')}), 0)`, "הזמנות במערכת");
+        drawFormulaCard('H', currentRow, "ממוצע ללקוח", `=IFERROR(K${currentRow+1}/B${currentRow+1}, 0)`, "הכנסה ממוצעת", '#,##0 €');
 
         currentRow += 4;
 
         // Row 2 of Cards
-        drawFormulaCard('B', currentRow, "יתרה במיקומים", "=IFERROR(SUBTOTAL(109, LocationTable[שווי ביורו]), 0)", "כספות וארנקים", '#,##0 €');
-        drawFormulaCard('K', currentRow - 4, "סה\"כ הכנסה (משוערך)", "=IFERROR(SUBTOTAL(109, IncomeTable[שווי ביורו]), 0)", "שווי כולל ביורו", '#,##0 €'); // Hidden or placed side
+        drawFormulaCard('B', currentRow, "יתרה במיקומים", `=IFERROR(SUBTOTAL(109, ${getRange('MoneyLocation', 'שווי ביורו', true)}), 0)`, "כספות וארנקים", '#,##0 €');
+        // drawFormulaCard('K', currentRow - 4, "סה\"כ הכנסה (משוערך)", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'שווי ביורו', true)}), 0)`, "שווי כולל ביורו", '#,##0 €'); // Hidden/Dup
         
-        // Let's place Total Income clearly. I'll put it at E in 2nd row
-        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", "=IFERROR(SUBTOTAL(109, IncomeTable[שווי ביורו]), 0)", "שווי כולל ביורו", '#,##0 €');
+        drawFormulaCard('E', currentRow, "סה\"כ הכנסה כוללת", `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'שווי ביורו', true)}), 0)`, "שווי כולל ביורו", '#,##0 €');
 
         currentRow += 4;
 
@@ -439,9 +454,9 @@ export default Deno.serve(async (req) => {
         currentRow++;
 
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הכנסות";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[יורו]), 0)" };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[שקל]), 0)" };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: "=IFERROR(SUBTOTAL(109, IncomeTable[דולר]), 0)" };
+        summarySheet.getCell(`C${currentRow}`).value = { formula: `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'eur_amount')}), 0)` };
+        summarySheet.getCell(`D${currentRow}`).value = { formula: `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'shekel_amount')}), 0)` };
+        summarySheet.getCell(`E${currentRow}`).value = { formula: `=IFERROR(SUBTOTAL(109, ${getRange('TableData', 'dollar_amount')}), 0)` };
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
@@ -452,9 +467,9 @@ export default Deno.serve(async (req) => {
         currentRow++;
 
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הוצאות";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: "=IFERROR(SUMIF(ExpenseTable[מטבע], \"EUR\", ExpenseTable[סכום]), 0)" };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: "=IFERROR(SUMIF(ExpenseTable[מטבע], \"ILS\", ExpenseTable[סכום]), 0)" };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: "=IFERROR(SUMIF(ExpenseTable[מטבע], \"USD\", ExpenseTable[סכום]), 0)" };
+        summarySheet.getCell(`C${currentRow}`).value = { formula: `=IFERROR(SUMIF(${getRange('Expense', 'currency')}, "EUR", ${getRange('Expense', 'amount')}), 0)` };
+        summarySheet.getCell(`D${currentRow}`).value = { formula: `=IFERROR(SUMIF(${getRange('Expense', 'currency')}, "ILS", ${getRange('Expense', 'amount')}), 0)` };
+        summarySheet.getCell(`E${currentRow}`).value = { formula: `=IFERROR(SUMIF(${getRange('Expense', 'currency')}, "USD", ${getRange('Expense', 'amount')}), 0)` };
         ['C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.numFmt = '#,##0';
@@ -465,9 +480,9 @@ export default Deno.serve(async (req) => {
         currentRow++;
 
         summarySheet.getCell(`B${currentRow}`).value = "יתרה בקופה";
-        summarySheet.getCell(`C${currentRow}`).value = { formula: "=IFERROR(C" + (currentRow-2) + "-C" + (currentRow-1) + ", 0)" };
-        summarySheet.getCell(`D${currentRow}`).value = { formula: "=IFERROR(D" + (currentRow-2) + "-D" + (currentRow-1) + ", 0)" };
-        summarySheet.getCell(`E${currentRow}`).value = { formula: "=IFERROR(E" + (currentRow-2) + "-E" + (currentRow-1) + ", 0)" };
+        summarySheet.getCell(`C${currentRow}`).value = { formula: `=IFERROR(C${currentRow-2}-C${currentRow-1}, 0)` };
+        summarySheet.getCell(`D${currentRow}`).value = { formula: `=IFERROR(D${currentRow-2}-D${currentRow-1}, 0)` };
+        summarySheet.getCell(`E${currentRow}`).value = { formula: `=IFERROR(E${currentRow-2}-E${currentRow-1}, 0)` };
         ['B','C','D','E'].forEach(col => {
             const cell = summarySheet.getCell(`${col}${currentRow}`);
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
@@ -479,7 +494,7 @@ export default Deno.serve(async (req) => {
 
         summarySheet.getCell(`B${currentRow}`).value = "סה\"כ ביט";
         summarySheet.mergeCells(`C${currentRow}:E${currentRow}`);
-        summarySheet.getCell(`C${currentRow}`).value = { formula: "=SUBTOTAL(109, IncomeTable[ביט])" };
+        summarySheet.getCell(`C${currentRow}`).value = { formula: `=SUBTOTAL(109, ${getRange('TableData', 'bit_amount')})` };
         summarySheet.getCell(`C${currentRow}`).numFmt = '₪#,##0';
         ['B','C'].forEach(col => {
              const cell = summarySheet.getCell(`${col}${currentRow}`);
