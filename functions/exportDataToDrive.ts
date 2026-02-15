@@ -62,7 +62,7 @@ export default Deno.serve(async (req) => {
                     requested_amount: "סכום מבוקש"
                 },
                 calculatedColumns: [
-                    { header: "שווי ביורו", formula: "=IFERROR(N([@יורו]) + N([@שקל])*0.26 + N([@דולר])*0.95 + N([@ביט])*0.26, 0)" },
+                    { header: "שווי ביורו", formula: "=IFERROR(N([@[יורו]]) + N([@[שקל]])*0.26 + N([@[דולר]])*0.95 + N([@[ביט]])*0.26, 0)" },
                     { header: "סטטוס", formula: "=IFERROR(ROUND([@[שווי ביורו]] - N([@[סכום מבוקש]]), 2), 0)" }
                 ],
                 validations: {
@@ -82,7 +82,7 @@ export default Deno.serve(async (req) => {
                     notes: "הערות"
                 },
                 calculatedColumns: [
-                    { header: "שווי ביורו", formula: "=IFERROR(IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
+                    { header: "שווי ביורו", formula: "=IFERROR(IF([@[מטבע]]=\"ILS\", N([@[סכום]])*0.26, IF([@[מטבע]]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
                 ],
                 validations: {
                     currency: dropdowns.currency,
@@ -146,7 +146,7 @@ export default Deno.serve(async (req) => {
                     currency: "מטבע"
                 },
                 calculatedColumns: [
-                     { header: "שווי ביורו", formula: "=IFERROR(IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
+                     { header: "שווי ביורו", formula: "=IFERROR(IF([@[מטבע]]=\"ILS\", N([@[סכום]])*0.26, IF([@[מטבע]]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
                 ],
                 validations: {
                     currency: dropdowns.currency
