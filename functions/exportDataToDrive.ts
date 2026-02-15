@@ -62,8 +62,14 @@ export default Deno.serve(async (req) => {
                     requested_amount: "סכום מבוקש"
                 },
                 calculatedColumns: [
-                    { header: "שווי ביורו", formula: "=IFERROR(N([@[יורו]]) + N([@[שקל]])*0.26 + N([@[דולר]])*0.95 + N([@[ביט]])*0.26, 0)" },
-                    { header: "סטטוס", formula: "=IFERROR(ROUND([@[שווי ביורו]] - N([@[סכום מבוקש]]), 2), 0)" }
+                    { 
+                        header: "שווי ביורו", 
+                        formula: (r, kMap) => `=IFERROR(N(${kMap.eur_amount}${r}) + N(${kMap.shekel_amount}${r})*0.26 + N(${kMap.dollar_amount}${r})*0.95 + N(${kMap.bit_amount}${r})*0.26, 0)` 
+                    },
+                    { 
+                        header: "סטטוס", 
+                        formula: (r, kMap, nMap) => `=IFERROR(ROUND(${nMap['שווי ביורו']}${r} - N(${kMap.requested_amount}${r}), 2), 0)` 
+                    }
                 ],
                 validations: {
                     gender: dropdowns.gender,
@@ -82,7 +88,10 @@ export default Deno.serve(async (req) => {
                     notes: "הערות"
                 },
                 calculatedColumns: [
-                    { header: "שווי ביורו", formula: "=IFERROR(IF([@[מטבע]]=\"ILS\", N([@[סכום]])*0.26, IF([@[מטבע]]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
+                    { 
+                        header: "שווי ביורו", 
+                        formula: (r, kMap) => `=IFERROR(IF(${kMap.currency}${r}="ILS", N(${kMap.amount}${r})*0.26, IF(${kMap.currency}${r}="USD", N(${kMap.amount}${r})*0.95, N(${kMap.amount}${r}))), 0)` 
+                    }
                 ],
                 validations: {
                     currency: dropdowns.currency,
@@ -146,7 +155,10 @@ export default Deno.serve(async (req) => {
                     currency: "מטבע"
                 },
                 calculatedColumns: [
-                     { header: "שווי ביורו", formula: "=IFERROR(IF([@[מטבע]]=\"ILS\", N([@[סכום]])*0.26, IF([@[מטבע]]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]]))), 0)" }
+                     { 
+                        header: "שווי ביורו", 
+                        formula: (r, kMap) => `=IFERROR(IF(${kMap.currency}${r}="ILS", N(${kMap.amount}${r})*0.26, IF(${kMap.currency}${r}="USD", N(${kMap.amount}${r})*0.95, N(${kMap.amount}${r}))), 0)` 
+                     }
                 ],
                 validations: {
                     currency: dropdowns.currency
@@ -263,12 +275,24 @@ export default Deno.serve(async (req) => {
 
                 // Apply Formulas
                 if (config.calculatedColumns) {
+                    // Map keys and names to column letters for direct referencing
+                    const keyToLetter = {};
+                    const nameToLetter = {};
+                    columns.forEach((col, idx) => {
+                        const letter = sheet.getColumn(idx + 1).letter;
+                        nameToLetter[col.name] = letter;
+                        if (col.key) keyToLetter[col.key] = letter;
+                    });
+
                     config.calculatedColumns.forEach(calc => {
                         const colIndex = columns.findIndex(c => c.name === calc.header);
                         if (colIndex !== -1) {
-                            const colLetter = sheet.getColumn(colIndex + 1).letter;
+                            const targetColLetter = sheet.getColumn(colIndex + 1).letter;
                             for (let r = 2; r <= totalRows + 1; r++) {
-                                sheet.getCell(`${colLetter}${r}`).value = { formula: calc.formula };
+                                const formula = typeof calc.formula === 'function' 
+                                    ? calc.formula(r, keyToLetter, nameToLetter)
+                                    : calc.formula;
+                                sheet.getCell(`${targetColLetter}${r}`).value = { formula: formula };
                             }
                         }
                     });
