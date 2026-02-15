@@ -55,8 +55,8 @@ export default Deno.serve(async (req) => {
                     requested_amount: "סכום מבוקש"
                 },
                 calculatedColumns: [
-                    { header: "ערך יורו משוקלל", formula: "=[@[יורו (EUR)]] + [@[שקל (ILS)]]*0.26 + [@[דולר (USD)]]*0.95 + [@[ביט (BIT)]]*0.26" },
-                    { header: "סטטוס (חישוב)", formula: "=ROUND([@[ערך יורו משוקלל]] - [@[סכום מבוקש]], 2)" }
+                    { header: "ערך יורו משוקלל", formula: "=N([@[יורו (EUR)]]) + N([@[שקל (ILS)]])*0.26 + N([@[דולר (USD)]])*0.95 + N([@[ביט (BIT)]])*0.26" },
+                    { header: "סטטוס (חישוב)", formula: "=ROUND([@[ערך יורו משוקלל]] - N([@[סכום מבוקש]]), 2)" }
                 ],
                 validations: {
                     gender: dropdowns.gender,
@@ -75,7 +75,7 @@ export default Deno.serve(async (req) => {
                     notes: "הערות"
                 },
                 calculatedColumns: [
-                    { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", [@[סכום]]*0.26, IF([@מטבע]=\"USD\", [@[סכום]]*0.95, [@[סכום]]))" }
+                    { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]])))" }
                 ],
                 validations: {
                     currency: dropdowns.currency,
@@ -139,7 +139,7 @@ export default Deno.serve(async (req) => {
                     currency: "מטבע"
                 },
                 calculatedColumns: [
-                     { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", [@[סכום]]*0.26, IF([@מטבע]=\"USD\", [@[סכום]]*0.95, [@[סכום]]))" }
+                     { header: "ערך יורו משוקלל", formula: "=IF([@מטבע]=\"ILS\", N([@[סכום]])*0.26, IF([@מטבע]=\"USD\", N([@[סכום]])*0.95, N([@[סכום]])))" }
                 ],
                 validations: {
                     currency: dropdowns.currency
@@ -186,7 +186,13 @@ export default Deno.serve(async (req) => {
                         let val = item[col.key];
                         if (col.key.includes('date') && val) val = new Date(val);
                         if (typeof val === 'boolean') val = val ? 'כן' : 'לא';
-                        if (['amount', 'people_count', 'nights'].some(k => col.key.includes(k)) && val) val = parseFloat(val);
+                        
+                        // Numeric handling: ensure valid number or 0, avoids NaN causing Excel errors
+                        if (['amount', 'people_count', 'nights'].some(k => col.key.includes(k))) {
+                            const parsed = parseFloat(val);
+                            val = isNaN(parsed) ? 0 : parsed;
+                        }
+                        
                         row.push(val);
                     } else {
                         row.push(null); 
