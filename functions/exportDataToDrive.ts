@@ -243,23 +243,10 @@ export default Deno.serve(async (req) => {
                 }
             });
 
-            // 5. Apply Formulas to Data Rows
-            if (config.calculatedColumns && data.length > 0) {
-                config.calculatedColumns.forEach(calc => {
-                    const colIndex = columns.findIndex(c => c.name === calc.header);
-                    if (colIndex !== -1) {
-                        const targetColLetter = sheet.getColumn(colIndex + 1).letter;
-                        for (let r = startRow; r <= lastDataRow; r++) {
-                            const formula = typeof calc.formula === 'function' 
-                                ? calc.formula(r, keyToLetter, nameToLetter)
-                                : calc.formula;
-                            sheet.getCell(`${targetColLetter}${r}`).value = { formula: formula };
-                        }
-                    }
-                });
-            }
+            // 5. Apply Formulas to Data Rows - REMOVED per user request
+            // No formulas allowed in data rows
 
-            // 6. Add Totals Row
+            // 6. Add Totals Row (Static Calculation)
             if (data.length > 0) {
                 const totalRowIndex = lastDataRow + 1;
                 const totalRow = sheet.getRow(totalRowIndex);
@@ -270,10 +257,25 @@ export default Deno.serve(async (req) => {
                 columns.forEach((col, idx) => {
                     const colLetter = sheet.getColumn(idx + 1).letter;
                     // Check if should sum
-                    const shouldSum = (col.key && (col.key.includes('amount') || col.key === 'people_count')) || col.isCalculated;
+                    const shouldSum = col.key && (
+                        col.key.includes('amount') || 
+                        col.key === 'people_count' || 
+                        col.key === 'extracted_customer_count' ||
+                        col.key === 'nights'
+                    );
                     
                     if (shouldSum) {
-                        sheet.getCell(`${colLetter}${totalRowIndex}`).value = { formula: `=SUM(${colLetter}${startRow}:${colLetter}${lastDataRow})` };
+                        const sum = data.reduce((acc, item) => {
+                            let val = item[col.key];
+                            if (typeof val === 'string') val = parseFloat(val) || 0;
+                            if (typeof val !== 'number') val = 0;
+                            return acc + val;
+                        }, 0);
+
+                        sheet.getCell(`${colLetter}${totalRowIndex}`).value = sum;
+                        if (col.key.includes('amount')) {
+                            sheet.getCell(`${colLetter}${totalRowIndex}`).numFmt = '#,##0.00';
+                        }
                     }
                 });
                 
