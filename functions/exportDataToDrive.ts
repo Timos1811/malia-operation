@@ -144,21 +144,23 @@ export default Deno.serve(async (req) => {
              currentRow += locationsTable.length + 2;
         }
 
-        // 5. Sales by Rep
-        const salesRepTable = Object.entries(salesRepStats)
+        XLSX.utils.book_append_sheet(wb, wsBank, "סיכום בנק");
+
+        // 5. Sales by Rep (New Sheet)
+        const salesRepData = Object.entries(salesRepStats)
             .map(([name, value]) => ({ "נציג": name, "סה\"כ מכירות (יורו)": Math.round(value) }))
             .sort((a, b) => b["סה\"כ מכירות (יורו)"] - a["סה\"כ מכירות (יורו)"]);
         
-        XLSX.utils.sheet_add_json(wsBank, salesRepTable, { origin: `E2` }); // Place to the right side
+        const wsRep = XLSX.utils.json_to_sheet(salesRepData);
+        XLSX.utils.book_append_sheet(wb, wsRep, "מכירות לפי נציג");
 
-        // 6. Expenses by Category
-        const expensesTable = Object.entries(categoryStats)
+        // 6. Expenses by Category (New Sheet)
+        const expensesCatData = Object.entries(categoryStats)
             .map(([name, value]) => ({ "קטגוריית הוצאה": name, "סה\"כ (יורו)": Math.round(value) }))
             .sort((a, b) => b["סה\"כ (יורו)"] - a["סה\"כ (יורו)"]);
 
-        XLSX.utils.sheet_add_json(wsBank, expensesTable, { origin: `H2` }); // Place further right
-
-        XLSX.utils.book_append_sheet(wb, wsBank, "סיכום בנק מורחב");
+        const wsExpCat = XLSX.utils.json_to_sheet(expensesCatData);
+        XLSX.utils.book_append_sheet(wb, wsExpCat, "התפלגות הוצאות");
 
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
