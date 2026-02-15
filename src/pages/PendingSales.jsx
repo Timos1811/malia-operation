@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Save, Plus, Trash2, Filter, X, ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
+import { Loader2, RefreshCw, Save, Plus, Trash2, Filter, X, ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +28,16 @@ export default function PendingSales() {
       salesRep: 'all',
       envelopeStatus: 'all', // 'all', 'received', 'not_received'
       sortOrder: 'newest' // 'newest', 'oldest'
+  });
+  
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [selectedSaleToMove, setSelectedSaleToMove] = useState(null);
+  const [moveAmounts, setMoveAmounts] = useState({
+      eur_amount: '',
+      shekel_amount: '',
+      dollar_amount: '',
+      bit_amount: '',
+      comments: ''
   });
 
   // Fetch data from PendingSale entity
@@ -148,8 +160,27 @@ export default function PendingSales() {
     setEditingCell(null);
   };
 
-  const saveToAllIncomes = async (row) => {
-      if (!window.confirm('האם לשמור את הנתונים לטבלת ההכנסות?')) return;
+  const handleOpenMoveDialog = (row) => {
+      setSelectedSaleToMove(row);
+      setMoveAmounts({
+          eur_amount: row.eur_amount || '',
+          shekel_amount: row.shekel_amount || '',
+          dollar_amount: row.dollar_amount || '',
+          bit_amount: row.bit_amount || '',
+          comments: row.comments || ''
+      });
+      setIsMoveDialogOpen(true);
+  };
+
+  const executeMoveToSales = async () => {
+      if (!selectedSaleToMove) return;
+      
+      const row = {
+          ...selectedSaleToMove,
+          ...moveAmounts,
+          // Recalculate status based on new amounts
+          eur_status: calculateStatusText({ ...selectedSaleToMove, ...moveAmounts })
+      };
 
       try {
           // Check for existing order in TableData
@@ -206,10 +237,11 @@ export default function PendingSales() {
           }
 
           // Delete from PendingSale
-          await base44.entities.PendingSale.delete(row.id);
+          await base44.entities.PendingSale.delete(row.id); // row.id comes from selectedSaleToMove, which is correct
 
           // Refresh UI
           queryClient.invalidateQueries(['pendingSales']);
+          setIsMoveDialogOpen(false);
           
       } catch (error) {
           console.error(error);
@@ -438,10 +470,10 @@ export default function PendingSales() {
                             <Button 
                               variant="default" 
                               size="sm" 
-                              onClick={() => saveToAllIncomes(row)}
+                              onClick={() => handleOpenMoveDialog(row)}
                               className="bg-green-600 hover:bg-green-700 text-white"
                             >
-                              <Save className="w-4 h-4 ml-1" /> שמור
+                              <CheckCircle2 className="w-4 h-4 ml-1" /> הוסף למכירות
                             </Button>
                             <Button 
                               variant="destructive" 
@@ -460,6 +492,87 @@ export default function PendingSales() {
           </table>
         </div>
       </div>
+
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>השלמת מכירה - הזמנה {selectedSaleToMove?.order_number}</DialogTitle>
+            <DialogDescription>
+              אנא אמת/י את סכומי הכסף שהתקבלו בפועל לפני ההעברה לטבלת המכירות הכללית.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="eur">יורו (EUR)</Label>
+                    <Input 
+                        id="eur" 
+                        type="number" 
+                        value={moveAmounts.eur_amount} 
+                        onChange={(e) => setMoveAmounts({...moveAmounts, eur_amount: e.target.value})}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="ils">שקל (ILS)</Label>
+                    <Input 
+                        id="ils" 
+                        type="number" 
+                        value={moveAmounts.shekel_amount} 
+                        onChange={(e) => setMoveAmounts({...moveAmounts, shekel_amount: e.target.value})}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="usd">דולר (USD)</Label>
+                    <Input 
+                        id="usd" 
+                        type="number" 
+                        value={moveAmounts.dollar_amount} 
+                        onChange={(e) => setMoveAmounts({...moveAmounts, dollar_amount: e.target.value})}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="bit">ביט (BIT)</Label>
+                    <Input 
+                        id="bit" 
+                        type="number" 
+                        value={moveAmounts.bit_amount} 
+                        onChange={(e) => setMoveAmounts({...moveAmounts, bit_amount: e.target.value})}
+                    />
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="comments">הערות</Label>
+                <Input 
+                    id="comments" 
+                    value={moveAmounts.comments} 
+                    onChange={(e) => setMoveAmounts({...moveAmounts, comments: e.target.value})}
+                    placeholder="הערות נוספות..."
+                />
+            </div>
+            <div className="bg-slate-50 p-3 rounded-md text-sm text-slate-600">
+                <div className="flex justify-between mb-1">
+                    <span>סכום מבוקש:</span>
+                    <span className="font-semibold">{selectedSaleToMove?.requested_amount || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>סטטוס צפוי:</span>
+                    <span className={cn(
+                        "font-bold",
+                        calculateStatusText({ ...selectedSaleToMove, ...moveAmounts }) === "מאוזן" ? "text-blue-600" :
+                        parseFloat(calculateStatusText({ ...selectedSaleToMove, ...moveAmounts })) > 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                        {calculateStatusText({ ...selectedSaleToMove, ...moveAmounts })}
+                    </span>
+                </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMoveDialogOpen(false)}>ביטול</Button>
+            <Button onClick={executeMoveToSales} className="bg-green-600 hover:bg-green-700">אשר והעבר</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
