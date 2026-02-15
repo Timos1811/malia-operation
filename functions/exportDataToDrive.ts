@@ -22,7 +22,7 @@ export default Deno.serve(async (req) => {
         workbook.views = [{
             x: 0, y: 0, width: 10000, height: 20000,
             firstSheet: 0, activeTab: 0, visibility: 'visible',
-            rtl: true // Global RTL preference
+            rtl: true
         }];
 
         // --- Helper: Add Styled Data Sheet ---
@@ -36,32 +36,28 @@ export default Deno.serve(async (req) => {
                 return;
             }
 
-            // Clean data (remove system fields)
             const cleanData = data.map(item => {
                 const { id, created_by, updated_date, ...rest } = item;
                 return rest;
             });
 
-            // Set Columns based on keys
             const keys = Object.keys(cleanData[0]);
             sheet.columns = keys.map(key => ({
                 header: key,
                 key: key,
                 width: 20,
-                style: { alignment: { vertical: 'middle', horizontal: 'right' } }
+                style: { alignment: { vertical: 'middle', horizontal: 'right' }, font: { name: 'Calibri', size: 11 } }
             }));
 
-            // Style Header Row
             const headerRow = sheet.getRow(1);
-            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12, name: 'Calibri' };
             headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate-900
             headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
             headerRow.height = 30;
 
-            // Add Data
             sheet.addRows(cleanData);
 
-            // Add Borders
+            // Simple borders for data sheets
             sheet.eachRow((row, rowNumber) => {
                 row.eachCell((cell) => {
                     cell.border = {
@@ -81,7 +77,7 @@ export default Deno.serve(async (req) => {
         addDataSheet(caspars, "כספרים");
         addDataSheet(moneyLocations, "מיקומי כסף");
 
-        // --- Calculate Summary Stats ---
+        // --- Stats Logic ---
         const totals = {
             shekel: { income: 0, expenses: 0 },
             bit: { income: 0, expenses: 0 }, 
@@ -95,7 +91,6 @@ export default Deno.serve(async (req) => {
         const salesRepStats = {};
         let totalCustomers = 0;
 
-        // Process Income
         income.forEach(row => {
             const shekel = parseFloat(row.shekel_amount) || 0;
             const bit = parseFloat(row.bit_amount) || 0;
@@ -119,7 +114,6 @@ export default Deno.serve(async (req) => {
             salesRepStats[repName] = (salesRepStats[repName] || 0) + totalValueInEur;
         });
 
-        // Process Expenses
         expenses.forEach(exp => {
             const amount = parseFloat(exp.amount) || 0;
             if (exp.currency === 'ILS') totals.shekel.expenses += amount;
@@ -136,173 +130,225 @@ export default Deno.serve(async (req) => {
         const totalIncomeEurCombined = totals.eur.income + (totals.shekel.income * 0.26) + (totals.bit.income * 0.26) + (totals.usd.income * 0.95);
         const avgRevenuePerCustomer = totalCustomers > 0 ? totalIncomeEurCombined / totalCustomers : 0;
 
-        // --- Build Styled "Bank Summary" Sheet ---
+        // --- Build "Bank Summary" Sheet (Styled like Website) ---
         const summarySheet = workbook.addWorksheet("סיכום בנק", {
             views: [{ rightToLeft: true, showGridLines: false }]
         });
 
-        // Title
-        summarySheet.mergeCells('A1:E1');
-        const titleCell = summarySheet.getCell('A1');
-        titleCell.value = "דוח בנק מקיף";
-        titleCell.font = { bold: true, size: 20, color: { argb: 'FF1E293B' } };
-        titleCell.alignment = { horizontal: 'center' };
+        // Column Setup (simulating grid)
+        summarySheet.columns = [
+            { width: 3 },  // Spacer
+            { width: 25 }, // Col B
+            { width: 20 }, // Col C
+            { width: 20 }, // Col D
+            { width: 20 }, // Col E
+            { width: 3 },  // Spacer
+            { width: 25 }, // Col G
+            { width: 20 }, // Col H
+            { width: 3 }   // Spacer
+        ];
 
-        // --- 1. General Stats Table ---
-        let currentRow = 3;
-        const addSectionTitle = (title, row) => {
-            summarySheet.mergeCells(`A${row}:C${row}`);
-            const cell = summarySheet.getCell(`A${row}`);
-            cell.value = title;
-            cell.font = { bold: true, size: 14, color: { argb: 'FF334155' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-            cell.border = { bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
+        let currentRow = 2;
+
+        // Title
+        summarySheet.mergeCells(`B${currentRow}:E${currentRow}`);
+        const titleCell = summarySheet.getCell(`B${currentRow}`);
+        titleCell.value = "טבלת בנק - סיכום מנהלים";
+        titleCell.font = { bold: true, size: 24, name: 'Calibri', color: { argb: 'FF1E293B' } };
+        titleCell.alignment = { horizontal: 'right' };
+        currentRow += 2;
+
+        // --- 1. Top Cards (Stats) ---
+        // Simulating 3 cards horizontally: B-C, D-E, G-H
+        
+        const drawCard = (startCol, row, title, value, subtext) => {
+            const endCol = String.fromCharCode(startCol.charCodeAt(0) + 1); // Next char
+            
+            // Card Box
+            const range = `${startCol}${row}:${endCol}${row + 2}`;
+            
+            // Styles
+            summarySheet.getCell(`${startCol}${row}`).value = title;
+            summarySheet.getCell(`${startCol}${row}`).font = { bold: true, size: 11, color: { argb: 'FF64748B' }, name: 'Calibri' };
+            summarySheet.getCell(`${startCol}${row}`).alignment = { vertical: 'bottom', horizontal: 'right' };
+            
+            summarySheet.getCell(`${startCol}${row+1}`).value = value;
+            summarySheet.getCell(`${startCol}${row+1}`).font = { bold: true, size: 22, color: { argb: 'FF0F172A' }, name: 'Calibri' };
+            
+            summarySheet.getCell(`${startCol}${row+2}`).value = subtext;
+            summarySheet.getCell(`${startCol}${row+2}`).font = { size: 10, color: { argb: 'FF94A3B8' }, name: 'Calibri' };
+            summarySheet.getCell(`${startCol}${row+2}`).alignment = { vertical: 'top', horizontal: 'right' };
+
+            // Border for the "Card" effect
+            const topUserData = summarySheet.getCell(`${startCol}${row}`);
+            topUserData.border = { top: {style:'medium', color: {argb:'FFE2E8F0'}}, left: {style:'medium', color: {argb:'FFE2E8F0'}}, right: {style:'medium', color: {argb:'FFE2E8F0'}} };
+            
+            const middleUserData = summarySheet.getCell(`${startCol}${row+1}`);
+            middleUserData.border = { left: {style:'medium', color: {argb:'FFE2E8F0'}}, right: {style:'medium', color: {argb:'FFE2E8F0'}} };
+
+            const bottomUserData = summarySheet.getCell(`${startCol}${row+2}`);
+            bottomUserData.border = { bottom: {style:'medium', color: {argb:'FFE2E8F0'}}, left: {style:'medium', color: {argb:'FFE2E8F0'}}, right: {style:'medium', color: {argb:'FFE2E8F0'}} };
         };
 
-        addSectionTitle("מדדים כלליים", currentRow);
-        currentRow++;
+        drawCard('B', currentRow, "סה\"כ לקוחות", totalCustomers, "לקוחות בכל הקבוצות");
+        drawCard('D', currentRow, "סה\"כ קבוצות", income.length, "הזמנות במערכת");
+        drawCard('G', currentRow, "ממוצע ללקוח", `€${Math.round(avgRevenuePerCustomer)}`, "הכנסה ממוצעת משוערת");
+        
+        currentRow += 4; // Space after cards
 
-        const generalStatsData = [
-            ["סה\"כ לקוחות", totalCustomers],
-            ["סה\"כ מכירות", income.length],
-            ["הכנסה ממוצעת ללקוח (€)", Math.round(avgRevenuePerCustomer)]
-        ];
-
-        generalStatsData.forEach(([label, value]) => {
-            const row = summarySheet.getRow(currentRow);
-            row.getCell(1).value = label;
-            row.getCell(2).value = value;
-            row.getCell(1).font = { bold: true };
-            currentRow++;
-        });
-        currentRow += 2;
-
-        // --- 2. Main Currency Table ---
-        addSectionTitle("סיכום לפי מטבעות", currentRow);
-        currentRow++;
+        // --- 2. Main Table (Styled like shadcn table) ---
+        
+        // Table Header
+        const headers = ["תיאור", "יורו (EUR)", "שקל (ILS)", "דולר (USD)", "ביט (BIT)"]; // Transposed/Pivoted logic for better print view? 
+        // Actually site uses Rows=Currency, Cols=Income/Expense. Let's stick to site layout: Rows=Total Income/Expense, Cols=Currencies.
+        
+        // Site Layout:
+        // Cols: Description | EUR | ILS | USD
+        // Rows: Income, Expense, Balance
+        // Footer: Bit Summary
+        
+        const tableStartRow = currentRow;
+        const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
 
         // Headers
-        const currencyHeaders = ["מטבע", "הכנסות", "הוצאות", "יתרה"];
-        const headerRow = summarySheet.getRow(currentRow);
-        currencyHeaders.forEach((h, i) => {
-            const cell = headerRow.getCell(i + 1);
-            cell.value = h;
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
+        summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "תיאור";
+        summarySheet.getCell(`${colMap.eur}${currentRow}`).value = "יורו (EUR)";
+        summarySheet.getCell(`${colMap.ils}${currentRow}`).value = "שקל (ILS)";
+        summarySheet.getCell(`${colMap.usd}${currentRow}`).value = "דולר (USD)";
+
+        ['B','C','D','E'].forEach(col => {
+            const cell = summarySheet.getCell(`${col}${currentRow}`);
+            cell.font = { bold: true, color: { argb: 'FF475569' }, size: 11 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+            cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        summarySheet.getRow(currentRow).height = 25;
+        currentRow++;
+
+        // Row 1: Income
+        summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "סה\"כ הכנסות";
+        summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.income;
+        summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.income;
+        summarySheet.getCell(`${colMap.usd}${currentRow}`).value = totals.usd.income;
+
+        ['C','D','E'].forEach(col => {
+            const cell = summarySheet.getCell(`${col}${currentRow}`);
+            cell.numFmt = '#,##0';
+            cell.font = { color: { argb: 'FF16A34A' }, bold: true }; // Green
             cell.alignment = { horizontal: 'center' };
         });
+        summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
+        summarySheet.getRow(currentRow).height = 25;
         currentRow++;
 
-        const currencyData = [
-            ["יורו (EUR)", totals.eur.income, totals.eur.expenses],
-            ["שקל (ILS)", totals.shekel.income, totals.shekel.expenses],
-            ["דולר (USD)", totals.usd.income, totals.usd.expenses],
-            ["ביט (BIT)", totals.bit.income, 0]
-        ];
+        // Row 2: Expenses
+        summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "סה\"כ הוצאות";
+        summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.expenses;
+        summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.expenses;
+        summarySheet.getCell(`${colMap.usd}${currentRow}`).value = totals.usd.expenses;
 
-        currencyData.forEach(([currency, inc, exp]) => {
-            const balance = inc - exp;
-            const row = summarySheet.getRow(currentRow);
-            
-            row.getCell(1).value = currency;
-            
-            const incCell = row.getCell(2);
-            incCell.value = inc;
-            incCell.numFmt = '#,##0';
-            incCell.font = { color: { argb: 'FF16A34A' } }; // Green
-
-            const expCell = row.getCell(3);
-            expCell.value = exp;
-            expCell.numFmt = '#,##0';
-            expCell.font = { color: { argb: 'FFDC2626' } }; // Red
-
-            const balCell = row.getCell(4);
-            balCell.value = balance;
-            balCell.numFmt = '#,##0';
-            balCell.font = { bold: true, color: { argb: balance >= 0 ? 'FF000000' : 'FFDC2626' } };
-
-            currentRow++;
+        ['C','D','E'].forEach(col => {
+            const cell = summarySheet.getCell(`${col}${currentRow}`);
+            cell.numFmt = '#,##0';
+            cell.font = { color: { argb: 'FFDC2626' }, bold: true }; // Red
+            cell.alignment = { horizontal: 'center' };
         });
-        currentRow += 2;
+        summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
+        summarySheet.getRow(currentRow).height = 25;
+        currentRow++;
 
-        // --- 3. Additional Tables (Side by Side) ---
-        const startRow = currentRow;
-        
-        // Bit Table (Left)
-        addSectionTitle("פירוט ביט", startRow);
-        let bitRow = startRow + 1;
-        
-        [["קשרי תעופה", totals.bitKishrei], ["נטו פאן", totals.bitNeto]].forEach(([label, val]) => {
-            summarySheet.getCell(`A${bitRow}`).value = label;
-            summarySheet.getCell(`B${bitRow}`).value = val;
-            summarySheet.getCell(`B${bitRow}`).numFmt = '#,##0';
-            bitRow++;
+        // Row 3: Balance (Bold, Light Background)
+        summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "יתרה בקופה";
+        summarySheet.getCell(`${colMap.eur}${currentRow}`).value = totals.eur.income - totals.eur.expenses;
+        summarySheet.getCell(`${colMap.ils}${currentRow}`).value = totals.shekel.income - totals.shekel.expenses;
+        summarySheet.getCell(`${colMap.usd}${currentRow}`).value = totals.usd.income - totals.usd.expenses;
+
+        ['B','C','D','E'].forEach(col => {
+            const cell = summarySheet.getCell(`${col}${currentRow}`);
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Slate-50
+            cell.font = { bold: true, size: 12 };
+            cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            if (col !== 'B') cell.numFmt = '#,##0';
         });
+        summarySheet.getRow(currentRow).height = 35;
+        currentRow++;
 
-        // Sales Reps (Right - Column E)
-        const repStartRow = startRow;
-        summarySheet.mergeCells(`E${repStartRow}:F${repStartRow}`);
-        const repTitle = summarySheet.getCell(`E${repStartRow}`);
-        repTitle.value = "מכירות לפי נציג (יורו)";
-        repTitle.font = { bold: true, color: { argb: 'FF334155' } };
-        repTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        // Row 4: Bit Footer (Blue Background)
+        summarySheet.getCell(`B${currentRow}`).value = "סיכום ביט";
+        summarySheet.mergeCells(`C${currentRow}:E${currentRow}`); // Merge rest
         
-        let repRow = repStartRow + 1;
-        // Headers
-        summarySheet.getCell(`E${repRow}`).value = "נציג";
-        summarySheet.getCell(`F${repRow}`).value = "סה\"כ";
-        summarySheet.getRow(repRow).getCell(5).font = { bold: true };
-        summarySheet.getRow(repRow).getCell(6).font = { bold: true };
-        repRow++;
+        const bitSummaryText = `קשרי תעופה: ₪${totals.bitKishrei.toLocaleString()}  |  נטו פאן: ₪${totals.bitNeto.toLocaleString()}  |  סה"כ: ₪${totals.bit.income.toLocaleString()}`;
+        summarySheet.getCell(`C${currentRow}`).value = bitSummaryText;
 
+        ['B', 'C'].forEach(col => {
+            const cell = summarySheet.getCell(`${col}${currentRow}`);
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; // Blue-50
+            cell.font = { color: { argb: 'FF1E40AF' }, bold: true }; // Blue-800
+            cell.border = { top: { style: 'thin', color: { argb: 'FFBFDBFE' } } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        summarySheet.getRow(currentRow).height = 35;
+        
+        currentRow += 3;
+
+        // --- 3. Side Lists (Reps & Expenses) ---
+        
+        const listStartRow = currentRow;
+        
+        // Sales Reps (Left side B-C)
+        summarySheet.mergeCells(`B${listStartRow}:C${listStartRow}`);
+        const repHeader = summarySheet.getCell(`B${listStartRow}`);
+        repHeader.value = "🏆 מכירות לפי נציג (יורו)";
+        repHeader.font = { bold: true, color: { argb: 'FF0F172A' }, size: 12 };
+        repHeader.border = { bottom: { style: 'thick', color: { argb: 'FFCBD5E1' } } };
+        
+        let repRow = listStartRow + 1;
         Object.entries(salesRepStats)
             .sort(([,a], [,b]) => b - a)
             .forEach(([name, val]) => {
-                summarySheet.getCell(`E${repRow}`).value = name;
-                summarySheet.getCell(`F${repRow}`).value = Math.round(val);
-                summarySheet.getCell(`F${repRow}`).numFmt = '#,##0 €';
+                summarySheet.getCell(`B${repRow}`).value = name;
+                summarySheet.getCell(`C${repRow}`).value = val;
+                summarySheet.getCell(`C${repRow}`).numFmt = '#,##0 €';
+                
+                // Alternating row colors
+                if ((repRow - listStartRow) % 2 === 0) {
+                     summarySheet.getCell(`B${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                     summarySheet.getCell(`C${repRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                }
                 repRow++;
             });
 
-        // Expenses (Far Right - Column H)
-        const expStartRow = startRow;
-        summarySheet.mergeCells(`H${expStartRow}:I${expStartRow}`);
-        const expTitle = summarySheet.getCell(`H${expStartRow}`);
-        expTitle.value = "הוצאות לפי קטגוריה (יורו)";
-        expTitle.font = { bold: true, color: { argb: 'FF334155' } };
-        expTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-        let expRow = expStartRow + 1;
-        summarySheet.getCell(`H${expRow}`).value = "קטגוריה";
-        summarySheet.getCell(`I${expRow}`).value = "סה\"כ";
-        summarySheet.getRow(expRow).getCell(8).font = { bold: true };
-        summarySheet.getRow(expRow).getCell(9).font = { bold: true };
-        expRow++;
+        // Expenses (Right side D-E) - actually G-H to separate visually
+        summarySheet.mergeCells(`G${listStartRow}:H${listStartRow}`);
+        const expHeader = summarySheet.getCell(`G${listStartRow}`);
+        expHeader.value = "📉 הוצאות לפי קטגוריה (יורו)";
+        expHeader.font = { bold: true, color: { argb: 'FF0F172A' }, size: 12 };
+        expHeader.border = { bottom: { style: 'thick', color: { argb: 'FFCBD5E1' } } };
 
+        let expRow = listStartRow + 1;
         Object.entries(categoryStats)
             .sort(([,a], [,b]) => b - a)
             .forEach(([name, val]) => {
-                summarySheet.getCell(`H${expRow}`).value = name;
-                summarySheet.getCell(`I${expRow}`).value = Math.round(val);
-                summarySheet.getCell(`I${expRow}`).numFmt = '#,##0 €';
+                summarySheet.getCell(`G${expRow}`).value = name;
+                summarySheet.getCell(`H${expRow}`).value = val;
+                summarySheet.getCell(`H${expRow}`).numFmt = '#,##0 €';
+                
+                if ((expRow - listStartRow) % 2 === 0) {
+                     summarySheet.getCell(`G${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                     summarySheet.getCell(`H${expRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                }
                 expRow++;
             });
 
-        // Adjust Column Widths
-        summarySheet.columns = [
-            { width: 20 }, { width: 15 }, { width: 15 }, { width: 15 }, // A-D
-            { width: 20 }, { width: 15 }, // E-F
-            { width: 5 }, // G (Spacer)
-            { width: 25 }, { width: 15 } // H-I
-        ];
-
-        // 3. Upload to Google Drive
+        // 3. Upload Logic
         const buffer = await workbook.xlsx.writeBuffer();
         
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
         if (!accessToken) return Response.json({ error: "No Google Drive token" }, { status: 400 });
 
-        // ... Folder and Upload Logic ...
         const folderName = "אקסל";
         let folderId = null;
 
