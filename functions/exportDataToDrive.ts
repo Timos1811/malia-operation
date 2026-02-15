@@ -39,37 +39,126 @@ export default Deno.serve(async (req) => {
         addSheet(caspars, "כספרים");
         addSheet(moneyLocations, "מיקומי כסף");
 
-        // Calculate Bank Table Summary
-        const summary = {
-            EUR: { income: 0, expense: 0 },
-            ILS: { income: 0, expense: 0 },
-            USD: { income: 0, expense: 0 },
-            BIT: { income: 0, expense: 0 }
+        // --- Calculate Bank Table Summary (Replicating BankTable.js logic) ---
+        
+        const totals = {
+            shekel: { income: 0, expenses: 0 },
+            bit: { income: 0, expenses: 0 }, 
+            usd: { income: 0, expenses: 0 },
+            eur: { income: 0, expenses: 0 },
+            bitKishrei: 0,
+            bitNeto: 0
         };
 
+        const categoryStats = {};
+        const salesRepStats = {};
+        let totalCustomers = 0;
+
+        // Calculate Income
         income.forEach(row => {
-            summary.EUR.income += parseFloat(row.eur_amount) || 0;
-            summary.ILS.income += parseFloat(row.shekel_amount) || 0;
-            summary.USD.income += parseFloat(row.dollar_amount) || 0;
-            summary.BIT.income += parseFloat(row.bit_amount) || 0;
+            const shekel = parseFloat(row.shekel_amount) || 0;
+            const bit = parseFloat(row.bit_amount) || 0;
+            const usd = parseFloat(row.dollar_amount) || 0;
+            const eur = parseFloat(row.eur_amount) || 0;
+
+            totals.shekel.income += shekel;
+            totals.bit.income += bit;
+            totals.usd.income += usd;
+            totals.eur.income += eur;
+            
+            if (row.company === 'נטו פאן') totals.bitNeto += bit;
+            else totals.bitKishrei += bit;
+
+            // Count customers
+            const customerStr = String(row.customer || '');
+            const numberMatch = customerStr.match(/\d+/);
+            const customerCount = numberMatch ? parseInt(numberMatch[0]) : 0;
+            totalCustomers += customerCount;
+
+            // Sales Rep Stats (Normalized to EUR)
+            const repName = row.sales_rep || 'ללא נציג';
+            const totalValueInEur = eur + (shekel * 0.26) + (bit * 0.26) + (usd * 0.95);
+            salesRepStats[repName] = (salesRepStats[repName] || 0) + totalValueInEur;
         });
 
+        // Calculate Expenses
         expenses.forEach(exp => {
-            const amt = parseFloat(exp.amount) || 0;
-            if (exp.currency === 'EUR') summary.EUR.expense += amt;
-            if (exp.currency === 'ILS') summary.ILS.expense += amt;
-            if (exp.currency === 'USD') summary.USD.expense += amt;
+            const amount = parseFloat(exp.amount) || 0;
+            if (exp.currency === 'ILS') totals.shekel.expenses += amount;
+            else if (exp.currency === 'USD') totals.usd.expenses += amount;
+            else if (exp.currency === 'EUR') totals.eur.expenses += amount;
+
+            // Category breakdown (Normalized to EUR)
+            let amountInEur = amount;
+            if (exp.currency === 'ILS') amountInEur = amount * 0.26;
+            else if (exp.currency === 'USD') amountInEur = amount * 0.95;
+            
+            if (exp.reason) {
+                categoryStats[exp.reason] = (categoryStats[exp.reason] || 0) + amountInEur;
+            }
         });
 
-        const bankTableData = [
-            { "מטבע": "EUR", "הכנסות": summary.EUR.income, "הוצאות": summary.EUR.expense, "יתרה": summary.EUR.income - summary.EUR.expense },
-            { "מטבע": "ILS", "הכנסות": summary.ILS.income, "הוצאות": summary.ILS.expense, "יתרה": summary.ILS.income - summary.ILS.expense },
-            { "מטבע": "USD", "הכנסות": summary.USD.income, "הוצאות": summary.USD.expense, "יתרה": summary.USD.income - summary.USD.expense },
-            { "מטבע": "BIT", "הכנסות": summary.BIT.income, "הוצאות": summary.BIT.expense, "יתרה": summary.BIT.income - summary.BIT.expense },
+        // Global Stats
+        const totalIncomeEurCombined = totals.eur.income + (totals.shekel.income * 0.26) + (totals.bit.income * 0.26) + (totals.usd.income * 0.95);
+        const avgRevenuePerCustomer = totalCustomers > 0 ? totalIncomeEurCombined / totalCustomers : 0;
+
+        // --- Build "Bank" Sheet ---
+        const wsBank = XLSX.utils.aoa_to_sheet([["דוח בנק מקיף"]]); // Start with title
+
+        let currentRow = 2; // 0-indexed in code logic, but let's track row number for placement
+
+        // 1. General Stats
+        XLSX.utils.sheet_add_json(wsBank, [
+            { "מדד": "סה\"כ לקוחות", "ערך": totalCustomers },
+            { "מדד": "סה\"כ קבוצות/מכירות", "ערך": income.length },
+            { "מדד": "ממוצע הכנסה ללקוח (יורו)", "ערך": Math.round(avgRevenuePerCustomer) }
+        ], { origin: `A${currentRow}` });
+        currentRow += 5;
+
+        // 2. Main Currency Table
+        const currencyTable = [
+            { "מטבע": "יורו (EUR)", "הכנסות": totals.eur.income, "הוצאות": totals.eur.expenses, "יתרה": totals.eur.income - totals.eur.expenses },
+            { "מטבע": "שקל (ILS)", "הכנסות": totals.shekel.income, "הוצאות": totals.shekel.expenses, "יתרה": totals.shekel.income - totals.shekel.expenses },
+            { "מטבע": "דולר (USD)", "הכנסות": totals.usd.income, "הוצאות": totals.usd.expenses, "יתרה": totals.usd.income - totals.usd.expenses },
+            { "מטבע": "ביט (BIT)", "הכנסות": totals.bit.income, "הוצאות": 0, "יתרה": totals.bit.income } // Bit expenses not tracked separately in totals object structure but usually 0
         ];
+        XLSX.utils.sheet_add_json(wsBank, currencyTable, { origin: `A${currentRow}` });
+        currentRow += 6;
+
+        // 3. Bit Breakdown
+        XLSX.utils.sheet_add_json(wsBank, [
+            { "פירוט ביט": "קשרי תעופה", "סכום": totals.bitKishrei },
+            { "פירוט ביט": "נטו פאן", "סכום": totals.bitNeto },
+            { "פירוט ביט": "סה\"כ ביט", "סכום": totals.bit.income }
+        ], { origin: `A${currentRow}` });
+        currentRow += 5;
+
+        // 4. Money Locations
+        const locationsTable = moneyLocations.map(loc => ({
+            "שם המיקום": loc.name,
+            "סכום": loc.amount,
+            "מטבע": loc.currency
+        }));
+        if (locationsTable.length > 0) {
+             XLSX.utils.sheet_add_json(wsBank, locationsTable, { origin: `A${currentRow}` });
+             currentRow += locationsTable.length + 2;
+        }
+
+        // 5. Sales by Rep
+        const salesRepTable = Object.entries(salesRepStats)
+            .map(([name, value]) => ({ "נציג": name, "סה\"כ מכירות (יורו)": Math.round(value) }))
+            .sort((a, b) => b["סה\"כ מכירות (יורו)"] - a["סה\"כ מכירות (יורו)"]);
         
-        const wsSummary = XLSX.utils.json_to_sheet(bankTableData);
-        XLSX.utils.book_append_sheet(wb, wsSummary, "סיכום בנק");
+        XLSX.utils.sheet_add_json(wsBank, salesRepTable, { origin: `E2` }); // Place to the right side
+
+        // 6. Expenses by Category
+        const expensesTable = Object.entries(categoryStats)
+            .map(([name, value]) => ({ "קטגוריית הוצאה": name, "סה\"כ (יורו)": Math.round(value) }))
+            .sort((a, b) => b["סה\"כ (יורו)"] - a["סה\"כ (יורו)"]);
+
+        XLSX.utils.sheet_add_json(wsBank, expensesTable, { origin: `H2` }); // Place further right
+
+        XLSX.utils.book_append_sheet(wb, wsBank, "סיכום בנק מורחב");
 
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
