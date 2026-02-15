@@ -167,7 +167,7 @@ export default Deno.serve(async (req) => {
             }
         };
 
-        // --- Helper: Add Smart Sheet ---
+        // --- Helper: Add Smart Sheet (Manual Mode) ---
         const addSmartSheet = (data, sheetName, entityType) => {
             const sheet = workbook.addWorksheet(sheetName, {
                 views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 1 }]
@@ -176,162 +176,184 @@ export default Deno.serve(async (req) => {
             const config = sheetConfigs[entityType] || { headers: {} };
             const mapping = config.headers;
             
-            // 1. Prepare Columns
+            // 1. Prepare Columns Headers and Keys
             let columns = [];
             const sample = data.length > 0 ? data[0] : {};
             const dataKeys = Object.keys(sample).filter(k => 
                 !['id', 'created_by', 'updated_date', 'created_date', 'eur_status'].includes(k)
             );
 
+            // Add mapped columns first
             Object.entries(mapping).forEach(([key, label]) => {
-                columns.push({ name: label, key: key, filterButton: true });
+                columns.push({ name: label, key: key });
             });
             
+            // Add remaining data keys
             dataKeys.forEach(key => {
-                if (!mapping[key]) columns.push({ name: key, key: key, filterButton: true });
+                if (!mapping[key]) columns.push({ name: key, key: key });
             });
 
+            // Add calculated columns definition
             if (config.calculatedColumns) {
                 config.calculatedColumns.forEach(calc => {
-                    columns.push({ name: calc.header, totalsRowFunction: 'sum' });
+                    columns.push({ name: calc.header, isCalculated: true });
                 });
             }
 
-            // 2. Prepare Rows
-            const rows = data.map(item => {
-                const row = [];
+            if (columns.length === 0) {
+                sheet.addRow(["אין נתונים"]);
+                return;
+            }
+
+            // 2. Write Header Row
+            const headerRow = sheet.addRow(columns.map(c => c.name));
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }; // Blue header
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            headerRow.height = 20;
+
+            // 3. Write Data Rows
+            const startRow = 2;
+            data.forEach((item, index) => {
+                const rowValues = [];
                 columns.forEach(col => {
-                    if (col.key) {
+                    if (col.isCalculated) {
+                        rowValues.push(null); // Placeholder for formula
+                    } else if (col.key) {
                         let val = item[col.key];
                         if (col.key.includes('date') && val) val = new Date(val);
                         if (typeof val === 'boolean') val = val ? 'כן' : 'לא';
                         
-                        // Numeric handling: ensure valid number or 0, avoids NaN causing Excel errors
+                        // Numeric handling
                         if (['amount', 'people_count', 'nights'].some(k => col.key.includes(k))) {
                             const parsed = parseFloat(val);
                             val = isNaN(parsed) ? 0 : parsed;
                         }
-                        
-                        row.push(val);
+                        rowValues.push(val);
                     } else {
-                        row.push(null); 
+                        rowValues.push(null);
                     }
                 });
-                return row;
+                sheet.addRow(rowValues);
             });
 
-            // 3. Add Table
-            if (columns.length > 0) {
-                const tableConfig = {
-                    name: config.tableName || `${entityType}Table`,
-                    ref: 'A1',
-                    headerRow: true,
-                    totalsRow: true,
-                    style: { theme: 'TableStyleMedium9', showRowStripes: true },
-                    columns: columns.map(col => {
-                        if (col.key && (col.key.includes('amount') || col.key === 'people_count')) {
-                            return { ...col, totalsRowFunction: 'sum' };
-                        }
-                        return col;
-                    }),
-                    rows: rows,
-                };
+            const lastDataRow = startRow + data.length - 1;
+
+            // 4. Map Columns for References
+            const keyToLetter = {};
+            const nameToLetter = {};
+            columns.forEach((col, idx) => {
+                const letter = sheet.getColumn(idx + 1).letter;
+                nameToLetter[col.name] = letter;
+                if (col.key) keyToLetter[col.key] = letter;
                 
-                sheet.addTable(tableConfig);
-
-                // 4. Post-Processing
-                const totalRows = rows.length || 1; 
-                // Apply validations to entire column range (e.g. D2:D1000)
-                // We go up to 1000 or more to allow user to add new rows with validation
-                const validationRangeEnd = 5000;
-
-                columns.forEach((col, idx) => {
-                    const colLetter = sheet.getColumn(idx + 1).letter;
-                    const colKey = col.key;
-                    
-                    // Formatting
-                    if (colKey && colKey.includes('amount') || (col.name && col.name.includes('ערך'))) {
-                        sheet.getColumn(idx + 1).numFmt = '#,##0.00';
+                // Set Width and Alignment
+                sheet.getColumn(idx + 1).width = 18;
+                sheet.getColumn(idx + 1).alignment = { vertical: 'middle', horizontal: 'center' };
+                
+                // Format Amounts/Dates
+                if ((col.key && col.key.includes('amount')) || (col.name && col.name.includes('ערך')) || col.isCalculated) {
+                    if (!col.key || !col.key.includes('people')) { // Don't format people count as currency/decimal usually
+                         sheet.getColumn(idx + 1).numFmt = '#,##0.00';
                     }
-                    if (colKey && colKey.includes('date')) {
-                        sheet.getColumn(idx + 1).numFmt = 'dd/mm/yyyy';
-                    }
+                }
+                if (col.key && col.key.includes('date')) {
+                    sheet.getColumn(idx + 1).numFmt = 'dd/mm/yyyy';
+                }
+            });
 
-                    // Validation
-                    if (config.validations && config.validations[colKey]) {
-                        for (let r = 2; r <= validationRangeEnd; r++) {
-                            sheet.getCell(`${colLetter}${r}`).dataValidation = {
-                                type: 'list',
-                                allowBlank: true,
-                                formulae: [config.validations[colKey]],
-                                showErrorMessage: true,
-                                errorStyle: 'warning', // Warning allows custom values if needed, Stop prevents it
-                                errorTitle: 'ערך לא חוקי',
-                                error: 'אנא בחר ערך מהרשימה'
-                            };
+            // 5. Apply Formulas to Data Rows
+            if (config.calculatedColumns && data.length > 0) {
+                config.calculatedColumns.forEach(calc => {
+                    const colIndex = columns.findIndex(c => c.name === calc.header);
+                    if (colIndex !== -1) {
+                        const targetColLetter = sheet.getColumn(colIndex + 1).letter;
+                        for (let r = startRow; r <= lastDataRow; r++) {
+                            const formula = typeof calc.formula === 'function' 
+                                ? calc.formula(r, keyToLetter, nameToLetter)
+                                : calc.formula;
+                            sheet.getCell(`${targetColLetter}${r}`).value = { formula: formula };
                         }
                     }
                 });
+            }
 
-                // Apply Formulas
-                if (config.calculatedColumns) {
-                    // Map keys and names to column letters for direct referencing
-                    const keyToLetter = {};
-                    const nameToLetter = {};
-                    columns.forEach((col, idx) => {
-                        const letter = sheet.getColumn(idx + 1).letter;
-                        nameToLetter[col.name] = letter;
-                        if (col.key) keyToLetter[col.key] = letter;
-                    });
-
-                    config.calculatedColumns.forEach(calc => {
-                        const colIndex = columns.findIndex(c => c.name === calc.header);
-                        if (colIndex !== -1) {
-                            const targetColLetter = sheet.getColumn(colIndex + 1).letter;
-                            for (let r = 2; r <= totalRows + 1; r++) {
-                                const formula = typeof calc.formula === 'function' 
-                                    ? calc.formula(r, keyToLetter, nameToLetter)
-                                    : calc.formula;
-                                sheet.getCell(`${targetColLetter}${r}`).value = { formula: formula };
-                            }
-                        }
-                    });
-                }
-
-                // Conditional Formatting (Same as before)
-                if (entityType === 'TableData') {
-                    const statusColIndex = columns.findIndex(c => c.name === 'סטטוס');
-                    if (statusColIndex !== -1) {
-                        const colLetter = sheet.getColumn(statusColIndex + 1).letter;
-                        sheet.addConditionalFormatting({
-                            ref: `${colLetter}2:${colLetter}9999`,
-                            rules: [
-                                { type: 'cellIs', operator: 'greaterThan', formulae: ['0'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } },
-                                { type: 'cellIs', operator: 'lessThan', formulae: ['-0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } },
-                                { type: 'cellIs', operator: 'between', formulae: ['-0.01', '0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } }
-                            ]
-                        });
-                    }
-                }
+            // 6. Add Totals Row
+            if (data.length > 0) {
+                const totalRowIndex = lastDataRow + 1;
+                const totalRow = sheet.getRow(totalRowIndex);
                 
-                if (entityType === 'Task') {
-                    const statusColIndex = columns.findIndex(c => c.key === 'status');
-                    if (statusColIndex !== -1) {
-                         const colLetter = sheet.getColumn(statusColIndex + 1).letter;
-                         sheet.addConditionalFormatting({
-                            ref: `${colLetter}2:${colLetter}9999`,
-                            rules: [
-                                { type: 'expression', formulae: [`=$${colLetter}2="done"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' }, strike: true } } },
-                                { type: 'expression', formulae: [`=$${colLetter}2="todo"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } }
-                            ]
-                        });
+                // First column label
+                sheet.getCell(`A${totalRowIndex}`).value = "סה\"כ";
+                
+                columns.forEach((col, idx) => {
+                    const colLetter = sheet.getColumn(idx + 1).letter;
+                    // Check if should sum
+                    const shouldSum = (col.key && (col.key.includes('amount') || col.key === 'people_count')) || col.isCalculated;
+                    
+                    if (shouldSum) {
+                        sheet.getCell(`${colLetter}${totalRowIndex}`).value = { formula: `=SUM(${colLetter}${startRow}:${colLetter}${lastDataRow})` };
+                    }
+                });
+                
+                totalRow.font = { bold: true };
+                totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+            }
+
+            // 7. Auto Filter
+            sheet.autoFilter = {
+                from: { row: 1, column: 1 },
+                to: { row: lastDataRow, column: columns.length }
+            };
+
+            // 8. Validations (Extend to 1000 rows for future editing)
+            const validationRangeEnd = 1000;
+            columns.forEach((col, idx) => {
+                const colLetter = sheet.getColumn(idx + 1).letter;
+                const colKey = col.key;
+                if (colKey && config.validations && config.validations[colKey]) {
+                    for (let r = startRow; r <= validationRangeEnd; r++) {
+                         sheet.getCell(`${colLetter}${r}`).dataValidation = {
+                            type: 'list',
+                            allowBlank: true,
+                            formulae: [config.validations[colKey]],
+                            showErrorMessage: true,
+                            errorStyle: 'warning',
+                            errorTitle: 'ערך לא חוקי',
+                            error: 'אנא בחר ערך מהרשימה'
+                        };
                     }
                 }
+            });
 
-                // Adjust Widths
-                sheet.columns.forEach(col => { col.width = 18; col.alignment = { vertical: 'middle', horizontal: 'center' }; });
-            } else {
-                 sheet.addRow(["אין נתונים"]);
+            // 9. Conditional Formatting
+             if (entityType === 'TableData') {
+                const statusColIndex = columns.findIndex(c => c.name === 'סטטוס');
+                if (statusColIndex !== -1) {
+                    const colLetter = sheet.getColumn(statusColIndex + 1).letter;
+                    sheet.addConditionalFormatting({
+                        ref: `${colLetter}2:${colLetter}1000`,
+                        rules: [
+                            { type: 'cellIs', operator: 'greaterThan', formulae: ['0'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } },
+                            { type: 'cellIs', operator: 'lessThan', formulae: ['-0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } },
+                            { type: 'cellIs', operator: 'between', formulae: ['-0.01', '0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } }
+                        ]
+                    });
+                }
+            }
+            
+            if (entityType === 'Task') {
+                const statusColIndex = columns.findIndex(c => c.key === 'status');
+                if (statusColIndex !== -1) {
+                     const colLetter = sheet.getColumn(statusColIndex + 1).letter;
+                     sheet.addConditionalFormatting({
+                        ref: `${colLetter}2:${colLetter}1000`,
+                        rules: [
+                            { type: 'expression', formulae: [`=$${colLetter}2="done"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' }, strike: true } } },
+                            { type: 'expression', formulae: [`=$${colLetter}2="todo"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } }
+                        ]
+                    });
+                }
             }
         };
 
