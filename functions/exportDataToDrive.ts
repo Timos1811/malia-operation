@@ -143,7 +143,7 @@ export default Deno.serve(async (req) => {
             currency: "מטבע"
         });
 
-        // 4. יצירת גיליון סיכום (טבלת בנק)
+        // 4. יצירת גיליון סיכום (טבלת בנק) - עיצוב משופר
         const bankSheet = workbook.addWorksheet("טבלת בנק (סיכום)", {
             views: [{ rightToLeft: true, showGridLines: false }]
         });
@@ -151,7 +151,7 @@ export default Deno.serve(async (req) => {
         // חישוב סיכומים
         const stats = {
             EUR: { income: 0, expenses: 0 },
-            ILS: { income: 0, expenses: 0 }, // מזומן
+            ILS: { income: 0, expenses: 0 },
             USD: { income: 0, expenses: 0 },
             BIT: { income: 0, neto: 0, kishrei: 0 }
         };
@@ -173,95 +173,151 @@ export default Deno.serve(async (req) => {
             if (stats[curr]) stats[curr].expenses += amount;
         });
 
-        // עיצוב וטבלה
-        bankSheet.getColumn(1).width = 20; // כותרות
-        bankSheet.getColumn(2).width = 20; // EUR
-        bankSheet.getColumn(3).width = 20; // ILS
-        bankSheet.getColumn(4).width = 20; // USD
+        // הגדרת רוחב עמודות
+        bankSheet.columns = [
+            { width: 25 }, // תיאור
+            { width: 20 }, // יורו
+            { width: 20 }, // שקל
+            { width: 20 }, // דולר
+            { width: 5 }   // רווח
+        ];
 
-        // כותרת
-        bankSheet.mergeCells('A1:D1');
-        const title = bankSheet.getCell('A1');
-        title.value = 'סיכום כספי - טבלת בנק';
-        title.font = { bold: true, size: 16 };
-        title.alignment = { horizontal: 'center' };
+        // פונקציית עזר לעיצוב תא כותרת
+        const styleHeaderCell = (cell, color = 'FF475569') => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        };
 
-        // כותרות עמודות
-        const headers = ['תיאור', 'יורו (EUR)', 'שקל (מזומן)', 'דולר (USD)'];
-        const headerRow = bankSheet.getRow(3);
+        // פונקציית עזר לעיצוב תא נתונים
+        const styleDataCell = (cell, isBold = false, color = null) => {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = { top: { style: 'thin', color: { argb: 'FFE2E8F0' } }, left: { style: 'thin', color: { argb: 'FFE2E8F0' } }, bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } }, right: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+            if (isBold) cell.font = { bold: true };
+            if (color) cell.font = { ...cell.font, color: { argb: color } };
+        };
+
+        // כותרת ראשית
+        bankSheet.mergeCells('A1:D2');
+        const mainTitle = bankSheet.getCell('A1');
+        mainTitle.value = 'דוח סיכום כספי - טבלת בנק';
+        mainTitle.font = { bold: true, size: 20, color: { argb: 'FF1E293B' } };
+        mainTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+        mainTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+        // כותרות הטבלה הראשית
+        const headerRow = bankSheet.getRow(4);
+        headerRow.height = 30;
+        
+        const headers = ['תיאור', 'יורו (€)', 'שקל (₪)', 'דולר ($)'];
         headers.forEach((h, i) => {
             const cell = headerRow.getCell(i + 1);
             cell.value = h;
+            styleHeaderCell(cell, 'FF334155'); // Slate 700
+        });
+
+        // נתונים - הכנסות
+        const incRow = bankSheet.getRow(5);
+        incRow.height = 25;
+        incRow.getCell(1).value = 'הכנסות';
+        styleDataCell(incRow.getCell(1), true);
+        
+        incRow.getCell(2).value = stats.EUR.income;
+        incRow.getCell(3).value = stats.ILS.income;
+        incRow.getCell(4).value = stats.USD.income;
+        
+        [2,3,4].forEach(c => {
+            styleDataCell(incRow.getCell(c), true, 'FF16A34A'); // Green
+            incRow.getCell(c).numFmt = '#,##0.00';
+        });
+
+        // נתונים - הוצאות
+        const expRow = bankSheet.getRow(6);
+        expRow.height = 25;
+        expRow.getCell(1).value = 'הוצאות';
+        styleDataCell(expRow.getCell(1), true);
+
+        expRow.getCell(2).value = stats.EUR.expenses;
+        expRow.getCell(3).value = stats.ILS.expenses;
+        expRow.getCell(4).value = stats.USD.expenses;
+
+        [2,3,4].forEach(c => {
+            styleDataCell(expRow.getCell(c), true, 'FFDC2626'); // Red
+            expRow.getCell(c).numFmt = '#,##0.00';
+        });
+
+        // נתונים - יתרה
+        const balRow = bankSheet.getRow(7);
+        balRow.height = 35;
+        balRow.getCell(1).value = 'יתרה בקופה';
+        
+        balRow.getCell(2).value = stats.EUR.income - stats.EUR.expenses;
+        balRow.getCell(3).value = stats.ILS.income - stats.ILS.expenses;
+        balRow.getCell(4).value = stats.USD.income - stats.USD.expenses;
+
+        [1,2,3,4].forEach(c => {
+            const cell = balRow.getCell(c);
+            cell.font = { bold: true, size: 14, color: { argb: 'FF1E3A8A' } }; // Dark Blue
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }; // Light Blue
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = { top: { style: 'medium' }, left: { style: 'medium' }, bottom: { style: 'medium' }, right: { style: 'medium' } };
+            if (c > 1) cell.numFmt = '#,##0.00';
+        });
+
+        // ביט - אזור נפרד מעוצב
+        bankSheet.mergeCells('A10:C10');
+        const bitTitle = bankSheet.getCell('A10');
+        bitTitle.value = 'סיכום ביט';
+        styleHeaderCell(bitTitle, 'FF2563EB'); // Blue 600
+        bitTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        const bitLabels = bankSheet.getRow(11);
+        bitLabels.getCell(1).value = 'סה"כ ביט';
+        bitLabels.getCell(2).value = 'נטו פאן';
+        bitLabels.getCell(3).value = 'קשרי תעופה';
+        [1,2,3].forEach(c => styleDataCell(bitLabels.getCell(c), true));
+        bitLabels.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+        const bitValues = bankSheet.getRow(12);
+        bitValues.height = 25;
+        bitValues.getCell(1).value = stats.BIT.income;
+        bitValues.getCell(2).value = stats.BIT.neto;
+        bitValues.getCell(3).value = stats.BIT.kishrei;
+        [1,2,3].forEach(c => {
+            styleDataCell(bitValues.getCell(c), true, 'FF0F172A');
+            bitValues.getCell(c).numFmt = '#,##0.00 ₪';
+            bitValues.getCell(c).font = { size: 12, bold: true };
+        });
+
+        // מיקומי כסף - אזור נפרד
+        const locStartRow = 15;
+        bankSheet.mergeCells(`A${locStartRow}:C${locStartRow}`);
+        const locTitle = bankSheet.getCell(`A${locStartRow}`);
+        locTitle.value = 'מיקומי כסף (פירוט)';
+        styleHeaderCell(locTitle, 'D97706'); // Amber 600
+
+        const locHeaderRow = bankSheet.getRow(locStartRow + 1);
+        ['שם המיקום', 'סכום', 'מטבע'].forEach((h, i) => {
+            const cell = locHeaderRow.getCell(i + 1);
+            cell.value = h;
             cell.font = { bold: true };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } }; // Light Amber
             cell.alignment = { horizontal: 'center' };
             cell.border = { bottom: { style: 'thin' } };
         });
 
-        // נתונים
-        const addRow = (label, eur, ils, usd, isBold = false) => {
-            const row = bankSheet.addRow([label, eur, ils, usd]);
-            row.alignment = { horizontal: 'center' };
-            if (isBold) row.font = { bold: true };
-            row.getCell(2).numFmt = '#,##0.00 €';
-            row.getCell(3).numFmt = '#,##0.00 ₪';
-            row.getCell(4).numFmt = '#,##0.00 $';
-        };
-
-        addRow('הכנסות', stats.EUR.income, stats.ILS.income, stats.USD.income);
-        addRow('הוצאות', stats.EUR.expenses, stats.ILS.expenses, stats.USD.expenses);
-        
-        // יתרה
-        const balanceRow = bankSheet.addRow([
-            'יתרה בקופה', 
-            stats.EUR.income - stats.EUR.expenses,
-            stats.ILS.income - stats.ILS.expenses,
-            stats.USD.income - stats.USD.expenses
-        ]);
-        balanceRow.font = { bold: true };
-        balanceRow.alignment = { horizontal: 'center' };
-        balanceRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF8FF' } }; // Light blue
-        balanceRow.getCell(2).numFmt = '#,##0.00 €';
-        balanceRow.getCell(3).numFmt = '#,##0.00 ₪';
-        balanceRow.getCell(4).numFmt = '#,##0.00 $';
-
-        // רווח ריק
-        bankSheet.addRow([]);
-        bankSheet.addRow([]);
-
-        // סיכום ביט
-        bankSheet.mergeCells(`A${bankSheet.rowCount + 1}:C${bankSheet.rowCount + 1}`);
-        const bitTitle = bankSheet.getCell(`A${bankSheet.rowCount}`);
-        bitTitle.value = 'סיכום ביט';
-        bitTitle.font = { bold: true, size: 14 };
-        bitTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
-
-        const bitHeaders = bankSheet.addRow(['סה"כ ביט', 'נטו פאן', 'קשרי תעופה']);
-        bitHeaders.font = { bold: true };
-        bitHeaders.alignment = { horizontal: 'center' };
-
-        const bitData = bankSheet.addRow([stats.BIT.income, stats.BIT.neto, stats.BIT.kishrei]);
-        bitData.alignment = { horizontal: 'center' };
-        bitData.eachCell((cell, colNumber) => {
-            cell.numFmt = '#,##0.00 ₪';
-        });
-
-        // רווח ריק
-        bankSheet.addRow([]);
-        bankSheet.addRow([]);
-
-        // מיקומי כסף
-        bankSheet.mergeCells(`A${bankSheet.rowCount + 1}:C${bankSheet.rowCount + 1}`);
-        const locTitle = bankSheet.getCell(`A${bankSheet.rowCount}`);
-        locTitle.value = 'מיקומי כסף (פירוט)';
-        locTitle.font = { bold: true, size: 14 };
-        locTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF7ED' } };
-
-        const locHeaders = bankSheet.addRow(['שם המיקום', 'סכום', 'מטבע']);
-        locHeaders.font = { bold: true };
-        
-        moneyLocations.forEach(loc => {
-            const r = bankSheet.addRow([loc.name, parseFloat(loc.amount || 0), loc.currency]);
+        moneyLocations.forEach((loc, idx) => {
+            const r = bankSheet.getRow(locStartRow + 2 + idx);
+            r.getCell(1).value = loc.name;
+            r.getCell(2).value = parseFloat(loc.amount || 0);
+            r.getCell(3).value = loc.currency;
+            
+            [1,2,3].forEach(c => {
+                const cell = r.getCell(c);
+                cell.alignment = { horizontal: 'center' };
+                cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+            });
             r.getCell(2).numFmt = '#,##0.00';
         });
 
