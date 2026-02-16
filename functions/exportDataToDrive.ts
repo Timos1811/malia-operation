@@ -57,28 +57,19 @@ export default Deno.serve(async (req) => {
                 const rowData = {};
                 Object.keys(headers).forEach(key => {
                     let val = item[key];
-                    // המרת תאריכים
-                    if (key.includes('date') && val) {
-                        // המרה פשוטה למחרוזת תאריך אם צריך, או השארת הערך
-                        // ExcelJS מטפל בזה טוב אם זה אובייקט Date, אבל מה-DB מגיע string
-                        // נשאיר כ-string אלא אם נרצה לפרמט
-                    }
-                    // המרת מספרים
                     if (['amount', 'people_count', 'nights', 'price_eur', 'buyers_count', 'scanned_count', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount'].some(k => key.includes(k))) {
                         const num = parseFloat(val);
                         val = isNaN(num) ? 0 : num;
                     }
-                    // המרת בוליאני
                     if (typeof val === 'boolean') {
                         val = val ? 'כן' : 'לא';
                     }
-                    
                     rowData[key] = val;
                 });
                 sheet.addRow(rowData);
             });
 
-            // עיצוב עמודות מספרים ותאריכים
+            // עיצוב עמודות מספרים
             sheet.columns.forEach(col => {
                 if (['amount', 'eur', 'shekel', 'dollar', 'bit'].some(k => col.key.toLowerCase().includes(k))) {
                     col.numFmt = '#,##0.00';
@@ -86,9 +77,7 @@ export default Deno.serve(async (req) => {
             });
         };
 
-        // 3. הגדרת העמודות לכל טבלה והוספת הגיליונות
-        
-        // טבלת הכנסות (TableData)
+        // 3. הוספת הגיליונות המקוריים
         addSheet(income, "הכנסות", {
             order_number: "מספר הזמנה",
             customer: "לקוח/ות",
@@ -106,7 +95,6 @@ export default Deno.serve(async (req) => {
             requested_amount: "סכום מבוקש"
         });
 
-        // טבלת הוצאות (Expense)
         addSheet(expenses, "הוצאות", {
             expense_date: "תאריך",
             reason: "סיבה",
@@ -117,7 +105,6 @@ export default Deno.serve(async (req) => {
             notes: "הערות"
         });
 
-        // טבלת מכירות בהמתנה (PendingSale)
         addSheet(pendingSales, "מכירות בהמתנה", {
             order_number: "מספר הזמנה",
             customer: "לקוח/ות",
@@ -130,7 +117,6 @@ export default Deno.serve(async (req) => {
             comments: "הערות"
         });
 
-        // טבלת משימות (Task)
         addSheet(tasks, "משימות", {
             title: "כותרת",
             description: "תיאור",
@@ -142,7 +128,6 @@ export default Deno.serve(async (req) => {
             currency: "מטבע"
         });
 
-        // טבלת כספרים (CasparFilling)
         addSheet(caspars, "כספרים", {
             full_name: "שם מלא",
             phone_number: "טלפון",
@@ -152,25 +137,145 @@ export default Deno.serve(async (req) => {
             notification_sent: "התראה נשלחה"
         });
 
-        // טבלת מיקומי כסף (MoneyLocation)
         addSheet(moneyLocations, "מיקומי כסף", {
             name: "שם המיקום",
             amount: "סכום",
             currency: "מטבע"
         });
 
-        // 4. העלאה לדרייב
+        // 4. יצירת גיליון סיכום (טבלת בנק)
+        const bankSheet = workbook.addWorksheet("טבלת בנק (סיכום)", {
+            views: [{ rightToLeft: true, showGridLines: false }]
+        });
+
+        // חישוב סיכומים
+        const stats = {
+            EUR: { income: 0, expenses: 0 },
+            ILS: { income: 0, expenses: 0 }, // מזומן
+            USD: { income: 0, expenses: 0 },
+            BIT: { income: 0, neto: 0, kishrei: 0 }
+        };
+
+        income.forEach(row => {
+            stats.EUR.income += parseFloat(row.eur_amount || 0);
+            stats.ILS.income += parseFloat(row.shekel_amount || 0);
+            stats.USD.income += parseFloat(row.dollar_amount || 0);
+            
+            const bit = parseFloat(row.bit_amount || 0);
+            stats.BIT.income += bit;
+            if (row.company === 'נטו פאן') stats.BIT.neto += bit;
+            else stats.BIT.kishrei += bit;
+        });
+
+        expenses.forEach(row => {
+            const amount = parseFloat(row.amount || 0);
+            const curr = row.currency || 'EUR';
+            if (stats[curr]) stats[curr].expenses += amount;
+        });
+
+        // עיצוב וטבלה
+        bankSheet.getColumn(1).width = 20; // כותרות
+        bankSheet.getColumn(2).width = 20; // EUR
+        bankSheet.getColumn(3).width = 20; // ILS
+        bankSheet.getColumn(4).width = 20; // USD
+
+        // כותרת
+        bankSheet.mergeCells('A1:D1');
+        const title = bankSheet.getCell('A1');
+        title.value = 'סיכום כספי - טבלת בנק';
+        title.font = { bold: true, size: 16 };
+        title.alignment = { horizontal: 'center' };
+
+        // כותרות עמודות
+        const headers = ['תיאור', 'יורו (EUR)', 'שקל (מזומן)', 'דולר (USD)'];
+        const headerRow = bankSheet.getRow(3);
+        headers.forEach((h, i) => {
+            const cell = headerRow.getCell(i + 1);
+            cell.value = h;
+            cell.font = { bold: true };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+            cell.alignment = { horizontal: 'center' };
+            cell.border = { bottom: { style: 'thin' } };
+        });
+
+        // נתונים
+        const addRow = (label, eur, ils, usd, isBold = false) => {
+            const row = bankSheet.addRow([label, eur, ils, usd]);
+            row.alignment = { horizontal: 'center' };
+            if (isBold) row.font = { bold: true };
+            row.getCell(2).numFmt = '#,##0.00 €';
+            row.getCell(3).numFmt = '#,##0.00 ₪';
+            row.getCell(4).numFmt = '#,##0.00 $';
+        };
+
+        addRow('הכנסות', stats.EUR.income, stats.ILS.income, stats.USD.income);
+        addRow('הוצאות', stats.EUR.expenses, stats.ILS.expenses, stats.USD.expenses);
+        
+        // יתרה
+        const balanceRow = bankSheet.addRow([
+            'יתרה בקופה', 
+            stats.EUR.income - stats.EUR.expenses,
+            stats.ILS.income - stats.ILS.expenses,
+            stats.USD.income - stats.USD.expenses
+        ]);
+        balanceRow.font = { bold: true };
+        balanceRow.alignment = { horizontal: 'center' };
+        balanceRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF8FF' } }; // Light blue
+        balanceRow.getCell(2).numFmt = '#,##0.00 €';
+        balanceRow.getCell(3).numFmt = '#,##0.00 ₪';
+        balanceRow.getCell(4).numFmt = '#,##0.00 $';
+
+        // רווח ריק
+        bankSheet.addRow([]);
+        bankSheet.addRow([]);
+
+        // סיכום ביט
+        bankSheet.mergeCells(`A${bankSheet.rowCount + 1}:C${bankSheet.rowCount + 1}`);
+        const bitTitle = bankSheet.getCell(`A${bankSheet.rowCount}`);
+        bitTitle.value = 'סיכום ביט';
+        bitTitle.font = { bold: true, size: 14 };
+        bitTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+
+        const bitHeaders = bankSheet.addRow(['סה"כ ביט', 'נטו פאן', 'קשרי תעופה']);
+        bitHeaders.font = { bold: true };
+        bitHeaders.alignment = { horizontal: 'center' };
+
+        const bitData = bankSheet.addRow([stats.BIT.income, stats.BIT.neto, stats.BIT.kishrei]);
+        bitData.alignment = { horizontal: 'center' };
+        bitData.eachCell((cell, colNumber) => {
+            cell.numFmt = '#,##0.00 ₪';
+        });
+
+        // רווח ריק
+        bankSheet.addRow([]);
+        bankSheet.addRow([]);
+
+        // מיקומי כסף
+        bankSheet.mergeCells(`A${bankSheet.rowCount + 1}:C${bankSheet.rowCount + 1}`);
+        const locTitle = bankSheet.getCell(`A${bankSheet.rowCount}`);
+        locTitle.value = 'מיקומי כסף (פירוט)';
+        locTitle.font = { bold: true, size: 14 };
+        locTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF7ED' } };
+
+        const locHeaders = bankSheet.addRow(['שם המיקום', 'סכום', 'מטבע']);
+        locHeaders.font = { bold: true };
+        
+        moneyLocations.forEach(loc => {
+            const r = bankSheet.addRow([loc.name, parseFloat(loc.amount || 0), loc.currency]);
+            r.getCell(2).numFmt = '#,##0.00';
+        });
+
+        // 5. העלאה לדרייב (אותו קוד)
         const buffer = await workbook.xlsx.writeBuffer();
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
         
         if (!accessToken) {
-            return Response.json({ error: "No Google Drive token. Please authorize Google Drive in the app." }, { status: 400 });
+            return Response.json({ error: "No Google Drive token" }, { status: 400 });
         }
 
         const folderName = "אקסל";
         let folderId = null;
         
-        // חיפוש או יצירת תיקייה
         const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
         if (searchRes.ok) {
             const searchData = await searchRes.json();
@@ -186,7 +291,7 @@ export default Deno.serve(async (req) => {
         }
 
         const dateStr = new Date().toISOString().split('T')[0];
-        const fileName = `Full_Backup_${dateStr}.xlsx`;
+        const fileName = `Full_Backup_With_Bank_${dateStr}.xlsx`;
         
         const metadata = { 
             name: fileName, 
