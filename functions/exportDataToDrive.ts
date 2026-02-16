@@ -30,8 +30,8 @@ export default Deno.serve(async (req) => {
             rtl: true
         }];
 
-        // פונקציית עזר ליצירת גיליון
-        const addSheet = (data, sheetName, headers) => {
+        // פונקציית עזר ליצירת גיליון עם עיצוב משופר
+        const addSheet = (data, sheetName, headers, rowStyleCallback) => {
             const sheet = workbook.addWorksheet(sheetName, {
                 views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }]
             });
@@ -40,20 +40,21 @@ export default Deno.serve(async (req) => {
             const columns = Object.keys(headers).map(key => ({
                 header: headers[key],
                 key: key,
-                width: 20
+                width: 22,
+                style: { font: { name: 'Arial', size: 10 } }
             }));
             
             sheet.columns = columns;
 
             // עיצוב שורת כותרת
             const headerRow = sheet.getRow(1);
-            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }; // Slate 700
             headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            headerRow.height = 20;
+            headerRow.height = 24;
 
             // הוספת הנתונים
-            data.forEach(item => {
+            data.forEach((item, index) => {
                 const rowData = {};
                 Object.keys(headers).forEach(key => {
                     let val = item[key];
@@ -66,7 +67,23 @@ export default Deno.serve(async (req) => {
                     }
                     rowData[key] = val;
                 });
-                sheet.addRow(rowData);
+                const row = sheet.addRow(rowData);
+                
+                // עיצוב שורה בסיסי - זברה
+                if (index % 2 === 1) {
+                    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }; // Slate 50
+                }
+
+                // גבולות עדינים
+                row.eachCell((cell) => {
+                    cell.border = { bottom: { style: 'dotted', color: { argb: 'FFE2E8F0' } } };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                });
+
+                // קולבק לעיצוב מותנה
+                if (rowStyleCallback) {
+                    rowStyleCallback(row, item);
+                }
             });
 
             // עיצוב עמודות מספרים
@@ -75,9 +92,17 @@ export default Deno.serve(async (req) => {
                     col.numFmt = '#,##0.00';
                 }
             });
+            
+            // Auto-filter
+            sheet.autoFilter = {
+                from: { row: 1, column: 1 },
+                to: { row: data.length + 1, column: columns.length }
+            };
         };
 
-        // 3. הוספת הגיליונות המקוריים
+        // 3. הוספת הגיליונות המקוריים עם עיצוב מותנה
+
+        // טבלת הכנסות (TableData)
         addSheet(income, "הכנסות", {
             order_number: "מספר הזמנה",
             customer: "לקוח/ות",
@@ -93,8 +118,16 @@ export default Deno.serve(async (req) => {
             bit_amount: "ביט",
             comments: "הערות",
             requested_amount: "סכום מבוקש"
+        }, (row, item) => {
+            // אם יש החזר (סכום שלילי), צבע באדום
+            const isNegative = ['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount'].some(k => parseFloat(item[k] || 0) < 0);
+            if (isNegative) {
+                row.font = { color: { argb: 'FFDC2626' } }; // Red text
+                row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } }; // Light Red BG
+            }
         });
 
+        // טבלת הוצאות (Expense)
         addSheet(expenses, "הוצאות", {
             expense_date: "תאריך",
             reason: "סיבה",
@@ -103,8 +136,12 @@ export default Deno.serve(async (req) => {
             currency: "מטבע",
             sales_rep: "נציג",
             notes: "הערות"
+        }, (row, item) => {
+            // הוצאות תמיד באדום עדין
+            // row.font = { color: { argb: 'FFBE123C' } }; 
         });
 
+        // טבלת מכירות בהמתנה (PendingSale)
         addSheet(pendingSales, "מכירות בהמתנה", {
             order_number: "מספר הזמנה",
             customer: "לקוח/ות",
@@ -115,8 +152,16 @@ export default Deno.serve(async (req) => {
             bit_amount: "ביט",
             envelope_received: "התקבל מעטפה?",
             comments: "הערות"
+        }, (row, item) => {
+            // אם לא התקבלה מעטפה - אדום, אחרת ירוק
+            if (!item.envelope_received) {
+                row.getCell('envelope_received').font = { color: { argb: 'FFDC2626' }, bold: true };
+            } else {
+                row.getCell('envelope_received').font = { color: { argb: 'FF16A34A' }, bold: true };
+            }
         });
 
+        // טבלת משימות (Task)
         addSheet(tasks, "משימות", {
             title: "כותרת",
             description: "תיאור",
@@ -126,8 +171,22 @@ export default Deno.serve(async (req) => {
             task_type: "סוג משימה",
             amount: "סכום",
             currency: "מטבע"
+        }, (row, item) => {
+            // סטטוס
+            const statusCell = row.getCell('status');
+            if (item.status === 'done') {
+                statusCell.font = { color: { argb: 'FF16A34A' }, strike: true }; // Green + Strike
+                row.font = { color: { argb: 'FF94A3B8' } }; // Gray out entire row
+            } else {
+                statusCell.font = { color: { argb: 'FFDC2626' }, bold: true }; // Red
+                // תאריך יעד עבר?
+                if (item.due_date && new Date(item.due_date) < new Date()) {
+                    row.getCell('due_date').font = { color: { argb: 'FFDC2626' }, bold: true };
+                }
+            }
         });
 
+        // טבלת כספרים (CasparFilling)
         addSheet(caspars, "כספרים", {
             full_name: "שם מלא",
             phone_number: "טלפון",
@@ -135,12 +194,21 @@ export default Deno.serve(async (req) => {
             departure_date: "תאריך עזיבה",
             people_count: "כמות אנשים",
             notification_sent: "התראה נשלחה"
+        }, (row, item) => {
+            if (item.notification_sent) {
+                row.getCell('notification_sent').font = { color: { argb: 'FF16A34A' } };
+            } else {
+                row.getCell('notification_sent').font = { color: { argb: 'FFDC2626' } };
+            }
         });
 
+        // טבלת מיקומי כסף (MoneyLocation)
         addSheet(moneyLocations, "מיקומי כסף", {
             name: "שם המיקום",
             amount: "סכום",
             currency: "מטבע"
+        }, (row, item) => {
+            row.getCell('amount').font = { bold: true };
         });
 
         // 4. יצירת גיליון סיכום (טבלת בנק) - עיצוב משופר
@@ -252,17 +320,28 @@ export default Deno.serve(async (req) => {
         balRow.height = 35;
         balRow.getCell(1).value = 'יתרה בקופה';
         
-        balRow.getCell(2).value = stats.EUR.income - stats.EUR.expenses;
-        balRow.getCell(3).value = stats.ILS.income - stats.ILS.expenses;
-        balRow.getCell(4).value = stats.USD.income - stats.USD.expenses;
+        const balEur = stats.EUR.income - stats.EUR.expenses;
+        const balIls = stats.ILS.income - stats.ILS.expenses;
+        const balUsd = stats.USD.income - stats.USD.expenses;
+
+        balRow.getCell(2).value = balEur;
+        balRow.getCell(3).value = balIls;
+        balRow.getCell(4).value = balUsd;
 
         [1,2,3,4].forEach(c => {
             const cell = balRow.getCell(c);
-            cell.font = { bold: true, size: 14, color: { argb: 'FF1E3A8A' } }; // Dark Blue
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }; // Light Blue
+            cell.font = { bold: true, size: 14, color: { argb: 'FF1E3A8A' } }; // Default Dark Blue
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }; // Default Light Blue
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
             cell.border = { top: { style: 'medium' }, left: { style: 'medium' }, bottom: { style: 'medium' }, right: { style: 'medium' } };
-            if (c > 1) cell.numFmt = '#,##0.00';
+            if (c > 1) {
+                cell.numFmt = '#,##0.00';
+                // אם שלילי - צבע אדום
+                if (cell.value < 0) {
+                    cell.font = { bold: true, size: 14, color: { argb: 'FFDC2626' } }; // Red
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Light Red
+                }
+            }
         });
 
         // ביט - אזור נפרד מעוצב
