@@ -4,23 +4,23 @@ import ExcelJS from 'npm:exceljs@4.4.0';
 export default Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        
-        // 1. Fetch Data
+        const user = await base44.auth.me();
+
+        if (!user) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // 1. שליפת כל הנתונים מהטבלאות
         const [income, expenses, pendingSales, tasks, caspars, moneyLocations] = await Promise.all([
-            base44.asServiceRole.entities.TableData.list('-created_date', 1000),
-            base44.asServiceRole.entities.Expense.list('-expense_date', 1000), 
-            base44.asServiceRole.entities.PendingSale.list('-created_date', 1000),
-            base44.asServiceRole.entities.Task.list('-due_date', 1000),
-            base44.asServiceRole.entities.CasparFilling.list('-created_date', 1000),
-            base44.asServiceRole.entities.MoneyLocation.list('-created_date', 1000)
+            base44.asServiceRole.entities.TableData.list('-created_date', 2000),
+            base44.asServiceRole.entities.Expense.list('-expense_date', 2000), 
+            base44.asServiceRole.entities.PendingSale.list('-created_date', 2000),
+            base44.asServiceRole.entities.Task.list('-due_date', 2000),
+            base44.asServiceRole.entities.CasparFilling.list('-created_date', 2000),
+            base44.asServiceRole.entities.MoneyLocation.list('-created_date', 2000)
         ]);
 
-        // Pre-process income to extract customer count
-        income.forEach(item => {
-            const match = String(item.customer || '').match(/\d+/);
-            item.extracted_customer_count = match ? parseInt(match[0]) : 0;
-        });
-
+        // 2. יצירת קובץ אקסל חדש
         const workbook = new ExcelJS.Workbook();
         workbook.creator = 'Base44 System';
         workbook.created = new Date();
@@ -30,539 +30,147 @@ export default Deno.serve(async (req) => {
             rtl: true
         }];
 
-        // --- Dropdown Lists (Validations) ---
-        const dropdowns = {
-            gender: "\"זכר,נקבה\"",
-            company: "\"נטו פאן,קשרי תעופה\"",
-            boolean: "\"כן,לא\"",
-            currency: "\"EUR,ILS,USD,BIT\"",
-            taskStatus: "\"todo,done\"", // Using raw values to match conditional formatting
-            taskType: "\"general,refund,supplier_payment,add_event\"",
-            expenseReason: "\"יצא מהיעד,החזר מלא,החזר חלקי,רכב,אחר,משיכה לאדם,תשלום לספק,פיצוי קשרי תעופה,פיצוי נטו פאן,פינוק ללקוחות,פינוק לנציגים,אשל\""
-        };
-
-        // --- Config ---
-        const sheetConfigs = {
-            TableData: {
-                headers: {
-                    order_number: "מספר הזמנה",
-                    customer: "לקוח/ות",
-                    extracted_customer_count: "כמות לקוחות",
-                    departure_date: "תאריך עזיבה",
-                    nights: "לילות",
-                    gender: "מגדר",
-                    hotel: "מלון",
-                    company: "חברה",
-                    sales_rep: "נציג מטפל",
-                    eur_amount: "יורו",
-                    shekel_amount: "שקל",
-                    dollar_amount: "דולר",
-                    bit_amount: "ביט",
-                    comments: "הערות",
-                    requested_amount: "סכום מבוקש"
-                },
-
-                validations: {
-                    gender: dropdowns.gender,
-                    company: dropdowns.company
-                },
-                tableName: "IncomeTable"
-            },
-            Expense: {
-                headers: {
-                    expense_date: "תאריך",
-                    reason: "סיבה",
-                    recipient: "עבור מי",
-                    amount: "סכום",
-                    currency: "מטבע",
-                    sales_rep: "נציג",
-                    notes: "הערות"
-                },
-
-                validations: {
-                    currency: dropdowns.currency,
-                    reason: dropdowns.expenseReason
-                },
-                tableName: "ExpenseTable"
-            },
-            PendingSale: {
-                headers: {
-                    order_number: "מספר הזמנה",
-                    customer: "לקוח/ות",
-                    sales_rep: "נציג",
-                    eur_amount: "יורו",
-                    shekel_amount: "שקל",
-                    dollar_amount: "דולר",
-                    bit_amount: "ביט",
-                    envelope_received: "התקבל מעטפה?",
-                    comments: "הערות"
-                },
-                validations: {
-                    envelope_received: dropdowns.boolean
-                },
-                tableName: "PendingTable"
-            },
-            Task: {
-                headers: {
-                    title: "כותרת",
-                    description: "תיאור",
-                    status: "סטטוס",
-                    due_date: "תאריך יעד",
-                    sales_rep: "נציג אחראי",
-                    task_type: "סוג משימה",
-                    amount: "סכום",
-                    currency: "מטבע"
-                },
-                validations: {
-                    status: dropdowns.taskStatus,
-                    task_type: dropdowns.taskType,
-                    currency: dropdowns.currency
-                },
-                tableName: "TaskTable"
-            },
-            CasparFilling: {
-                headers: {
-                    full_name: "שם מלא",
-                    phone_number: "טלפון",
-                    hotel: "מלון",
-                    departure_date: "תאריך עזיבה",
-                    people_count: "כמות אנשים",
-                    notification_sent: "התראה נשלחה"
-                },
-                validations: {
-                    notification_sent: dropdowns.boolean
-                },
-                tableName: "CasparTable"
-            },
-            MoneyLocation: {
-                headers: {
-                    name: "שם המיקום",
-                    amount: "סכום",
-                    currency: "מטבע"
-                },
-
-                validations: {
-                    currency: dropdowns.currency
-                },
-                tableName: "LocationTable"
-            }
-        };
-
-        // --- Helper: Add Smart Sheet (Manual Mode) ---
-        const addSmartSheet = (data, sheetName, entityType) => {
+        // פונקציית עזר ליצירת גיליון
+        const addSheet = (data, sheetName, headers) => {
             const sheet = workbook.addWorksheet(sheetName, {
-                views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 1 }]
+                views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }]
             });
 
-            const config = sheetConfigs[entityType] || { headers: {} };
-            const mapping = config.headers;
+            // הגדרת עמודות
+            const columns = Object.keys(headers).map(key => ({
+                header: headers[key],
+                key: key,
+                width: 20
+            }));
             
-            // 1. Prepare Columns Headers and Keys
-            let columns = [];
-            const sample = data.length > 0 ? data[0] : {};
-            const dataKeys = Object.keys(sample).filter(k => 
-                !['id', 'created_by', 'updated_date', 'created_date', 'eur_status'].includes(k)
-            );
+            sheet.columns = columns;
 
-            // Add mapped columns first
-            Object.entries(mapping).forEach(([key, label]) => {
-                columns.push({ name: label, key: key });
-            });
-            
-            // Add remaining data keys
-            dataKeys.forEach(key => {
-                if (!mapping[key]) columns.push({ name: key, key: key });
-            });
-
-            // Add calculated columns definition
-            if (config.calculatedColumns) {
-                config.calculatedColumns.forEach(calc => {
-                    columns.push({ name: calc.header, isCalculated: true });
-                });
-            }
-
-            if (columns.length === 0) {
-                sheet.addRow(["אין נתונים"]);
-                return;
-            }
-
-            // 2. Write Header Row
-            const headerRow = sheet.addRow(columns.map(c => c.name));
+            // עיצוב שורת כותרת
+            const headerRow = sheet.getRow(1);
             headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }; // Blue header
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
             headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
             headerRow.height = 20;
 
-            // 3. Write Data Rows
-            const startRow = 2;
-            data.forEach((item, index) => {
-                const rowValues = [];
-                columns.forEach(col => {
-                    if (col.isCalculated) {
-                        rowValues.push(null); // Placeholder for formula
-                    } else if (col.key) {
-                        let val = item[col.key];
-                        if (col.key.includes('date') && val) val = new Date(val);
-                        if (typeof val === 'boolean') val = val ? 'כן' : 'לא';
-                        
-                        // Numeric handling
-                        if (['amount', 'people_count', 'nights'].some(k => col.key.includes(k))) {
-                            const parsed = parseFloat(val);
-                            val = isNaN(parsed) ? 0 : parsed;
-                        }
-                        rowValues.push(val);
-                    } else {
-                        rowValues.push(null);
+            // הוספת הנתונים
+            data.forEach(item => {
+                const rowData = {};
+                Object.keys(headers).forEach(key => {
+                    let val = item[key];
+                    // המרת תאריכים
+                    if (key.includes('date') && val) {
+                        // המרה פשוטה למחרוזת תאריך אם צריך, או השארת הערך
+                        // ExcelJS מטפל בזה טוב אם זה אובייקט Date, אבל מה-DB מגיע string
+                        // נשאיר כ-string אלא אם נרצה לפרמט
                     }
-                });
-                sheet.addRow(rowValues);
-            });
-
-            const lastDataRow = startRow + data.length - 1;
-
-            // 4. Map Columns for References
-            const keyToLetter = {};
-            const nameToLetter = {};
-            columns.forEach((col, idx) => {
-                const letter = sheet.getColumn(idx + 1).letter;
-                nameToLetter[col.name] = letter;
-                if (col.key) keyToLetter[col.key] = letter;
-                
-                // Set Width and Alignment
-                sheet.getColumn(idx + 1).width = 18;
-                sheet.getColumn(idx + 1).alignment = { vertical: 'middle', horizontal: 'center' };
-                
-                // Format Amounts/Dates
-                if ((col.key && col.key.includes('amount')) || (col.name && col.name.includes('ערך')) || col.isCalculated) {
-                    if (!col.key || !col.key.includes('people')) { // Don't format people count as currency/decimal usually
-                         sheet.getColumn(idx + 1).numFmt = '#,##0.00';
+                    // המרת מספרים
+                    if (['amount', 'people_count', 'nights', 'price_eur', 'buyers_count', 'scanned_count', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount'].some(k => key.includes(k))) {
+                        const num = parseFloat(val);
+                        val = isNaN(num) ? 0 : num;
                     }
-                }
-                if (col.key && col.key.includes('date')) {
-                    sheet.getColumn(idx + 1).numFmt = 'dd/mm/yyyy';
-                }
-            });
-
-            // 5. Apply Formulas to Data Rows - REMOVED per user request
-            // No formulas allowed in data rows
-
-            // 6. Add Totals Row (Static Calculation)
-            if (data.length > 0) {
-                const totalRowIndex = lastDataRow + 1;
-                const totalRow = sheet.getRow(totalRowIndex);
-                
-                // First column label
-                sheet.getCell(`A${totalRowIndex}`).value = "סה\"כ";
-                
-                columns.forEach((col, idx) => {
-                    const colLetter = sheet.getColumn(idx + 1).letter;
-                    // Check if should sum
-                    const shouldSum = col.key && (
-                        col.key.includes('amount') || 
-                        col.key === 'people_count' || 
-                        col.key === 'extracted_customer_count' ||
-                        col.key === 'nights'
-                    );
+                    // המרת בוליאני
+                    if (typeof val === 'boolean') {
+                        val = val ? 'כן' : 'לא';
+                    }
                     
-                    if (shouldSum) {
-                        const sum = data.reduce((acc, item) => {
-                            let val = item[col.key];
-                            if (typeof val === 'string') val = parseFloat(val) || 0;
-                            if (typeof val !== 'number') val = 0;
-                            return acc + val;
-                        }, 0);
-
-                        sheet.getCell(`${colLetter}${totalRowIndex}`).value = sum;
-                        if (col.key.includes('amount')) {
-                            sheet.getCell(`${colLetter}${totalRowIndex}`).numFmt = '#,##0.00';
-                        }
-                    }
+                    rowData[key] = val;
                 });
-                
-                totalRow.font = { bold: true };
-                totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
-            }
-
-            // 7. Auto Filter
-            sheet.autoFilter = {
-                from: { row: 1, column: 1 },
-                to: { row: lastDataRow, column: columns.length }
-            };
-
-            // 8. Validations (Extend to 1000 rows for future editing)
-            const validationRangeEnd = 1000;
-            columns.forEach((col, idx) => {
-                const colLetter = sheet.getColumn(idx + 1).letter;
-                const colKey = col.key;
-                if (colKey && config.validations && config.validations[colKey]) {
-                    for (let r = startRow; r <= validationRangeEnd; r++) {
-                         sheet.getCell(`${colLetter}${r}`).dataValidation = {
-                            type: 'list',
-                            allowBlank: true,
-                            formulae: [config.validations[colKey]],
-                            showErrorMessage: true,
-                            errorStyle: 'warning',
-                            errorTitle: 'ערך לא חוקי',
-                            error: 'אנא בחר ערך מהרשימה'
-                        };
-                    }
-                }
+                sheet.addRow(rowData);
             });
 
-            // 9. Conditional Formatting
-             if (entityType === 'TableData') {
-                const statusColIndex = columns.findIndex(c => c.name === 'סטטוס');
-                if (statusColIndex !== -1) {
-                    const colLetter = sheet.getColumn(statusColIndex + 1).letter;
-                    sheet.addConditionalFormatting({
-                        ref: `${colLetter}2:${colLetter}1000`,
-                        rules: [
-                            { type: 'cellIs', operator: 'greaterThan', formulae: ['0'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' } } } },
-                            { type: 'cellIs', operator: 'lessThan', formulae: ['-0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } },
-                            { type: 'cellIs', operator: 'between', formulae: ['-0.01', '0.01'], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }, font: { color: { argb: 'FF1E40AF' } } } }
-                        ]
-                    });
+            // עיצוב עמודות מספרים ותאריכים
+            sheet.columns.forEach(col => {
+                if (['amount', 'eur', 'shekel', 'dollar', 'bit'].some(k => col.key.toLowerCase().includes(k))) {
+                    col.numFmt = '#,##0.00';
                 }
-            }
-            
-            if (entityType === 'Task') {
-                const statusColIndex = columns.findIndex(c => c.key === 'status');
-                if (statusColIndex !== -1) {
-                     const colLetter = sheet.getColumn(statusColIndex + 1).letter;
-                     sheet.addConditionalFormatting({
-                        ref: `${colLetter}2:${colLetter}1000`,
-                        rules: [
-                            { type: 'expression', formulae: [`=$${colLetter}2="done"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, font: { color: { argb: 'FF166534' }, strike: true } } },
-                            { type: 'expression', formulae: [`=$${colLetter}2="todo"`], style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, font: { color: { argb: 'FF991B1B' } } } }
-                        ]
-                    });
-                }
-            }
-
-            return { keyMap: keyToLetter, nameMap: nameToLetter };
-        };
-
-        // Add Sheets and capture maps
-        const maps = {};
-        maps.TableData = addSmartSheet(income, "הכנסות", "TableData");
-        maps.Expense = addSmartSheet(expenses, "הוצאות", "Expense");
-        maps.PendingSale = addSmartSheet(pendingSales, "מכירות בהמתנה", "PendingSale");
-        maps.Task = addSmartSheet(tasks, "משימות", "Task");
-        maps.CasparFilling = addSmartSheet(caspars, "כספרים", "CasparFilling");
-        maps.MoneyLocation = addSmartSheet(moneyLocations, "מיקומי כסף", "MoneyLocation");
-
-        // --- Summary Calculations in Code ---
-        
-        // 1. Calculate Income Totals
-        let incEur = 0, incIls = 0, incUsd = 0, incBit = 0;
-        let totalCustomers = 0;
-        let totalOrders = income.length;
-        const salesRepStats = {};
-
-        income.forEach(row => {
-            const eur = parseFloat(row.eur_amount) || 0;
-            const ils = parseFloat(row.shekel_amount) || 0;
-            const usd = parseFloat(row.dollar_amount) || 0;
-            const bit = parseFloat(row.bit_amount) || 0;
-            
-            incEur += eur;
-            incIls += ils;
-            incUsd += usd;
-            incBit += bit;
-            
-            totalCustomers += row.extracted_customer_count || 0;
-            
-            // Sales Rep Stats
-            const totalVal = eur + (ils * 0.26) + (usd * 0.95) + (bit * 0.26);
-            const rep = row.sales_rep || 'ללא נציג';
-            salesRepStats[rep] = (salesRepStats[rep] || 0) + totalVal;
-        });
-
-        // 2. Calculate Expense Totals
-        let expEur = 0, expIls = 0, expUsd = 0;
-        const catStats = {};
-
-        expenses.forEach(exp => {
-            const val = parseFloat(exp.amount) || 0;
-            if (exp.currency === 'EUR') expEur += val;
-            if (exp.currency === 'ILS') expIls += val;
-            if (exp.currency === 'USD') expUsd += val;
-            
-            // Category Stats
-            let valEur = val;
-            if (exp.currency === 'ILS') valEur *= 0.26;
-            if (exp.currency === 'USD') valEur *= 0.95;
-            const reason = exp.reason || 'אחר';
-            catStats[reason] = (catStats[reason] || 0) + valEur;
-        });
-
-        // 3. Calculate Location Balance
-        let locBalEur = 0;
-        moneyLocations.forEach(loc => {
-            let val = parseFloat(loc.amount) || 0;
-            if (loc.currency === 'ILS') val *= 0.26;
-            else if (loc.currency === 'USD') val *= 0.95;
-            locBalEur += val;
-        });
-
-        // 4. Derived Values
-        const totalIncEurEst = incEur + (incIls * 0.26) + (incUsd * 0.95) + (incBit * 0.26);
-        const avgRevPerCust = totalCustomers > 0 ? totalIncEurEst / totalCustomers : 0;
-        
-        // --- Live Summary Sheet (Static Values) ---
-        const summarySheet = workbook.addWorksheet("סיכום בנק", {
-            views: [{ rightToLeft: true, showGridLines: false }]
-        });
-        
-        summarySheet.columns = [
-            { width: 3 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 25 },
-            { width: 3 }, { width: 25 }, { width: 20 }, { width: 3 }, { width: 3 }, { width: 25 }
-        ];
-
-        let currentRow = 2;
-        summarySheet.mergeCells(`B${currentRow}:E${currentRow}`);
-        const titleCell = summarySheet.getCell(`B${currentRow}`);
-        titleCell.value = "טבלת בנק - סיכום נתונים (סטטי)";
-        titleCell.font = { bold: true, size: 24, name: 'Calibri', color: { argb: 'FF1E293B' } };
-        titleCell.alignment = { horizontal: 'right' };
-        currentRow += 2;
-
-        const drawValueCard = (startCol, row, title, value, subtext, format = '#,##0') => {
-            summarySheet.getCell(`${startCol}${row}`).value = title;
-            summarySheet.getCell(`${startCol}${row}`).font = { bold: true, size: 11, color: { argb: 'FF64748B' } };
-            summarySheet.getCell(`${startCol}${row}`).alignment = { vertical: 'bottom', horizontal: 'right' };
-            
-            const valCell = summarySheet.getCell(`${startCol}${row+1}`);
-            valCell.value = value;
-            valCell.numFmt = format;
-            valCell.font = { bold: true, size: 22, color: { argb: 'FF0F172A' } };
-            
-            summarySheet.getCell(`${startCol}${row+2}`).value = subtext;
-            summarySheet.getCell(`${startCol}${row+2}`).font = { size: 10, color: { argb: 'FF94A3B8' } };
-            summarySheet.getCell(`${startCol}${row+2}`).alignment = { vertical: 'top', horizontal: 'right' };
-
-            [0,1,2].forEach(off => {
-                 const cell = summarySheet.getCell(`${startCol}${row+off}`);
-                 cell.border = { left: {style:'medium', color:{argb:'FFE2E8F0'}}, right: {style:'medium', color:{argb:'FFE2E8F0'}} };
-                 if(off===0) cell.border.top = {style:'medium', color:{argb:'FFE2E8F0'}};
-                 if(off===2) cell.border.bottom = {style:'medium', color:{argb:'FFE2E8F0'}};
             });
         };
 
-        // Row 1 Cards
-        drawValueCard('B', currentRow, "סה\"כ לקוחות", totalCustomers, "לקוחות בכל הקבוצות");
-        drawValueCard('E', currentRow, "סה\"כ קבוצות/מכירות", totalOrders, "הזמנות במערכת");
-        drawValueCard('H', currentRow, "ממוצע ללקוח", avgRevPerCust, "הכנסה ממוצעת", '#,##0 €');
-        currentRow += 4;
-
-        // Row 2 Cards
-        drawValueCard('B', currentRow, "יתרה במיקומים", locBalEur, "כספות וארנקים", '#,##0 €');
-        drawValueCard('E', currentRow, "סה\"כ הכנסה כוללת", totalIncEurEst, "שווי כולל ביורו", '#,##0 €');
-        currentRow += 4;
-
-        // Summary Table
-        const colMap = { desc: 'B', eur: 'C', ils: 'D', usd: 'E' };
+        // 3. הגדרת העמודות לכל טבלה והוספת הגיליונות
         
-        summarySheet.getCell(`${colMap.desc}${currentRow}`).value = "תיאור";
-        summarySheet.getCell(`${colMap.eur}${currentRow}`).value = "יורו (EUR)";
-        summarySheet.getCell(`${colMap.ils}${currentRow}`).value = "שקל (ILS)";
-        summarySheet.getCell(`${colMap.usd}${currentRow}`).value = "דולר (USD)";
-        
-        ['B','C','D','E'].forEach(col => {
-            const cell = summarySheet.getCell(`${col}${currentRow}`);
-            cell.font = { bold: true, color: { argb: 'FF475569' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-            cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
-            cell.alignment = { horizontal: 'center' };
-        });
-        currentRow++;
-
-        // Income Row
-        summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הכנסות";
-        summarySheet.getCell(`C${currentRow}`).value = incEur;
-        summarySheet.getCell(`D${currentRow}`).value = incIls;
-        summarySheet.getCell(`E${currentRow}`).value = incUsd;
-        ['C','D','E'].forEach(col => {
-            const cell = summarySheet.getCell(`${col}${currentRow}`);
-            cell.numFmt = '#,##0';
-            cell.font = { color: { argb: 'FF16A34A' }, bold: true };
-            cell.alignment = { horizontal: 'center' };
-        });
-        summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
-        currentRow++;
-
-        // Expense Row
-        summarySheet.getCell(`B${currentRow}`).value = "סה\"כ הוצאות";
-        summarySheet.getCell(`C${currentRow}`).value = expEur;
-        summarySheet.getCell(`D${currentRow}`).value = expIls;
-        summarySheet.getCell(`E${currentRow}`).value = expUsd;
-        ['C','D','E'].forEach(col => {
-            const cell = summarySheet.getCell(`${col}${currentRow}`);
-            cell.numFmt = '#,##0';
-            cell.font = { color: { argb: 'FFDC2626' }, bold: true };
-            cell.alignment = { horizontal: 'center' };
-        });
-        summarySheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
-        currentRow++;
-
-        // Balance Row
-        summarySheet.getCell(`B${currentRow}`).value = "יתרה בקופה";
-        summarySheet.getCell(`C${currentRow}`).value = incEur - expEur;
-        summarySheet.getCell(`D${currentRow}`).value = incIls - expIls;
-        summarySheet.getCell(`E${currentRow}`).value = incUsd - expUsd;
-        ['B','C','D','E'].forEach(col => {
-            const cell = summarySheet.getCell(`${col}${currentRow}`);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-            cell.font = { bold: true, size: 12 };
-            cell.alignment = { horizontal: 'center' };
-            if (col !== 'B') cell.numFmt = '#,##0';
-        });
-        currentRow++;
-
-        // Bit Total
-        summarySheet.getCell(`B${currentRow}`).value = "סה\"כ ביט";
-        summarySheet.mergeCells(`C${currentRow}:E${currentRow}`);
-        summarySheet.getCell(`C${currentRow}`).value = incBit;
-        summarySheet.getCell(`C${currentRow}`).numFmt = '₪#,##0';
-        ['B','C'].forEach(col => {
-             const cell = summarySheet.getCell(`${col}${currentRow}`);
-             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
-             cell.font = { color: { argb: 'FF1E40AF' }, bold: true };
-        });
-        currentRow += 3;
-        
-        // Stats Lists
-        const listStartRow = currentRow;
-        summarySheet.mergeCells(`B${listStartRow}:C${listStartRow}`);
-        summarySheet.getCell(`B${listStartRow}`).value = "🏆 מכירות לפי נציג";
-        summarySheet.getCell(`B${listStartRow}`).font = { bold: true };
-        
-        let repRow = listStartRow + 1;
-        Object.entries(salesRepStats).sort(([,a], [,b]) => b - a).forEach(([name, val]) => {
-            summarySheet.getCell(`B${repRow}`).value = name;
-            summarySheet.getCell(`C${repRow}`).value = val;
-            summarySheet.getCell(`C${repRow}`).numFmt = '#,##0 €';
-            repRow++;
+        // טבלת הכנסות (TableData)
+        addSheet(income, "הכנסות", {
+            order_number: "מספר הזמנה",
+            customer: "לקוח/ות",
+            departure_date: "תאריך עזיבה",
+            nights: "לילות",
+            gender: "מגדר",
+            hotel: "מלון",
+            company: "חברה",
+            sales_rep: "נציג מטפל",
+            eur_amount: "יורו",
+            shekel_amount: "שקל",
+            dollar_amount: "דולר",
+            bit_amount: "ביט",
+            comments: "הערות",
+            requested_amount: "סכום מבוקש"
         });
 
-        summarySheet.mergeCells(`G${listStartRow}:H${listStartRow}`);
-        summarySheet.getCell(`G${listStartRow}`).value = "📉 הוצאות לפי קטגוריה";
-        summarySheet.getCell(`G${listStartRow}`).font = { bold: true };
-        
-        let expRow = listStartRow + 1;
-        Object.entries(catStats).sort(([,a], [,b]) => b - a).forEach(([name, val]) => {
-            summarySheet.getCell(`G${expRow}`).value = name;
-            summarySheet.getCell(`H${expRow}`).value = val;
-            summarySheet.getCell(`H${expRow}`).numFmt = '#,##0 €';
-            expRow++;
+        // טבלת הוצאות (Expense)
+        addSheet(expenses, "הוצאות", {
+            expense_date: "תאריך",
+            reason: "סיבה",
+            recipient: "עבור מי",
+            amount: "סכום",
+            currency: "מטבע",
+            sales_rep: "נציג",
+            notes: "הערות"
         });
 
+        // טבלת מכירות בהמתנה (PendingSale)
+        addSheet(pendingSales, "מכירות בהמתנה", {
+            order_number: "מספר הזמנה",
+            customer: "לקוח/ות",
+            sales_rep: "נציג",
+            eur_amount: "יורו",
+            shekel_amount: "שקל",
+            dollar_amount: "דולר",
+            bit_amount: "ביט",
+            envelope_received: "התקבל מעטפה?",
+            comments: "הערות"
+        });
+
+        // טבלת משימות (Task)
+        addSheet(tasks, "משימות", {
+            title: "כותרת",
+            description: "תיאור",
+            status: "סטטוס",
+            due_date: "תאריך יעד",
+            sales_rep: "נציג אחראי",
+            task_type: "סוג משימה",
+            amount: "סכום",
+            currency: "מטבע"
+        });
+
+        // טבלת כספרים (CasparFilling)
+        addSheet(caspars, "כספרים", {
+            full_name: "שם מלא",
+            phone_number: "טלפון",
+            hotel: "מלון",
+            departure_date: "תאריך עזיבה",
+            people_count: "כמות אנשים",
+            notification_sent: "התראה נשלחה"
+        });
+
+        // טבלת מיקומי כסף (MoneyLocation)
+        addSheet(moneyLocations, "מיקומי כסף", {
+            name: "שם המיקום",
+            amount: "סכום",
+            currency: "מטבע"
+        });
+
+        // 4. העלאה לדרייב
         const buffer = await workbook.xlsx.writeBuffer();
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googledrive");
-        if (!accessToken) return Response.json({ error: "No Google Drive token" }, { status: 400 });
+        
+        if (!accessToken) {
+            return Response.json({ error: "No Google Drive token. Please authorize Google Drive in the app." }, { status: 400 });
+        }
 
         const folderName = "אקסל";
         let folderId = null;
+        
+        // חיפוש או יצירת תיקייה
         const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
         if (searchRes.ok) {
             const searchData = await searchRes.json();
@@ -578,9 +186,14 @@ export default Deno.serve(async (req) => {
         }
 
         const dateStr = new Date().toISOString().split('T')[0];
-        const fileName = `Backup_Data_${dateStr}.xlsx`;
+        const fileName = `Full_Backup_${dateStr}.xlsx`;
         
-        const metadata = { name: fileName, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', parents: folderId ? [folderId] : [] };
+        const metadata = { 
+            name: fileName, 
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+            parents: folderId ? [folderId] : [] 
+        };
+        
         const formData = new FormData();
         formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         formData.append('file', new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
