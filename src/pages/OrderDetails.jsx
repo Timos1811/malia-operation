@@ -18,7 +18,14 @@ export default function OrderDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wristbandFilter, setWristbandFilter] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    base44.auth.me().then(user => {
+      setIsAdmin(user?.role === 'admin');
+    }).catch(console.error);
+  }, []);
 
   // Fetch wristbands associated with this order
   const { data: wristbands = [], isLoading: loadingWristbands } = useQuery({
@@ -279,7 +286,8 @@ export default function OrderDetails() {
                                                         const isChecked = (wb.allowed_events || []).includes(att.name);
                                                         const isInactive = wb.status === 'inactive';
                                                         const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
-                                                        const isDisabled = isInactive || isExpired;
+                                                        // Disable if inactive, expired, or user is NOT admin
+                                                        const isDisabled = isInactive || isExpired || !isAdmin;
                                                         
                                                         // Check if scanned (include both success and processed)
                                                         const isScanned = scanLogs.some(log => 
