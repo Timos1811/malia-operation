@@ -256,83 +256,84 @@ export default function OrderDetails() {
                             לא נמצאו צמידים מקושרים להזמנה זו
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b">
-                                        <th className="text-right p-4 font-medium text-slate-500">פרטי צמיד</th>
-                                        <th className="text-right p-4 font-medium text-slate-500">מסיבות ואירועים</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {wristbands
-                                        .filter(wb => {
-                                            if (!wristbandFilter) return true;
-                                            const search = wristbandFilter.toLowerCase();
-                                            return (
-                                                wb.customer_name?.toLowerCase().includes(search) || 
-                                                wb.nfc_id?.toLowerCase().includes(search)
-                                            );
-                                        })
-                                        .map(wb => (
-                                        <tr key={wb.id} className="hover:bg-slate-50/50">
-                                            <td className="p-4 align-top w-1/4">
-                                                <div className="font-bold text-slate-800">{wb.customer_name}</div>
-                                                <div className="text-xs font-mono text-slate-400 mt-1">{wb.nfc_id?.replace(/:/g, "")}</div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                    {attractions.map(att => {
-                                                        const isChecked = (wb.allowed_events || []).includes(att.name);
-                                                        const isInactive = wb.status === 'inactive';
-                                                        const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
-                                                        // Disable if inactive, expired, or user is NOT admin
-                                                        const isDisabled = isInactive || isExpired || !isAdmin;
-                                                        
-                                                        // Check if scanned (include both success and processed)
-                                                        const isScanned = scanLogs.some(log => 
-                                                            log.nfc_id === wb.nfc_id && 
-                                                            log.event_name === att.name && 
-                                                            (log.status === 'success' || log.status === 'processed')
-                                                        );
+                        <div className="space-y-4">
+                            {/* Desktop Headers */}
+                            <div className="hidden md:grid md:grid-cols-4 gap-4 px-4 py-2 border-b text-slate-500 font-medium">
+                                <div className="col-span-1">פרטי צמיד</div>
+                                <div className="col-span-3">מסיבות ואירועים</div>
+                            </div>
 
-                                                        return (
-                                                            <div key={att.id} className={`flex flex-col gap-1 bg-white border p-2 rounded-lg transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:border-indigo-300'}`}>
-                                                                <div className="flex items-center space-x-2 space-x-reverse">
-                                                                    <Checkbox 
-                                                                        id={`wb-${wb.id}-${att.id}`} 
-                                                                        checked={isChecked}
-                                                                        onCheckedChange={() => !isDisabled && handleEventToggle(wb, att.name)}
-                                                                        disabled={isDisabled}
-                                                                    />
-                                                                    <Label 
-                                                                        htmlFor={`wb-${wb.id}-${att.id}`}
-                                                                        className={`text-sm select-none flex-1 ${isDisabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer'}`}
-                                                                    >
-                                                                        {att.name}
-                                                                    </Label>
-                                                                </div>
-                                                                {isScanned && (
-                                                                    <div className="flex items-center gap-1 text-[10px] text-green-600 font-medium px-6">
-                                                                        <CheckCircle2 className="w-3 h-3" />
-                                                                        נסרק
-                                                                    </div>
-                                                                )}
+                            {/* Wristband List */}
+                            {wristbands
+                                .filter(wb => {
+                                    if (!wristbandFilter) return true;
+                                    const search = wristbandFilter.toLowerCase();
+                                    return (
+                                        wb.customer_name?.toLowerCase().includes(search) || 
+                                        wb.nfc_id?.toLowerCase().includes(search)
+                                    );
+                                })
+                                .map(wb => (
+                                <div key={wb.id} className="bg-white border rounded-xl p-4 md:p-0 md:border-b md:border-x-0 md:border-t-0 md:rounded-none md:bg-transparent md:grid md:grid-cols-4 md:gap-4 md:items-start hover:bg-slate-50/50 transition-colors shadow-sm md:shadow-none">
+                                    <div className="mb-4 md:mb-0 md:p-4 md:col-span-1 border-b md:border-0 pb-4 md:pb-0">
+                                        <div className="font-bold text-slate-800 text-lg md:text-base">{wb.customer_name}</div>
+                                        <div className="text-xs font-mono text-slate-400 mt-1">{wb.nfc_id?.replace(/:/g, "")}</div>
+                                        
+                                        {/* Status Alerts */}
+                                        {(wb.status === 'inactive' || (wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until)) && (
+                                            <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1 bg-red-50 p-2 rounded w-fit">
+                                                <AlertTriangle className="w-3 h-3" />
+                                                {wb.status === 'inactive' ? 'צמיד לא פעיל' : `פג תוקף (${wb.valid_until})`}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="md:p-4 md:col-span-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {attractions.map(att => {
+                                                const isChecked = (wb.allowed_events || []).includes(att.name);
+                                                const isInactive = wb.status === 'inactive';
+                                                const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
+                                                // Disable if inactive, expired, or user is NOT admin
+                                                const isDisabled = isInactive || isExpired || !isAdmin;
+                                                
+                                                // Check if scanned
+                                                const isScanned = scanLogs.some(log => 
+                                                    log.nfc_id === wb.nfc_id && 
+                                                    log.event_name === att.name && 
+                                                    (log.status === 'success' || log.status === 'processed')
+                                                );
+
+                                                return (
+                                                    <div key={att.id} className={`flex flex-col gap-1 bg-slate-50/50 border p-3 rounded-lg transition-colors ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-indigo-300 bg-white'}`}>
+                                                        <div className="flex items-center space-x-2 space-x-reverse">
+                                                            <Checkbox 
+                                                                id={`wb-${wb.id}-${att.id}`} 
+                                                                checked={isChecked}
+                                                                onCheckedChange={() => !isDisabled && handleEventToggle(wb, att.name)}
+                                                                disabled={isDisabled}
+                                                                className="h-5 w-5"
+                                                            />
+                                                            <Label 
+                                                                htmlFor={`wb-${wb.id}-${att.id}`}
+                                                                className={`text-sm font-medium select-none flex-1 ${isDisabled ? 'cursor-not-allowed text-slate-500' : 'cursor-pointer text-slate-700'}`}
+                                                            >
+                                                                {att.name}
+                                                            </Label>
+                                                        </div>
+                                                        {isScanned && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-green-600 font-bold px-7">
+                                                                <CheckCircle2 className="w-3 h-3" />
+                                                                נסרק בכניסה
                                                             </div>
-                                                        );
-                                                    })}
+                                                        )}
                                                     </div>
-                                                    {(wb.status === 'inactive' || (wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until)) && (
-                                                    <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1">
-                                                        <AlertTriangle className="w-3 h-3" />
-                                                        {wb.status === 'inactive' ? 'צמיד לא פעיל' : `פג תוקף (${wb.valid_until})`}
-                                                    </div>
-                                                    )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </CardContent>
