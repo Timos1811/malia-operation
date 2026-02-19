@@ -30,6 +30,7 @@ export default function AddTask() {
   const [selectedWristbandIds, setSelectedWristbandIds] = useState(new Set());
   const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState(''); // Replaces direct orderNumber input for searching
+  const [scanLogs, setScanLogs] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -113,6 +114,10 @@ export default function AddTask() {
       // 4. Fetch all wristbands for this order
       const allOrderWristbands = await base44.entities.Wristband.filter({ order_number: targetOrderNumber });
       setOrderWristbands(allOrderWristbands);
+
+      // Fetch Scan Logs
+      const logs = await base44.entities.WristbandScanLog.filter({ order_number: targetOrderNumber });
+      setScanLogs(logs);
 
       // 5. Pre-select specific wristband if found, otherwise select none (or all? let's default to none so user chooses)
       // Actually user asked "option to request refund... by selecting specific wristband".
@@ -304,19 +309,59 @@ export default function AddTask() {
                 {attractions.length === 0 ? (
                   <p className="text-slate-500 text-center py-4">אין אירועים זמינים</p>
                 ) : (
-                  attractions.map((event) => (
-                    <div key={event.id} className="flex items-center space-x-3 space-x-reverse p-2 hover:bg-slate-50 rounded-md transition-colors">
-                      <Checkbox 
-                        id={event.id} 
-                        checked={selectedEvents.has(event.id)}
-                        onCheckedChange={() => handleEventToggle(event.id)}
-                      />
-                      <Label htmlFor={event.id} className="flex-1 cursor-pointer flex justify-between">
-                        <span>{event.name}</span>
-                        <span className="text-slate-500">€{event.price_eur}</span>
-                      </Label>
-                    </div>
-                  ))
+                  attractions.map((event) => {
+                    let isDisabled = false;
+                    let disabledReason = '';
+
+                    if (refundType === 'partial' && orderNumber) {
+                      const targetWristbands = orderWristbands.length > 0 
+                        ? (selectedWristbandIds.size > 0 
+                            ? orderWristbands.filter(wb => selectedWristbandIds.has(wb.nfc_id)) 
+                            : orderWristbands)
+                        : [];
+
+                      if (targetWristbands.length > 0) {
+                        const isBoughtByAll = targetWristbands.every(wb => (wb.allowed_events || []).includes(event.name));
+                        const isScannedByAny = targetWristbands.some(wb => 
+                          scanLogs.some(log => 
+                            log.nfc_id === wb.nfc_id && 
+                            log.event_name === event.name && 
+                            (log.status === 'success' || log.status === 'processed')
+                          )
+                        );
+
+                        if (!isBoughtByAll) {
+                          isDisabled = true;
+                          disabledReason = 'לא נרכש';
+                        } else if (isScannedByAny) {
+                          isDisabled = true;
+                          disabledReason = 'כבר נסרק';
+                        }
+                      }
+                    }
+
+                    return (
+                      <div key={event.id} className={`flex items-center space-x-3 space-x-reverse p-2 rounded-md transition-colors ${isDisabled ? 'bg-slate-100 opacity-60' : 'hover:bg-slate-50'}`}>
+                        <Checkbox 
+                          id={event.id} 
+                          checked={selectedEvents.has(event.id)}
+                          onCheckedChange={() => !isDisabled && handleEventToggle(event.id)}
+                          disabled={isDisabled}
+                        />
+                        <Label htmlFor={event.id} className={`flex-1 flex justify-between ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                          <div className="flex items-center gap-2">
+                            <span>{event.name}</span>
+                            {isDisabled && (
+                              <span className="text-xs text-red-500 font-medium">
+                                ({disabledReason})
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-slate-500">€{event.price_eur}</span>
+                        </Label>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
