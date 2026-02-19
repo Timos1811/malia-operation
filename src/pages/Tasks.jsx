@@ -96,6 +96,24 @@ function TaskList() {
 
     if (newStatus === 'done' && task.task_type === 'refund') {
       try {
+        // Security Check: Verify no scans occurred between request creation and approval
+        if (task.order_number && task.related_events && task.related_events.length > 0) {
+           const scanLogs = await base44.entities.WristbandScanLog.filter({ order_number: task.order_number });
+           const targetWristbandIds = task.related_wristbands || [];
+           
+           const hasScanned = scanLogs.some(log => {
+             const isRelatedEvent = task.related_events.includes(log.event_name);
+             const isTargetWristband = targetWristbandIds.length === 0 || targetWristbandIds.includes(log.nfc_id);
+             const isSuccessfulScan = log.status === 'success' || log.status === 'processed';
+             return isRelatedEvent && isTargetWristband && isSuccessfulScan;
+           });
+
+           if (hasScanned) {
+             toast.error('לא ניתן לאשר את ההחזר: זוהתה כניסה לאירוע (סריקה) לאחר יצירת הבקשה!');
+             return; // Stop execution
+           }
+        }
+
         const totalAmount = (task.amount || 0) * (task.people_count || 1);
         
         // 1. Create Expense
