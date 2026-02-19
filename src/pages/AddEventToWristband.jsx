@@ -159,6 +159,10 @@ export default function AddEventToWristband() {
       await Promise.all(updatePromises);
 
       // 2. Create PendingSale Immediately
+      // Calculate new total requested amount (Old + New)
+      const oldRequested = parseFloat(foundOrder.details.requested_amount || 0);
+      const newRequested = oldRequested + totalAmount;
+
       const baseData = {
           customer: foundOrder.details.customer,
           departure_date: foundOrder.details.departure_date,
@@ -166,21 +170,20 @@ export default function AddEventToWristband() {
           gender: foundOrder.details.gender,
           hotel: foundOrder.details.hotel,
           company: foundOrder.details.company,
-          // Use the current user as sales_rep for this specific addition, or fallback to original
-          // Using current user makes sense for tracking who added the event
       };
 
       await base44.entities.PendingSale.create({
           order_number: foundOrder.details.order_number,
-          requested_amount: totalAmount.toString(),
-          comments: `תוספת עבור אירועים: ${eventNames.join(', ')}`,
-          sales_rep: currentUser?.full_name || foundOrder.details.sales_rep || 'נציג',
+          requested_amount: newRequested.toString(),
+          comments: foundOrder.details.comments, // Keep original comments
+          sales_rep: foundOrder.details.sales_rep, // Keep original sales rep
           ...baseData,
-          eur_amount: "0",
-          shekel_amount: "0",
-          dollar_amount: "0",
-          bit_amount: "0",
-          eur_status: "0", // Initialize status
+          // Copy existing payment amounts
+          eur_amount: foundOrder.details.eur_amount || "0",
+          shekel_amount: foundOrder.details.shekel_amount || "0",
+          dollar_amount: foundOrder.details.dollar_amount || "0",
+          bit_amount: foundOrder.details.bit_amount || "0",
+          eur_status: foundOrder.details.eur_status || "0", 
           created_date: new Date().toISOString()
       });
 
