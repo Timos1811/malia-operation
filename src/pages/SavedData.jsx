@@ -451,7 +451,7 @@ export default function SavedData() {
                       return (
                         <td 
                           key={colKey} 
-                          className="px-2 py-2 text-sm border-b border-slate-100 last:border-b-0"
+                          className={`px-3 py-3 text-sm border-b border-slate-200/80 ${colKey === 'comments' ? 'min-w-[250px]' : 'whitespace-nowrap'}`}
                         >
                           {colKey === 'created_date' ? (
                             <div className="px-4 py-2 min-h-[36px] flex items-center text-slate-600 font-medium cursor-default">
