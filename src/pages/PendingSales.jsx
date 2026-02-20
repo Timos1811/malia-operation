@@ -413,18 +413,19 @@ export default function PendingSales() {
             )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-          <table className="w-full min-w-[1200px]">
-            <thead>
-              <tr className="bg-slate-50">
-                {COLUMNS.map((col, i) => (
-                  <th key={i} className="px-4 py-4 text-xs font-semibold text-slate-500 border-b">
-                    {col}
-                  </th>
-                ))}
-                <th className="px-4 py-4 border-b"></th>
-              </tr>
-            </thead>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1400px]">
+                <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-200">
+                    {COLUMNS.map((col, i) => (
+                    <th key={i} className="px-3 py-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                        {col}
+                    </th>
+                    ))}
+                    <th className="px-3 py-4 w-[140px]"></th>
+                </tr>
+                </thead>
             <tbody>
               {isLoading ? (
                   <tr>
@@ -443,23 +444,28 @@ export default function PendingSales() {
                 filteredSales.map((row) => {
                   const status = calculateStatusDisplay(row);
                   return (
-                    <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={row.id} className="group hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
                       {COLUMN_KEYS.map((colKey) => (
-                        <td key={colKey} className="px-2 py-2 border-b">
-                          {colKey === 'order_number' && row.is_combo ? (
-                            <div className="flex items-center gap-2">
-                                {row[colKey]}
-                                <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold border border-yellow-200">
-                                    COMBO
-                                </span>
-                            </div>
+                        <td key={colKey} className="px-1 py-1">
+                          {colKey === 'order_number' ? (
+                             row.is_combo ? (
+                                <div className="flex items-center gap-2 px-2">
+                                    <span className="font-bold text-slate-700">{row[colKey]}</span>
+                                    <span className="text-[10px] bg-gradient-to-r from-yellow-200 to-orange-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold shadow-sm border border-yellow-300/50">
+                                        COMBO
+                                    </span>
+                                </div>
+                             ) : (
+                                <div className="px-3 font-bold text-slate-700">{row[colKey]}</div>
+                             )
                           ) : colKey === 'eur_status' ? (
-                            <div className={`px-4 py-2 rounded-lg text-center font-medium ${status.color}`}>
+                            <div className={`mx-2 px-3 py-1.5 rounded-full text-center text-xs font-bold shadow-sm ${status.color}`}>
                               {status.text}
                             </div>
                           ) : colKey === 'envelope_received' ? (
-                            <div className="flex justify-center">
+                            <div className="flex justify-center items-center h-full">
                                 <Checkbox 
+                                    className="w-5 h-5 rounded-md data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                                     checked={row.envelope_received || false} 
                                     onCheckedChange={(checked) => handleBlur(row.id, colKey, checked, row)}
                                 />
@@ -473,19 +479,20 @@ export default function PendingSales() {
                           )}
                         </td>
                       ))}
-                      <td className="px-2 py-2 border-b text-center">
-                        <div className="flex gap-2 justify-center">
+                      <td className="px-2 py-2 text-center">
+                        <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button 
                               variant="default" 
                               size="sm" 
                               onClick={() => handleOpenMoveDialog(row)}
-                              className="bg-green-600 hover:bg-green-700 text-white"
+                              className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-8 px-3"
                             >
-                              <CheckCircle2 className="w-4 h-4 ml-1" /> הוסף למכירות
+                              <Save className="w-4 h-4 ml-1" /> שמור
                             </Button>
                             <Button 
-                              variant="destructive" 
-                              size="sm" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-slate-400 hover:text-red-600 hover:bg-red-50"
                               onClick={() => handleDeleteRow(row.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -589,7 +596,6 @@ export default function PendingSales() {
 function EditableCell({ value: initialValue, onBlur, disabled }) {
     const [value, setValue] = useState(initialValue);
     
-    // Update local state if external value changes (e.g. refresh)
     React.useEffect(() => {
         setValue(initialValue);
     }, [initialValue]);
@@ -599,7 +605,14 @@ function EditableCell({ value: initialValue, onBlur, disabled }) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onBlur={() => onBlur(value)}
-            className={`text-right h-10 border-slate-200 ${disabled ? 'bg-slate-50 text-slate-500' : ''}`}
+            className={`
+                text-right h-9 
+                border-transparent bg-transparent 
+                hover:bg-slate-50 hover:border-slate-200 
+                focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20
+                transition-all duration-200 font-medium text-slate-700
+                ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
             disabled={disabled}
         />
     );
