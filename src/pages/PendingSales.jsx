@@ -593,18 +593,18 @@ export default function PendingSales() {
 }
 
 // Separate component to handle local state of input
-function EditableCell({ value: initialValue, onBlur, disabled }) {
-    const [value, setValue] = useState(initialValue);
+function EditableCell({ value, onBlur, disabled }) {
+    const [localValue, setLocalValue] = useState(value);
     
     React.useEffect(() => {
-        setValue(initialValue);
-    }, [initialValue]);
+        setLocalValue(value);
+    }, [value]);
 
     return (
         <Input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={() => onBlur(value)}
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => onBlur(localValue)}
             className={`
                 text-right h-9 
                 border-transparent bg-transparent 
