@@ -21,6 +21,29 @@ const COLUMN_KEYS = [
   'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments', 'envelope_received'
 ];
 
+function EditableCell({ value, onBlur, disabled }) {
+    const [localValue, setLocalValue] = useState(value);
+    
+    React.useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    return (
+        <Input
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => onBlur(localValue)}
+            className={cn(
+                "text-right h-9 border-transparent bg-transparent transition-all duration-200 font-medium text-slate-700",
+                "hover:bg-slate-50 hover:border-slate-200",
+                "focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20",
+                disabled && "opacity-50 cursor-not-allowed"
+            )}
+            disabled={disabled}
+        />
+    );
+}
+
 export default function PendingSales() {
   const queryClient = useQueryClient();
   const [editingCell, setEditingCell] = useState(null);
@@ -590,28 +613,4 @@ export default function PendingSales() {
 
     </div>
   );
-}
-
-// Separate component to handle local state of input
-function EditableCell({ value, onBlur, disabled }) {
-    const [localValue, setLocalValue] = useState(value);
-    
-    React.useEffect(() => {
-        setLocalValue(value);
-    }, [value]);
-
-    return (
-        <Input
-            value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={() => onBlur(localValue)}
-            className={cn(
-                "text-right h-9 border-transparent bg-transparent transition-all duration-200 font-medium text-slate-700",
-                "hover:bg-slate-50 hover:border-slate-200",
-                "focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20",
-                disabled && "opacity-50 cursor-not-allowed"
-            )}
-            disabled={disabled}
-        />
-    );
 }
