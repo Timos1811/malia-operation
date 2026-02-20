@@ -53,17 +53,26 @@ export default function NewSale() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
+  const { data: comboPriceSetting } = useQuery({
+    queryKey: ['appSettings', 'combo_price_eur'],
+    queryFn: async () => {
+        const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
+        return settings[0]?.value || '550';
+    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
   // --- Calculated Values ---
   const maxCustomers = parseInt(formData.customerCount) || 1;
   const scannedCount = scannedIds.size;
   const isAllWristbandsScanned = scannedCount >= maxCustomers;
   
-  const COMBO_PRICE_EUR = 550;
+  const comboPrice = parseFloat(comboPriceSetting) || 550;
   const isCombo = attractions.length > 0 && selectedAttractions.size === attractions.length;
 
   const totalPrice = useMemo(() => {
     if (attractions.length > 0 && selectedAttractions.size === attractions.length) {
-      return COMBO_PRICE_EUR * maxCustomers;
+      return comboPrice * maxCustomers;
     }
     
     let sum = 0;
@@ -72,7 +81,7 @@ export default function NewSale() {
       if (att) sum += (att.price_eur || 0);
     });
     return sum * maxCustomers;
-  }, [selectedAttractions, maxCustomers, attractions]);
+  }, [selectedAttractions, maxCustomers, attractions, comboPrice]);
 
   // --- Handlers ---
 
