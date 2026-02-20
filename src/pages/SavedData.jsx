@@ -17,7 +17,6 @@ import AskData from "@/components/AskData";
 const COLUMNS = [
   'תאריך הכנסה',
   'מספר הזמנה',
-  'תאריך עזיבה',
   'לקוחות',
   'לילות',
   'מגדר',
@@ -30,13 +29,13 @@ const COLUMNS = [
   'ביט',
   'סטטוס בEUR',
   'שם נציג',
+  'תאריך עזיבה',
   'הערות'
 ];
 
 const COLUMN_KEYS = [
   'created_date',
   'order_number',
-  'departure_date',
   'customer',
   'nights',
   'gender',
@@ -49,6 +48,7 @@ const COLUMN_KEYS = [
   'bit_amount',
   'eur_status',
   'sales_rep',
+  'departure_date',
   'comments'
 ];
 
