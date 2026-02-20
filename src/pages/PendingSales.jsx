@@ -528,6 +528,7 @@ export default function PendingSales() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
