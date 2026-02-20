@@ -57,8 +57,15 @@ export default function NewSale() {
   const maxCustomers = parseInt(formData.customerCount) || 1;
   const scannedCount = scannedIds.size;
   const isAllWristbandsScanned = scannedCount >= maxCustomers;
+  
+  const COMBO_PRICE_EUR = 550;
+  const isCombo = attractions.length > 0 && selectedAttractions.size === attractions.length;
 
   const totalPrice = useMemo(() => {
+    if (attractions.length > 0 && selectedAttractions.size === attractions.length) {
+      return COMBO_PRICE_EUR * maxCustomers;
+    }
+    
     let sum = 0;
     selectedAttractions.forEach(id => {
       const att = attractions.find(a => a.id === id);
@@ -224,7 +231,8 @@ export default function NewSale() {
         bit_amount: "",
         eur_status: "0",
         timestamp: Date.now(),
-        sales_rep: currentUser?.full_name || ''
+        sales_rep: currentUser?.full_name || '',
+        is_combo: isCombo
       };
 
       // Create the pending sale in the database
@@ -451,7 +459,14 @@ export default function NewSale() {
           <div className="flex items-center justify-between px-2">
             <div>
               <span className="text-slate-400 text-xs block font-bold">סה"כ לתשלום</span>
-              <span className="text-2xl font-black text-slate-800">€{totalPrice.toFixed(2)}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-black text-slate-800">€{totalPrice.toFixed(2)}</span>
+                {isCombo && (
+                  <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-sm animate-pulse">
+                    COMBO DEAL!
+                  </span>
+                )}
+              </div>
             </div>
             
             <Button 
