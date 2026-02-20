@@ -31,6 +31,47 @@ export default function EventsAndAttractions() {
     queryFn: () => base44.entities.Attraction.list('-created_date'),
   });
 
+  // Fetch Combo Price Setting
+  const { data: comboSetting, isLoading: isComboLoading } = useQuery({
+    queryKey: ['appSettings', 'combo_price_eur'],
+    queryFn: async () => {
+        const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
+        return settings[0] || { value: '550' }; // Default fallback
+    }
+  });
+
+  const [comboPriceInput, setComboPriceInput] = useState('');
+
+  // Update Combo Price Mutation
+  const updateComboMutation = useMutation({
+    mutationFn: async (newValue) => {
+        const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
+        if (settings.length > 0) {
+            return base44.entities.AppSetting.update(settings[0].id, { value: newValue.toString() });
+        } else {
+            return base44.entities.AppSetting.create({ 
+                key: 'combo_price_eur', 
+                value: newValue.toString(), 
+                description: 'מחיר עסקת קומבו (חבילת הכל כלול) באירו' 
+            });
+        }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appSettings', 'combo_price_eur'] });
+      toast.success('מחיר קומבו עודכן בהצלחה');
+      setComboPriceInput(''); // Clear input on success
+    },
+    onError: () => toast.error('שגיאה בעדכון מחיר קומבו'),
+  });
+
+  const handleUpdateComboPrice = () => {
+      if (!comboPriceInput || isNaN(parseFloat(comboPriceInput))) {
+          toast.error('נא להזין מחיר תקין');
+          return;
+      }
+      updateComboMutation.mutate(comboPriceInput);
+  };
+
   // Create Mutation
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Attraction.create(data),
@@ -108,14 +149,52 @@ export default function EventsAndAttractions() {
             <Ticket className="w-8 h-8 text-slate-600" />
             <h1 className="text-3xl font-bold text-slate-800">אירועים ואטרקציות</h1>
           </div>
-          <Button 
-            onClick={() => setIsAdding(true)} 
-            className="gap-2 bg-slate-800 hover:bg-slate-900"
-            disabled={isAdding}
-          >
-            <Plus className="w-4 h-4" />
-            הוסף חדש
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+                onClick={() => setIsAdding(true)} 
+                className="gap-2 bg-slate-800 hover:bg-slate-900"
+                disabled={isAdding}
+            >
+                <Plus className="w-4 h-4" />
+                הוסף חדש
+            </Button>
+          </div>
+        </div>
+
+        {/* Combo Price Management */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+                <div className="bg-yellow-100 p-2 rounded-lg text-yellow-700">
+                    <Ticket className="w-5 h-5" />
+                </div>
+                <div>
+                    <div className="font-bold text-slate-800">מחיר עסקת קומבו (Combo Deal)</div>
+                    <div className="text-sm text-slate-500">מחיר כולל לכל האירועים יחד</div>
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="text-xl font-black text-slate-900">
+                    €{comboSetting?.value || '550'}
+                </div>
+                <div className="w-px h-8 bg-slate-200 mx-2"></div>
+                <div className="flex items-center gap-2">
+                    <Input 
+                        type="number" 
+                        placeholder="עדכן מחיר..." 
+                        className="w-32 h-9"
+                        value={comboPriceInput}
+                        onChange={(e) => setComboPriceInput(e.target.value)}
+                    />
+                    <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={handleUpdateComboPrice}
+                        disabled={!comboPriceInput}
+                    >
+                        עדכן
+                    </Button>
+                </div>
+            </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
