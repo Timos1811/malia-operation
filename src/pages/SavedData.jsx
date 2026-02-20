@@ -495,6 +495,11 @@ export default function SavedData() {
                               ) : (
                                 row[colKey] || <span className="text-slate-400">—</span>
                               )}
+                              {row.is_combo && (
+                                <span className="mr-2 text-[10px] bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm whitespace-nowrap">
+                                   COMBO
+                                </span>
+                              )}
                             </div>
                           )}
                         </td>
