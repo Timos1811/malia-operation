@@ -389,19 +389,20 @@ export default function SavedData() {
               </Button>
             </div>
           ) : (
-            <table className="w-full min-w-[1200px]">
-              <thead>
-                <tr className="bg-slate-50/80">
-                  {COLUMNS.map((colName, colIndex) => (
-                    <th 
-                      key={colIndex} 
-                      className="px-4 py-4 text-right text-xs font-medium text-slate-500 border-b border-slate-200/60 whitespace-nowrap"
-                    >
-                      {colName}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+            <div className="max-h-[70vh] overflow-y-auto relative">
+              <table className="w-full min-w-[1400px] border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-slate-100 shadow-sm">
+                    {COLUMNS.map((colName, colIndex) => (
+                      <th 
+                        key={colIndex} 
+                        className="px-4 py-4 text-right text-sm font-bold text-slate-700 border-b border-slate-300 whitespace-nowrap bg-slate-100"
+                      >
+                        {colName}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
               <tbody>
                 {filteredRows.map((row) => {
                   // Check if EUR status is negative (including all currencies)
@@ -483,22 +484,24 @@ export default function SavedData() {
                               }}
                             >
                               {colKey === 'order_number' && row[colKey] ? (
-                                <Link 
-                                  to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                                >
-                                  {row[colKey]}
-                                  <ExternalLink className="w-3 h-3 opacity-50" />
-                                </Link>
+                                <div className="flex items-center gap-2">
+                                  <Link 
+                                    to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-bold"
+                                  >
+                                    {row[colKey]}
+                                    <ExternalLink className="w-3 h-3 opacity-50" />
+                                  </Link>
+                                  {row.is_combo && (
+                                    <span className="text-[10px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-2 py-0.5 rounded-full font-bold shadow-sm whitespace-nowrap">
+                                       COMBO
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
                                 row[colKey] || <span className="text-slate-400">—</span>
-                              )}
-                              {row.is_combo && (
-                                <span className="mr-2 text-[10px] bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm whitespace-nowrap">
-                                   COMBO
-                                </span>
                               )}
                             </div>
                           )}
