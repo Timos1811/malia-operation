@@ -7,12 +7,12 @@ import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות'
+  'חברה', 'סכום מבוקש', 'קומבו', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments'
+  'company', 'requested_amount', 'is_combo', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments'
 ];
 
 export default function Table() {
@@ -276,6 +276,20 @@ export default function Table() {
                             else { status = diff.toFixed(2); color = 'bg-red-100 text-red-800'; }
                         }
                         return <td key={colKey} className="px-2 py-2 border-b"><div className={`px-4 py-2 rounded-lg text-center font-medium ${color}`}>{status}</div></td>
+                    }
+
+                    if (colKey === 'is_combo') {
+                        return (
+                            <td key={colKey} className="px-2 py-2 border-b text-center">
+                                <div className="flex justify-center">
+                                    <Checkbox 
+                                        checked={!!row[colKey]}
+                                        onCheckedChange={(checked) => handleCellChange(rowIndex, colKey, checked)}
+                                        className="h-5 w-5 border-2 border-slate-300 data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500"
+                                    />
+                                </div>
+                            </td>
+                        );
                     }
 
                     return (

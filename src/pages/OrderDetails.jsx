@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine, Search, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -183,7 +184,14 @@ export default function OrderDetails() {
                         <ArrowRight className="w-5 h-5 text-slate-600" />
                     </Button>
                 </Link>
-                <h1 className="text-3xl font-bold text-slate-900">הזמנה {orderNumber}</h1>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-slate-900">הזמנה {orderNumber}</h1>
+                    {data?.is_combo && (
+                        <Badge className="bg-yellow-400 text-yellow-900 hover:bg-yellow-500 px-3 text-sm">
+                            COMBO DEAL
+                        </Badge>
+                    )}
+                </div>
             </div>
             <div className="text-sm text-slate-500">
                 עודכן לאחרונה: {new Date().toLocaleDateString('he-IL')}

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, TicketPlus, ScanLine, AlertCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
@@ -266,7 +267,14 @@ export default function AddEventToWristband() {
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-start">
                     <div>
-                        <h3 className="font-bold text-lg">הזמנה {foundOrder.details.order_number}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-lg">הזמנה {foundOrder.details.order_number}</h3>
+                            {foundOrder.details.is_combo && (
+                                <Badge className="bg-yellow-400 text-yellow-900 hover:bg-yellow-500">
+                                    COMBO
+                                </Badge>
+                            )}
+                        </div>
                         <p className="text-slate-500 text-sm">{foundOrder.details.customer} אורחים • {foundOrder.details.hotel}</p>
                     </div>
                 </div>
