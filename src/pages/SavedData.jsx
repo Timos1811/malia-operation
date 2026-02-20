@@ -513,6 +513,7 @@ export default function SavedData() {
                       })}
                       </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
