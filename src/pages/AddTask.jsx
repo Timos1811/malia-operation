@@ -24,6 +24,7 @@ export default function AddTask() {
   const [departureDate, setDepartureDate] = useState('');
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isCombo, setIsCombo] = useState(false);
   
   // New state for wristbands
   const [orderWristbands, setOrderWristbands] = useState([]);
@@ -51,19 +52,39 @@ export default function AddTask() {
   // Calculate total whenever selection or refund type changes
   useEffect(() => {
     let total = 0;
-    selectedEvents.forEach(eventId => {
-      const event = attractions.find(a => a.id === eventId);
-      if (event && event.price_eur) {
-        total += parseFloat(event.price_eur);
-      }
-    });
+    
+    // Calculate total list price of ALL available attractions (for ratio calculation)
+    const totalListPriceAll = attractions.reduce((sum, a) => sum + (parseFloat(a.price_eur) || 0), 0);
+    const COMBO_PRICE = 550;
+
+    if (isCombo && totalListPriceAll > 0) {
+        // Combo Logic: Calculate proportional value
+        // Ratio = ComboPrice / TotalListPrice
+        const ratio = COMBO_PRICE / totalListPriceAll;
+        
+        selectedEvents.forEach(eventId => {
+            const event = attractions.find(a => a.id === eventId);
+            if (event && event.price_eur) {
+                // Effective price = List Price * Ratio
+                total += (parseFloat(event.price_eur) * ratio);
+            }
+        });
+    } else {
+        // Normal Logic
+        selectedEvents.forEach(eventId => {
+            const event = attractions.find(a => a.id === eventId);
+            if (event && event.price_eur) {
+                total += parseFloat(event.price_eur);
+            }
+        });
+    }
 
     if (refundType === 'partial') {
-      total = total * 0.4;
+      total = total * 0.4; // 40% of the effective price
     }
 
     setCalculatedAmount(total);
-  }, [selectedEvents, refundType, attractions]);
+  }, [selectedEvents, refundType, attractions, isCombo]);
 
   const handleEventToggle = (eventId) => {
     const newSelected = new Set(selectedEvents);
@@ -101,11 +122,22 @@ export default function AddTask() {
       // 2. Set the order number state
       setOrderNumber(targetOrderNumber);
 
-      // 3. Fetch Order Data (departure date etc)
+      // 3. Fetch Order Data (departure date etc) & Check Combo
       try {
-        const response = await base44.functions.invoke('fetchOrderData', { orderNumber: targetOrderNumber });
-        if (response.data && response.data.departureDate) {
-          setDepartureDate(response.data.departureDate);
+        // First try to find in TableData (internal DB)
+        const tableOrders = await base44.entities.TableData.filter({ order_number: targetOrderNumber });
+        if (tableOrders.length > 0) {
+            // Use the most recent one
+            const order = tableOrders[tableOrders.length - 1];
+            setIsCombo(!!order.is_combo);
+            if (order.departure_date) setDepartureDate(order.departure_date);
+        } else {
+             // Fallback to Google Sheets
+            const response = await base44.functions.invoke('fetchOrderData', { orderNumber: targetOrderNumber });
+            if (response.data && response.data.departureDate) {
+              setDepartureDate(response.data.departureDate);
+            }
+            setIsCombo(false); // Default to false if not found in DB
         }
       } catch (err) {
         console.warn("Order data fetch warning:", err);
@@ -367,13 +399,19 @@ export default function AddTask() {
             </div>
 
             {/* Calculation Result */}
-            <div className="bg-slate-100 p-6 rounded-xl flex flex-col items-center justify-center space-y-2">
+            <div className="bg-slate-100 p-6 rounded-xl flex flex-col items-center justify-center space-y-2 relative overflow-hidden">
+              {isCombo && (
+                  <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg shadow-sm">
+                      חישוב לפי מחיר קומבו (יחסי)
+                  </div>
+              )}
               <span className="text-slate-600 font-medium">סכום להחזר</span>
               <div className="text-4xl font-bold text-slate-900">
                 €{calculatedAmount.toFixed(2)}
               </div>
               <span className="text-sm text-slate-500">
-                {refundType === 'partial' ? 'חישוב לפי 40% מערך האירועים' : 'חישוב לפי מחיר מלא'}
+                {refundType === 'partial' ? 'חישוב לפי 40%' : 'חישוב מלא'} 
+                {isCombo ? ' מתוך הערך היחסי בקומבו' : ' ממחיר המחירון'}
               </span>
             </div>
 
