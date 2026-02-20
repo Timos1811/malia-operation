@@ -403,116 +403,106 @@ export default function SavedData() {
                     ))}
                   </tr>
                 </thead>
-              <tbody>
-                {filteredRows.map((row) => {
-                  // Check if EUR status is negative (including all currencies)
-                  const eurAmount = parseFloat(row.eur_amount) || 0;
-                  const shekelAmount = parseFloat(row.shekel_amount) || 0;
-                  const dollarAmount = parseFloat(row.dollar_amount) || 0;
-                  const bitAmount = parseFloat(row.bit_amount) || 0;
-                  const requestedAmount = parseFloat(row.requested_amount) || 0;
-                  const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26);
-                  const isNegative = totalInEur && requestedAmount && (totalInEur - requestedAmount) < 0;
+                <tbody>
+                  {filteredRows.map((row) => {
+                    return (
+                      <tr 
+                        key={row.id} 
+                        className="hover:bg-slate-50/50 transition-colors duration-200"
+                      >
+                        {COLUMN_KEYS.map((colKey) => {
+                          // Calculate EUR status with all currencies
+                          let eurStatus = '';
+                          let eurStatusColor = '';
+                          if (colKey === 'eur_status') {
+                            const eurAmount = parseFloat(row.eur_amount) || 0;
+                            const shekelAmount = parseFloat(row.shekel_amount) || 0;
+                            const dollarAmount = parseFloat(row.dollar_amount) || 0;
+                            const bitAmount = parseFloat(row.bit_amount) || 0;
+                            const requestedAmount = parseFloat(row.requested_amount) || 0;
 
-                  return (
-                  <tr 
-                    key={row.id} 
-                    className={`transition-colors duration-200 ${isNegative ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50/50'}`}
-                  >
-                    {COLUMN_KEYS.map((colKey) => {
-                      // Calculate EUR status with all currencies
-                      let eurStatus = '';
-                      let eurStatusColor = '';
-                      if (colKey === 'eur_status') {
-                        const eurAmount = parseFloat(row.eur_amount) || 0;
-                        const shekelAmount = parseFloat(row.shekel_amount) || 0;
-                        const dollarAmount = parseFloat(row.dollar_amount) || 0;
-                        const bitAmount = parseFloat(row.bit_amount) || 0;
-                        const requestedAmount = parseFloat(row.requested_amount) || 0;
+                            // Convert to EUR: 1 Shekel = 0.26 EUR, 1 Dollar = 0.95 EUR, 1 Bit = 0.26 EUR
+                            const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26);
 
-                        // Convert to EUR: 1 Shekel = 0.26 EUR, 1 Dollar = 0.95 EUR, 1 Bit = 0.26 EUR
-                        const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26);
-
-                        if (totalInEur && requestedAmount) {
-                          const diff = totalInEur - requestedAmount;
-                          if (diff > 0) {
-                            eurStatus = `+${diff.toFixed(2)}`;
-                            eurStatusColor = 'bg-green-100 text-green-800';
-                          } else if (diff < 0) {
-                            eurStatus = diff.toFixed(2);
-                            eurStatusColor = 'bg-red-100 text-red-800';
-                          } else {
-                            eurStatus = 'מאוזן';
-                            eurStatusColor = 'bg-slate-100 text-slate-600';
+                            if (totalInEur && requestedAmount) {
+                              const diff = totalInEur - requestedAmount;
+                              if (diff > 0) {
+                                eurStatus = `+${diff.toFixed(2)}`;
+                                eurStatusColor = 'bg-green-100 text-green-800';
+                              } else if (diff < 0) {
+                                eurStatus = diff.toFixed(2);
+                                eurStatusColor = 'bg-red-100 text-red-800';
+                              } else {
+                                eurStatus = 'מאוזן';
+                                eurStatusColor = 'bg-slate-100 text-slate-600';
+                              }
+                            }
                           }
-                        }
-                      }
 
-                      return (
-                        <td 
-                          key={colKey} 
-                          className={`px-3 py-3 text-sm border-b border-slate-200/80 ${colKey === 'comments' ? 'min-w-[250px]' : 'whitespace-nowrap'}`}
-                        >
-                          {colKey === 'created_date' ? (
-                            <div className="px-4 py-2 min-h-[36px] flex items-center text-slate-600 font-medium cursor-default">
-                              {row.created_date ? new Date(row.created_date).toLocaleDateString('he-IL') : '-'}
-                            </div>
-                          ) : colKey === 'eur_status' ? (
-                            <div 
-                              className={`px-4 py-2 min-h-[36px] rounded-lg flex items-center justify-center font-medium ${eurStatusColor}`}
+                          return (
+                            <td 
+                              key={colKey} 
+                              className={`px-3 py-3 text-sm border-b border-slate-200/80 ${colKey === 'comments' ? 'min-w-[250px]' : 'whitespace-nowrap'}`}
                             >
-                              {eurStatus || <span className="text-slate-400">—</span>}
-                            </div>
-                          ) : editingCell?.row === row.id && editingCell?.col === colKey ? (
-                            <Input
-                              autoFocus
-                              defaultValue={row[colKey]}
-                              onBlur={(e) => {
-                                handleCellBlur(e);
-                                // Trigger update on blur for all fields including order_number
-                                handleCellChange(row.id, colKey, e.target.value);
-                              }}
-                              onKeyDown={(e) => handleKeyDown(e, row.id, colKey, e.target.value)}
-                              className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
-                            />
-                          ) : (
-                            <div 
-                              className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                setEditingCell({ row: row.id, col: colKey });
-                              }}
-                            >
-                              {colKey === 'order_number' && row[colKey] ? (
-                                <div className="flex items-center gap-2">
-                                  <Link 
-                                    to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-bold"
-                                  >
-                                    {row[colKey]}
-                                    <ExternalLink className="w-3 h-3 opacity-50" />
-                                  </Link>
-                                  {row.is_combo && (
-                                    <span className="text-[10px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-2 py-0.5 rounded-full font-bold shadow-sm whitespace-nowrap">
-                                       COMBO
-                                    </span>
+                              {colKey === 'created_date' ? (
+                                <div className="px-4 py-2 min-h-[36px] flex items-center text-slate-600 font-medium cursor-default">
+                                  {row.created_date ? new Date(row.created_date).toLocaleDateString('he-IL') : '-'}
+                                </div>
+                              ) : colKey === 'eur_status' ? (
+                                <div 
+                                  className={`px-4 py-2 min-h-[36px] rounded-lg flex items-center justify-center font-medium ${eurStatusColor}`}
+                                >
+                                  {eurStatus || <span className="text-slate-400">—</span>}
+                                </div>
+                              ) : editingCell?.row === row.id && editingCell?.col === colKey ? (
+                                <Input
+                                  autoFocus
+                                  defaultValue={row[colKey]}
+                                  onBlur={(e) => {
+                                    handleCellBlur(e);
+                                    handleCellChange(row.id, colKey, e.target.value);
+                                  }}
+                                  onKeyDown={(e) => handleKeyDown(e, row.id, colKey, e.target.value)}
+                                  className="h-9 border-slate-300 focus:border-slate-500 focus:ring-slate-500 text-right"
+                                />
+                              ) : (
+                                <div 
+                                  className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setEditingCell({ row: row.id, col: colKey });
+                                  }}
+                                >
+                                  {colKey === 'order_number' && row[colKey] ? (
+                                    <div className="flex items-center gap-2">
+                                      <Link 
+                                        to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-bold"
+                                      >
+                                        {row[colKey]}
+                                        <ExternalLink className="w-3 h-3 opacity-50" />
+                                      </Link>
+                                      {row.is_combo && (
+                                        <span className="text-[10px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-2 py-0.5 rounded-full font-bold shadow-sm whitespace-nowrap">
+                                           COMBO
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    row[colKey] || <span className="text-slate-400">—</span>
                                   )}
                                 </div>
-                              ) : (
-                                row[colKey] || <span className="text-slate-400">—</span>
                               )}
-                            </div>
-                          )}
-                        </td>
-                      );
-                      })}
+                            </td>
+                          );
+                        })}
                       </tr>
-                      );
-                      })}
-                      </tbody>
-            </table>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
