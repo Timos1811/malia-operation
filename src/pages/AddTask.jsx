@@ -49,13 +49,22 @@ export default function AddTask() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
+  const { data: comboPriceSetting } = useQuery({
+    queryKey: ['appSettings', 'combo_price_eur'],
+    queryFn: async () => {
+        const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
+        return settings[0]?.value || '550';
+    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
   // Calculate total whenever selection or refund type changes
   useEffect(() => {
     let total = 0;
     
     // Calculate total list price of ALL available attractions (for ratio calculation)
     const totalListPriceAll = attractions.reduce((sum, a) => sum + (parseFloat(a.price_eur) || 0), 0);
-    const COMBO_PRICE = 550;
+    const COMBO_PRICE = parseFloat(comboPriceSetting) || 550;
 
     if (isCombo && totalListPriceAll > 0) {
         // Combo Logic: Calculate proportional value
@@ -84,7 +93,7 @@ export default function AddTask() {
     }
 
     setCalculatedAmount(total);
-  }, [selectedEvents, refundType, attractions, isCombo]);
+  }, [selectedEvents, refundType, attractions, isCombo, comboPriceSetting]);
 
   const handleEventToggle = (eventId) => {
     const newSelected = new Set(selectedEvents);
