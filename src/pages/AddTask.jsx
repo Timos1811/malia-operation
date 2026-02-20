@@ -25,7 +25,8 @@ export default function AddTask() {
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isCombo, setIsCombo] = useState(false);
-  
+  const [originalComboPrice, setOriginalComboPrice] = useState(null);
+
   // New state for wristbands
   const [orderWristbands, setOrderWristbands] = useState([]);
   const [selectedWristbandIds, setSelectedWristbandIds] = useState(new Set());
@@ -64,7 +65,9 @@ export default function AddTask() {
     
     // Calculate total list price of ALL available attractions (for ratio calculation)
     const totalListPriceAll = attractions.reduce((sum, a) => sum + (parseFloat(a.price_eur) || 0), 0);
-    const COMBO_PRICE = parseFloat(comboPriceSetting) || 550;
+    
+    // Use historical price if available, otherwise current setting
+    const COMBO_PRICE = originalComboPrice !== null ? originalComboPrice : (parseFloat(comboPriceSetting) || 550);
 
     if (isCombo && totalListPriceAll > 0) {
         // Combo Logic: Calculate proportional value
@@ -140,6 +143,19 @@ export default function AddTask() {
             const order = tableOrders[tableOrders.length - 1];
             setIsCombo(!!order.is_combo);
             if (order.departure_date) setDepartureDate(order.departure_date);
+
+            // Calculate original combo price if applicable
+            if (order.is_combo && order.requested_amount && order.customer) {
+                const totalAmount = parseFloat(order.requested_amount);
+                const customers = parseInt(order.customer);
+                if (!isNaN(totalAmount) && !isNaN(customers) && customers > 0) {
+                    const pricePerPerson = totalAmount / customers;
+                    setOriginalComboPrice(pricePerPerson);
+                    toast.info(`זוהתה עסקת קומבו לפי מחיר היסטורי: €${pricePerPerson.toFixed(2)}`);
+                }
+            } else {
+                setOriginalComboPrice(null);
+            }
         } else {
              // Fallback to Google Sheets
             const response = await base44.functions.invoke('fetchOrderData', { orderNumber: targetOrderNumber });
@@ -147,6 +163,7 @@ export default function AddTask() {
               setDepartureDate(response.data.departureDate);
             }
             setIsCombo(false); // Default to false if not found in DB
+            setOriginalComboPrice(null);
         }
       } catch (err) {
         console.warn("Order data fetch warning:", err);
@@ -412,6 +429,11 @@ export default function AddTask() {
               {isCombo && (
                   <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg shadow-sm">
                       חישוב לפי מחיר קומבו (יחסי)
+                  </div>
+              )}
+              {originalComboPrice !== null && (
+                  <div className="absolute top-0 left-0 bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-br-lg shadow-sm">
+                      לפי מחיר היסטורי: €{originalComboPrice.toFixed(2)}
                   </div>
               )}
               <span className="text-slate-600 font-medium">סכום להחזר</span>
