@@ -605,14 +605,12 @@ function EditableCell({ value, onBlur, disabled }) {
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={() => onBlur(localValue)}
-            className={`
-                text-right h-9 
-                border-transparent bg-transparent 
-                hover:bg-slate-50 hover:border-slate-200 
-                focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20
-                transition-all duration-200 font-medium text-slate-700
-                ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
+            className={cn(
+                "text-right h-9 border-transparent bg-transparent transition-all duration-200 font-medium text-slate-700",
+                "hover:bg-slate-50 hover:border-slate-200",
+                "focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20",
+                disabled && "opacity-50 cursor-not-allowed"
+            )}
             disabled={disabled}
         />
     );
