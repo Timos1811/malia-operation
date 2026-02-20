@@ -220,6 +220,7 @@ export default function PendingSales() {
                   eur_status: row.eur_status,
                   sales_rep: row.sales_rep,
                   comments: row.comments,
+                  is_combo: row.is_combo,
                   updated_date: new Date().toISOString()
               });
               
@@ -445,7 +446,14 @@ export default function PendingSales() {
                     <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
                       {COLUMN_KEYS.map((colKey) => (
                         <td key={colKey} className="px-2 py-2 border-b">
-                          {colKey === 'eur_status' ? (
+                          {colKey === 'order_number' && row.is_combo ? (
+                            <div className="flex items-center gap-2">
+                                {row[colKey]}
+                                <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold border border-yellow-200">
+                                    COMBO
+                                </span>
+                            </div>
+                          ) : colKey === 'eur_status' ? (
                             <div className={`px-4 py-2 rounded-lg text-center font-medium ${status.color}`}>
                               {status.text}
                             </div>
