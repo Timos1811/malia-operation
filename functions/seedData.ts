@@ -6,7 +6,7 @@ const REPS = [
     "Omer Friedman", "Maya Avraham"
 ];
 
-// Assign random weights to reps for uneven distribution
+// Weighted distribution logic
 const REP_WEIGHTS = [0.2, 0.5, 0.8, 0.3, 0.9, 0.1, 0.6, 0.4, 0.7, 0.5]; 
 
 function getRandomRep() {
@@ -22,34 +22,27 @@ function getRandomRep() {
 
 const HOTELS = ["Blue Lagoon", "Grand Beach", "City Center", "Mountain View", "Seaside Resort"];
 const COMPANIES = ["כ", "נ", "ק"]; 
-
 const EXPENSE_REASONS = ['משיכה לאדם', 'החזר מלא', 'החזר חלקי', 'אשל', 'תשלום לספק', 'מונית', 'ארוחה'];
 
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function processInChunks(items, processFn, chunkSize = 5) {
-    for (let i = 0; i < items.length; i += chunkSize) {
-        const chunk = items.slice(i, i + chunkSize);
-        await Promise.all(chunk.map(processFn));
-        await delay(50); // Small delay to respect rate limits
-    }
-}
-
 async function deleteAll(base44, entityName) {
     let deletedCount = 0;
     while (true) {
-        // Fetch in small batches
         const items = await base44.asServiceRole.entities[entityName].list({ limit: 50 });
         if (!items || items.length === 0) break;
         
-        // Delete in chunks
-        await processInChunks(items, item => base44.asServiceRole.entities[entityName].delete(item.id), 5);
+        // Delete individually with delay to avoid rate limits
+        for (const item of items) {
+            await base44.asServiceRole.entities[entityName].delete(item.id);
+            await delay(50); // 50ms delay between deletes
+        }
         
         deletedCount += items.length;
         if (items.length < 50) break;
-        await delay(100);
+        await delay(200);
     }
     console.log(`Deleted ${deletedCount} records from ${entityName}`);
 }
@@ -63,14 +56,13 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 1. Clear ALL existing data sequentially to avoid heavy load
+        // 1. Delete all existing data
         await deleteAll(base44, 'TableData');
         await deleteAll(base44, 'Expense');
         await deleteAll(base44, 'PendingSale');
         await deleteAll(base44, 'ExpenseEvent');
 
-        // 2. Generate Data
-        const TOTAL_RECORDS = 300;
+        // 2. Prepare Data
         const INCOME_COUNT = 220; 
         const EXPENSE_COUNT = 80;
 
@@ -93,7 +85,6 @@ export default Deno.serve(async (req) => {
                 statusStr = `יתרה ${paidAmount - amount}`;
             }
 
-            // Dates: Mixed past and future
             const isPast = Math.random() > 0.5;
             const daysOffset = isPast ? -Math.floor(Math.random() * 20) - 1 : Math.floor(Math.random() * 20);
             const departureDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -132,13 +123,25 @@ export default Deno.serve(async (req) => {
             });
         }
 
-        // 3. Create records in chunks
-        await processInChunks(incomeData, data => base44.asServiceRole.entities.TableData.create(data), 5);
-        await processInChunks(expenseData, data => base44.asServiceRole.entities.Expense.create(data), 5);
+        // 3. Create using bulkCreate in batches of 50
+        // Slicing to ensure we don't send too large payload even for bulkCreate
+        const batchSize = 50;
+        
+        for (let i = 0; i < incomeData.length; i += batchSize) {
+            const batch = incomeData.slice(i, i + batchSize);
+            await base44.asServiceRole.entities.TableData.bulkCreate(batch);
+            await delay(200);
+        }
+
+        for (let i = 0; i < expenseData.length; i += batchSize) {
+            const batch = expenseData.slice(i, i + batchSize);
+            await base44.asServiceRole.entities.Expense.bulkCreate(batch);
+            await delay(200);
+        }
 
         return Response.json({ 
             success: true, 
-            message: `Successfully seeded ${INCOME_COUNT} incomes and ${EXPENSE_COUNT} expenses` 
+            message: `Successfully seeded ${INCOME_COUNT} incomes and ${EXPENSE_COUNT} expenses using bulkCreate.` 
         });
 
     } catch (error) {
