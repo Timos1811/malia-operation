@@ -312,6 +312,7 @@ export default function NewSale() {
               <Label className="text-xs text-slate-500">מספר לקוחות</Label>
               <Input 
                 type="number" 
+                min={1}
                 value={formData.customerCount}
                 onChange={e => {
                   setFormData({...formData, customerCount: e.target.value});

@@ -21,7 +21,7 @@ const COLUMN_KEYS = [
   'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments', 'envelope_received'
 ];
 
-function EditableCell({ value, onBlur, disabled }) {
+function EditableCell({ value, onBlur, disabled, type = 'text' }) {
     const [localValue, setLocalValue] = useState(value);
     
     React.useEffect(() => {
@@ -30,6 +30,7 @@ function EditableCell({ value, onBlur, disabled }) {
 
     return (
         <Input
+            type={type}
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={() => onBlur(localValue)}
@@ -498,6 +499,7 @@ export default function PendingSales() {
                                 value={row[colKey] || ''}
                                 onBlur={(val) => handleBlur(row.id, colKey, val, row)}
                                 disabled={false}
+                                type={(colKey === 'customer' || colKey === 'nights' || colKey.includes('amount')) ? 'number' : 'text'}
                             />
                           )}
                         </td>
