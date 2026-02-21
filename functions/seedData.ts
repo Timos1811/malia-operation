@@ -7,7 +7,7 @@ const REPS = [
 ];
 
 // Assign random weights to reps for uneven distribution
-const REP_WEIGHTS = REPS.map(() => Math.random() * 0.8 + 0.2); // Weights between 0.2 and 1.0
+const REP_WEIGHTS = [0.2, 0.5, 0.8, 0.3, 0.9, 0.1, 0.6, 0.4, 0.7, 0.5]; 
 
 function getRandomRep() {
     const totalWeight = REP_WEIGHTS.reduce((a, b) => a + b, 0);
@@ -20,34 +20,38 @@ function getRandomRep() {
     return REPS[REPS.length - 1];
 }
 
-const CUSTOMER_NAMES = [
-    "Cohen", "Levi", "Mizrahi", "Peretz", "Biton", "Dahan", "Avraham", 
-    "Friedman", "Katz", "Azoulay", "Gabay", "Hadad", "Amar", "Ohana", 
-    "Bar", "Klein", "Shapira", "Segal", "Golan", "Baruch"
-];
-
 const HOTELS = ["Blue Lagoon", "Grand Beach", "City Center", "Mountain View", "Seaside Resort"];
-// Using the single-letter abbreviations as requested in previous turns
 const COMPANIES = ["כ", "נ", "ק"]; 
 
-async function deleteAll(base44, entityName) {
-    let count = 0;
-    while (true) {
-        const items = await base44.asServiceRole.entities[entityName].list({ limit: 100 });
-        if (items.length === 0) break;
-        
-        await Promise.all(items.map(item => base44.asServiceRole.entities[entityName].delete(item.id)));
-        count += items.length;
-        if (items.length < 100) break;
-    }
-    console.log(`Deleted ${count} records from ${entityName}`);
+const EXPENSE_REASONS = ['משיכה לאדם', 'החזר מלא', 'החזר חלקי', 'אשל', 'תשלום לספק', 'מונית', 'ארוחה'];
+
+async function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function processInChunks(items, processFn, chunkSize = 10) {
+async function processInChunks(items, processFn, chunkSize = 5) {
     for (let i = 0; i < items.length; i += chunkSize) {
         const chunk = items.slice(i, i + chunkSize);
         await Promise.all(chunk.map(processFn));
+        await delay(50); // Small delay to respect rate limits
     }
+}
+
+async function deleteAll(base44, entityName) {
+    let deletedCount = 0;
+    while (true) {
+        // Fetch in small batches
+        const items = await base44.asServiceRole.entities[entityName].list({ limit: 50 });
+        if (!items || items.length === 0) break;
+        
+        // Delete in chunks
+        await processInChunks(items, item => base44.asServiceRole.entities[entityName].delete(item.id), 5);
+        
+        deletedCount += items.length;
+        if (items.length < 50) break;
+        await delay(100);
+    }
+    console.log(`Deleted ${deletedCount} records from ${entityName}`);
 }
 
 export default Deno.serve(async (req) => {
@@ -59,29 +63,25 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 1. Clear ALL existing data
-        await Promise.all([
-            deleteAll(base44, 'TableData'),
-            deleteAll(base44, 'Expense'),
-            deleteAll(base44, 'PendingSale'),
-            deleteAll(base44, 'ExpenseEvent')
-        ]);
+        // 1. Clear ALL existing data sequentially to avoid heavy load
+        await deleteAll(base44, 'TableData');
+        await deleteAll(base44, 'Expense');
+        await deleteAll(base44, 'PendingSale');
+        await deleteAll(base44, 'ExpenseEvent');
 
-        // 2. Generate Records
+        // 2. Generate Data
         const TOTAL_RECORDS = 300;
-        const INCOME_COUNT = 220; // At least 200
-        const EXPENSE_COUNT = TOTAL_RECORDS - INCOME_COUNT; // 80
+        const INCOME_COUNT = 220; 
+        const EXPENSE_COUNT = 80;
 
         const incomeData = [];
         const expenseData = [];
 
-        // Generate Incomes
         for (let i = 0; i < INCOME_COUNT; i++) {
             const rep = getRandomRep();
             const pax = Math.floor(Math.random() * 5) + 1;
             const amount = pax * (Math.floor(Math.random() * 200) + 300);
             
-            // Varied Balance Logic
             let paidAmount = amount;
             let statusStr = 'מאוזן';
             const balanceRand = Math.random();
@@ -94,8 +94,6 @@ export default Deno.serve(async (req) => {
             }
 
             // Dates: Mixed past and future
-            // Past: were in destination (departure < now)
-            // Future: are in destination (departure >= now)
             const isPast = Math.random() > 0.5;
             const daysOffset = isPast ? -Math.floor(Math.random() * 20) - 1 : Math.floor(Math.random() * 20);
             const departureDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -118,32 +116,29 @@ export default Deno.serve(async (req) => {
             });
         }
 
-        // Generate Expenses
-        const EXPENSE_REASONS = ['משיכה לאדם', 'החזר מלא', 'החזר חלקי', 'אשל', 'תשלום לספק', 'מונית', 'ארוחה'];
         for (let i = 0; i < EXPENSE_COUNT; i++) {
             const rep = getRandomRep();
-            // Date logic similar to incomes for consistency
             const daysOffset = Math.floor(Math.random() * 40) - 20; 
             const expenseDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000).toISOString();
 
             expenseData.push({
                 reason: EXPENSE_REASONS[Math.floor(Math.random() * EXPENSE_REASONS.length)],
-                recipient: rep, // Or sometimes a supplier
+                recipient: rep,
                 amount: Math.floor(Math.random() * 400) + 20,
                 currency: 'EUR',
                 expense_date: expenseDate,
                 sales_rep: rep,
-                notes: `Generated expense #${i+1}`
+                notes: `Seed expense #${i+1}`
             });
         }
 
-        // 3. Insert Data
-        await processInChunks(incomeData, data => base44.asServiceRole.entities.TableData.create(data));
-        await processInChunks(expenseData, data => base44.asServiceRole.entities.Expense.create(data));
+        // 3. Create records in chunks
+        await processInChunks(incomeData, data => base44.asServiceRole.entities.TableData.create(data), 5);
+        await processInChunks(expenseData, data => base44.asServiceRole.entities.Expense.create(data), 5);
 
         return Response.json({ 
             success: true, 
-            message: `Created ${INCOME_COUNT} incomes and ${EXPENSE_COUNT} expenses across 10 reps.` 
+            message: `Successfully seeded ${INCOME_COUNT} incomes and ${EXPENSE_COUNT} expenses` 
         });
 
     } catch (error) {
