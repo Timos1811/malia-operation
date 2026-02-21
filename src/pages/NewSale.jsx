@@ -364,13 +364,20 @@ export default function NewSale() {
             </div>
 
             <div className="col-span-2 space-y-1">
-              <Label className="text-xs text-slate-500">חברה / סוכן</Label>
-              <Input 
-                value={formData.company}
-                onChange={e => setFormData({...formData, company: e.target.value})}
-                className="bg-slate-50 border-slate-200"
-                placeholder="שם החברה"
-              />
+              <Label className="text-xs text-slate-500">חברה</Label>
+              <Select 
+                value={formData.company} 
+                onValueChange={val => setFormData({...formData, company: val})}
+              >
+                <SelectTrigger className="bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="בחר חברה" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ק">ק - קשרי תעופה</SelectItem>
+                  <SelectItem value="נ">נ - נטו פאן</SelectItem>
+                  <SelectItem value="כ">כ - כספר</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

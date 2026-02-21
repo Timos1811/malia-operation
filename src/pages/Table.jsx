@@ -119,9 +119,9 @@ export default function Table() {
     // לוגיקת זיהוי חברה לפי תחילת מספר הזמנה
     if (colKey === 'order_number') {
       const val = String(value).trim();
-      if (val.startsWith('5')) newData[rowIndex]['company'] = 'קשרי תעופה';
-      else if (val.startsWith('1')) newData[rowIndex]['company'] = 'נטו פאן';
-      else if (val.length > 0) newData[rowIndex]['company'] = 'כספר';
+      if (val.startsWith('5')) newData[rowIndex]['company'] = 'ק';
+      else if (val.startsWith('1')) newData[rowIndex]['company'] = 'נ';
+      else if (val.length > 0) newData[rowIndex]['company'] = 'כ';
     }
 
     setTableData(newData);

@@ -197,11 +197,11 @@ export default function SavedData() {
       const trimmedOrderNumber = value.trim();
       let company = '';
       if (trimmedOrderNumber.startsWith('5')) {
-        company = 'קשרי תעופה';
+        company = 'ק';
       } else if (trimmedOrderNumber.startsWith('1')) {
-        company = 'נטו פאן';
+        company = 'נ';
       } else if (trimmedOrderNumber.length > 0) {
-        company = 'כספר';
+        company = 'כ';
       }
 
       // Update order number and company first
