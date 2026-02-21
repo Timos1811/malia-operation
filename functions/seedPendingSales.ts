@@ -40,7 +40,7 @@ export default Deno.serve(async (req) => {
                 gender: Math.random() > 0.5 ? "זכר" : "נקבה",
                 hotel: HOTELS[Math.floor(Math.random() * HOTELS.length)],
                 company: COMPANIES[Math.floor(Math.random() * COMPANIES.length)],
-                comments: "Seed pending sale",
+                comments: "",
                 is_combo: Math.random() > 0.8,
                 envelope_received: Math.random() > 0.5
             });

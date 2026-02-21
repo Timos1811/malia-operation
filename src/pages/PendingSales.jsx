@@ -35,7 +35,7 @@ function EditableCell({ value, onBlur, disabled, type = 'text' }) {
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={() => onBlur(localValue)}
             className={cn(
-                "text-right h-9 border-transparent bg-transparent transition-all duration-200 font-medium text-slate-700",
+                "text-right h-8 text-xs border-transparent bg-transparent transition-all duration-200 font-medium text-slate-700",
                 "hover:bg-slate-50 hover:border-slate-200",
                 "focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20",
                 disabled && "opacity-50 cursor-not-allowed"
@@ -439,7 +439,7 @@ export default function PendingSales() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px]">
+            <table className="w-full">
                 <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
                     {COLUMNS.map((col, i) => (
