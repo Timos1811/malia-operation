@@ -224,7 +224,7 @@ export default function Table() {
 
   return (
     <div className="p-8 md:p-12 text-right" dir="rtl">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full max-w-[98%] mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-800">ניהול הכנסות והזמנות</h1>
           <Button 
