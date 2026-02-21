@@ -37,11 +37,12 @@ export default Deno.serve(async (req) => {
                 eur_status: "טרם שולם",
                 departure_date: new Date(Date.now() + Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                 nights: "4",
-                gender: Math.random() > 0.5 ? "Male" : "Female",
+                gender: Math.random() > 0.5 ? "זכר" : "נקבה",
                 hotel: HOTELS[Math.floor(Math.random() * HOTELS.length)],
                 company: COMPANIES[Math.floor(Math.random() * COMPANIES.length)],
                 comments: "Seed pending sale",
-                is_combo: Math.random() > 0.8
+                is_combo: Math.random() > 0.8,
+                envelope_received: Math.random() > 0.5
             });
         }
 

@@ -340,8 +340,8 @@ export default function PendingSales() {
   const hasActiveFilters = filters.salesRep !== 'all' || filters.envelopeStatus !== 'all' || filters.sortOrder !== 'newest';
 
   return (
-    <div className="p-8 md:p-12 text-right" dir="rtl">
-      <div className="max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 text-right" dir="rtl">
+      <div className="w-full max-w-[98%] mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-800">מכירה בהמתנה</h1>
           <div className="flex gap-4 items-center">
