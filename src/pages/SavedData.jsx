@@ -387,13 +387,13 @@ export default function SavedData() {
             </div>
           ) : (
             <div className="max-h-[70vh] overflow-y-auto relative">
-              <table className="w-full min-w-[1400px] border-collapse">
+              <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-100 shadow-sm">
                     {COLUMNS.map((colName, colIndex) => (
                       <th 
                         key={colIndex} 
-                        className="px-4 py-4 text-right text-sm font-bold text-slate-700 border-b border-slate-300 whitespace-nowrap bg-slate-100"
+                        className="px-2 py-2 text-right text-xs font-bold text-slate-700 border-b border-slate-300 whitespace-nowrap bg-slate-100"
                       >
                         {colName}
                       </th>
@@ -439,15 +439,15 @@ export default function SavedData() {
                           return (
                             <td 
                               key={colKey} 
-                              className={`px-3 py-3 text-sm border-b border-slate-200/80 ${colKey === 'comments' ? 'min-w-[250px]' : 'whitespace-nowrap'}`}
+                              className={`px-1 py-1 text-xs border-b border-slate-200/80 ${colKey === 'comments' ? 'min-w-[150px] max-w-[200px] truncate' : 'whitespace-nowrap'}`}
                             >
                               {colKey === 'created_date' ? (
-                                <div className="px-4 py-2 min-h-[36px] flex items-center text-slate-600 font-medium cursor-default">
+                                <div className="px-2 py-1 min-h-[28px] flex items-center text-slate-600 font-medium cursor-default">
                                   {row.created_date ? new Date(row.created_date).toLocaleDateString('he-IL') : '-'}
                                 </div>
                               ) : colKey === 'eur_status' ? (
                                 <div 
-                                  className={`px-4 py-2 min-h-[36px] rounded-lg flex items-center justify-center font-medium ${eurStatusColor}`}
+                                  className={`px-2 py-1 min-h-[28px] rounded-md flex items-center justify-center font-medium ${eurStatusColor}`}
                                 >
                                   {eurStatus || <span className="text-slate-400">—</span>}
                                 </div>
@@ -464,7 +464,7 @@ export default function SavedData() {
                                 />
                               ) : (
                                 <div 
-                                  className="px-4 py-2 min-h-[36px] rounded-lg cursor-text hover:bg-slate-100 transition-colors flex items-center"
+                                  className="px-2 py-1 min-h-[28px] rounded-md cursor-text hover:bg-slate-100 transition-colors flex items-center"
                                   onMouseDown={(e) => {
                                     e.preventDefault();
                                     setEditingCell({ row: row.id, col: colKey });
