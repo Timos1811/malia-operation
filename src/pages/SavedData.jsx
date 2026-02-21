@@ -12,7 +12,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import { toast } from "sonner";
-import AskData from "@/components/AskData";
 
 const COLUMNS = [
   'תאריך הכנסה',
@@ -282,8 +281,6 @@ export default function SavedData() {
           </h1>
         </div>
 
-        <AskData type="income" />
-        
         {/* Filters Section */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
