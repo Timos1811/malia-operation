@@ -272,8 +272,8 @@ export default function SavedData() {
   }
 
   return (
-    <div className="p-8 md:p-12">
-      <div className="max-w-7xl mx-auto">
+    <div className="p-4 md:p-6">
+      <div className="w-full max-w-[98%] mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <Database className="w-8 h-8 text-slate-600" />
           <h1 className="text-3xl font-light text-slate-800 tracking-tight">
