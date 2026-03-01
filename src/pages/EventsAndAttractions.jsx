@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Ticket, Plus, Trash2, Save, X, Pencil, Building2, Truck, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -191,10 +192,10 @@ export default function EventsAndAttractions() {
   const [editingId, setEditingId] = useState(null);
   
   // New Item State (Attractions)
-  const [newItem, setNewItem] = useState({ name: '', price_eur: '', cost_price_eur: '' });
+  const [newItem, setNewItem] = useState({ name: '', price_eur: '', cost_price_eur: '', event_days: [] });
   
   // Edit Item State (Attractions)
-  const [editItem, setEditItem] = useState({ name: '', price_eur: '', cost_price_eur: '' });
+  const [editItem, setEditItem] = useState({ name: '', price_eur: '', cost_price_eur: '', event_days: [] });
 
   // Fetch Attractions
   const { data: attractions = [], isLoading } = useQuery({
@@ -284,7 +285,8 @@ export default function EventsAndAttractions() {
     createMutation.mutate({
       name: newItem.name,
       price_eur: parseFloat(newItem.price_eur),
-      cost_price_eur: newItem.cost_price_eur ? parseFloat(newItem.cost_price_eur) : 0
+      cost_price_eur: newItem.cost_price_eur ? parseFloat(newItem.cost_price_eur) : 0,
+      event_days: newItem.event_days || []
     });
   };
 
@@ -293,7 +295,8 @@ export default function EventsAndAttractions() {
     setEditItem({ 
       name: attraction.name, 
       price_eur: attraction.price_eur,
-      cost_price_eur: attraction.cost_price_eur || ''
+      cost_price_eur: attraction.cost_price_eur || '',
+      event_days: attraction.event_days || []
     });
   };
 
@@ -307,9 +310,42 @@ export default function EventsAndAttractions() {
       data: {
         name: editItem.name,
         price_eur: parseFloat(editItem.price_eur),
-        cost_price_eur: editItem.cost_price_eur ? parseFloat(editItem.cost_price_eur) : 0
+        cost_price_eur: editItem.cost_price_eur ? parseFloat(editItem.cost_price_eur) : 0,
+        event_days: editItem.event_days || []
       }
     });
+  };
+
+  const DAYS = [
+    { id: 0, label: 'א' },
+    { id: 1, label: 'ב' },
+    { id: 2, label: 'ג' },
+    { id: 3, label: 'ד' },
+    { id: 4, label: 'ה' },
+    { id: 5, label: 'ו' },
+    { id: 6, label: 'ש' },
+  ];
+
+  const toggleDay = (dayId, isEditing) => {
+    if (isEditing) {
+      setEditItem(prev => {
+        const days = prev.event_days || [];
+        if (days.includes(dayId)) {
+          return { ...prev, event_days: days.filter(d => d !== dayId) };
+        } else {
+          return { ...prev, event_days: [...days, dayId].sort() };
+        }
+      });
+    } else {
+      setNewItem(prev => {
+        const days = prev.event_days || [];
+        if (days.includes(dayId)) {
+          return { ...prev, event_days: days.filter(d => d !== dayId) };
+        } else {
+          return { ...prev, event_days: [...days, dayId].sort() };
+        }
+      });
+    }
   };
 
   return (
@@ -392,10 +428,11 @@ export default function EventsAndAttractions() {
                   <Table>
                     <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead className="text-right font-bold w-1/3">שם אירוע</TableHead>
-                        <TableHead className="text-right font-bold w-1/4">מחיר עלות (€)</TableHead>
-                        <TableHead className="text-right font-bold w-1/4">מחיר ללקוח (€)</TableHead>
-                        <TableHead className="text-center font-bold w-1/6">פעולות</TableHead>
+                        <TableHead className="text-right font-bold w-[25%]">שם אירוע</TableHead>
+                        <TableHead className="text-right font-bold w-[25%]">ימי האירוע</TableHead>
+                        <TableHead className="text-right font-bold w-[15%]">מחיר עלות (€)</TableHead>
+                        <TableHead className="text-right font-bold w-[15%]">מחיר ללקוח (€)</TableHead>
+                        <TableHead className="text-center font-bold w-[20%]">פעולות</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -410,6 +447,24 @@ export default function EventsAndAttractions() {
                               className="bg-white"
                               autoFocus
                             />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {DAYS.map(day => (
+                                <div
+                                  key={day.id}
+                                  onClick={() => toggleDay(day.id, false)}
+                                  className={`
+                                    cursor-pointer w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border transition-colors select-none
+                                    ${(newItem.event_days || []).includes(day.id) 
+                                      ? 'bg-indigo-600 text-white border-indigo-600' 
+                                      : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'}
+                                  `}
+                                >
+                                  {day.label}
+                                </div>
+                              ))}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -445,13 +500,13 @@ export default function EventsAndAttractions() {
                       {/* Data Rows */}
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={5} className="text-center py-8 text-slate-500">
                             טוען נתונים...
                           </TableCell>
                         </TableRow>
                       ) : attractions.length === 0 && !isAdding ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={5} className="text-center py-8 text-slate-500">
                             אין אירועים או אטרקציות ברשימה. הוסף את הראשון!
                           </TableCell>
                         </TableRow>
@@ -465,6 +520,24 @@ export default function EventsAndAttractions() {
                                     value={editItem.name}
                                     onChange={(e) => setEditItem({ ...editItem, name: e.target.value })}
                                   />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {DAYS.map(day => (
+                                      <div
+                                        key={day.id}
+                                        onClick={() => toggleDay(day.id, true)}
+                                        className={`
+                                          cursor-pointer w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border transition-colors select-none
+                                          ${(editItem.event_days || []).includes(day.id) 
+                                            ? 'bg-indigo-600 text-white border-indigo-600' 
+                                            : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'}
+                                        `}
+                                      >
+                                        {day.label}
+                                      </div>
+                                    ))}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -494,6 +567,19 @@ export default function EventsAndAttractions() {
                             ) : (
                               <>
                                 <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {(item.event_days && item.event_days.length > 0) ? (
+                                      item.event_days.sort().map(dayId => (
+                                        <Badge key={dayId} variant="secondary" className="px-1.5 py-0 text-[10px] h-5 min-w-[1.25rem] justify-center bg-slate-100 text-slate-600 border-slate-200">
+                                          {DAYS.find(d => d.id === dayId)?.label}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-slate-400 text-xs">-</span>
+                                    )}
+                                  </div>
+                                </TableCell>
                                 <TableCell className="font-mono text-slate-500">€{item.cost_price_eur?.toFixed(2) || '0.00'}</TableCell>
                                 <TableCell className="font-mono text-lg font-bold text-slate-800">€{item.price_eur?.toFixed(2)}</TableCell>
                                 <TableCell>
