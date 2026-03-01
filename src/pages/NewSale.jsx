@@ -359,13 +359,20 @@ export default function NewSale() {
             <div className="col-span-2 space-y-1">
               <Label className="text-xs text-slate-500">מלון</Label>
               <div className="relative">
-                <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <Input 
-                  value={formData.hotel}
-                  onChange={e => setFormData({...formData, hotel: e.target.value})}
-                  className="bg-slate-50 border-slate-200 pl-10"
-                  placeholder="שם המלון"
-                />
+                <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 z-10" />
+                <Select 
+                  value={formData.hotel} 
+                  onValueChange={val => setFormData({...formData, hotel: val})}
+                >
+                  <SelectTrigger className="bg-slate-50 border-slate-200 pl-10">
+                    <SelectValue placeholder="בחר מלון" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hotels.map(h => (
+                        <SelectItem key={h.id} value={h.name}>{h.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
