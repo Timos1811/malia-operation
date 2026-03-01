@@ -486,17 +486,56 @@ export default function NewSale() {
               </div>
             </div>
             
-            <Button 
-              className={`px-8 py-6 text-lg font-bold rounded-xl transition-all ${
-                isAllWristbandsScanned && !isSubmitting
-                  ? 'bg-slate-900 text-white shadow-xl hover:scale-105'
-                  : 'bg-slate-100 text-slate-300 cursor-not-allowed'
-              }`}
-              onClick={handleFinishSale}
-              disabled={!isAllWristbandsScanned || isSubmitting}
-            >
-              {isSubmitting ? <Loader2 className="animate-spin" /> : "סיים מכירה"}
-            </Button>
+            <div className="flex items-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="px-4 py-6 border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold">
+                             Bit
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md text-center" dir="rtl">
+                        <DialogHeader>
+                            <DialogTitle className="text-center text-xl font-bold mb-4">תשלום ב-Bit</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex flex-col items-center justify-center gap-4 py-4">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                                        (formData.orderNumber && formData.orderNumber.toString().startsWith('1'))
+                                            ? 'https://pay.grow.link/a6830cb14a28eaeef475543c247832d5-MjMzNTY1Ng'
+                                            : 'https://meshulam.co.il/quick_payment?b=0889ba79bc44fc854df0bf7d7e596601'
+                                    )}`} 
+                                    alt="Bit QR Code" 
+                                    className="w-48 h-48 object-contain"
+                                />
+                            </div>
+                            <p className="text-slate-500 text-sm">סרוק את הברקוד לתשלום מהיר</p>
+                            <a 
+                                href={(formData.orderNumber && formData.orderNumber.toString().startsWith('1'))
+                                    ? 'https://pay.grow.link/a6830cb14a28eaeef475543c247832d5-MjMzNTY1Ng'
+                                    : 'https://meshulam.co.il/quick_payment?b=0889ba79bc44fc854df0bf7d7e596601'} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="text-blue-600 hover:underline text-sm font-medium"
+                            >
+                                לחץ כאן למעבר ישיר לאפליקציה
+                            </a>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                <Button 
+                  className={`px-8 py-6 text-lg font-bold rounded-xl transition-all ${
+                    isAllWristbandsScanned && !isSubmitting
+                      ? 'bg-slate-900 text-white shadow-xl hover:scale-105'
+                      : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                  }`}
+                  onClick={handleFinishSale}
+                  disabled={!isAllWristbandsScanned || isSubmitting}
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : "סיים מכירה"}
+                </Button>
+            </div>
           </div>
         </div>
       </div>
