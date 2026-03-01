@@ -54,6 +54,11 @@ export default function NewSale() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
+  const { data: hotels = [] } = useQuery({
+    queryKey: ['hotels'],
+    queryFn: () => base44.entities.Hotel.list(),
+  });
+
   const { data: comboPriceSetting } = useQuery({
     queryKey: ['appSettings', 'combo_price_eur'],
     queryFn: async () => {
