@@ -74,29 +74,18 @@ export default function Layout({ children, currentPageName }) {
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
       <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
-            
+        <div className="max-w-[120rem] mx-auto px-4 py-2">
+          {/* Row 1 - Main Actions */}
+          <div className="flex items-center gap-2 mb-2 overflow-x-auto lg:overflow-visible lg:flex-wrap no-scrollbar pb-2 lg:pb-0">
             <Link to={createPageUrl('SellerDashboard')} className={linkClass('SellerDashboard')}>
               <UserCircle className="w-5 h-5" />
               <span className="whitespace-nowrap">בית</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
-            <Link to={createPageUrl('ReturnedToIsrael')} className={linkClass('ReturnedToIsrael')}>
-              <Plane className="w-5 h-5 transform rotate-180" />
-              <span className="whitespace-nowrap">חזר לארץ</span>
+            <Link to={createPageUrl('PendingSales')} className={linkClass('PendingSales')}>
+              <Clock className="w-5 h-5" />
+              <span className="whitespace-nowrap">מכירה בהמתנה</span>
             </Link>
-            
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
-            <Link to={createPageUrl('Live')} className={linkClass('Live')}>
-              <Users className="w-5 h-5" />
-              <span className="whitespace-nowrap">לייב</span>
-            </Link>
-
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
             <Link to={createPageUrl('Table')} className={linkClass('Table')}>
               <Table2 className="w-5 h-5" />
@@ -108,8 +97,6 @@ export default function Layout({ children, currentPageName }) {
               <span className="whitespace-nowrap">כל ההכנסות</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
             <Link to={createPageUrl('CreateExpense')} className={linkClass('CreateExpense')}>
               <PlusCircle className="w-5 h-5" />
               <span className="whitespace-nowrap">צור הוצאה</span>
@@ -120,76 +107,63 @@ export default function Layout({ children, currentPageName }) {
               <span className="whitespace-nowrap">כל ההוצאות</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
             <Link to={createPageUrl('BankTable')} className={linkClass('BankTable')}>
               <Landmark className="w-5 h-5" />
               <span className="whitespace-nowrap">טבלת בנק</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
-            <Link to={createPageUrl('EventsAndAttractions')} className={linkClass('EventsAndAttractions')}>
-              <Ticket className="w-5 h-5" />
-              <span className="whitespace-nowrap">אירועים</span>
+            <Link to={createPageUrl('Live')} className={linkClass('Live')}>
+              <Users className="w-5 h-5" />
+              <span className="whitespace-nowrap">לייב</span>
             </Link>
-
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
             <Link to={createPageUrl('Tasks')} className={linkClass('Tasks')}>
               <CheckSquare className="w-5 h-5" />
               <span className="whitespace-nowrap">משימות</span>
             </Link>
-            
-             <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
-            <Link to={createPageUrl('PendingSales')} className={linkClass('PendingSales')}>
-              <Clock className="w-5 h-5" />
-              <span className="whitespace-nowrap">מכירה בהמתנה</span>
+          </div>
+          
+          {/* Row 2 - Management & Tools */}
+          <div className="flex items-center gap-2 overflow-x-auto lg:overflow-visible lg:flex-wrap no-scrollbar border-t border-slate-100 pt-2">
+            <Link to={createPageUrl('EventsAndAttractions')} className={linkClass('EventsAndAttractions')}>
+              <Ticket className="w-5 h-5" />
+              <span className="whitespace-nowrap">אירועים</span>
             </Link>
-
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
+            
             <Link to={createPageUrl('NewSale')} target="_blank" className={linkClass('NewSale')}>
               <PartyPopper className="w-5 h-5" />
               <span className="whitespace-nowrap">מכירה חדשה</span>
             </Link>
-
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
             <Link to={createPageUrl('SwapWristband')} className={linkClass('SwapWristband')}>
               <RefreshCcw className="w-5 h-5" />
               <span className="whitespace-nowrap">החלפת צמיד</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
             <Link to={createPageUrl('EventScanner')} className={linkClass('EventScanner')}>
               <Scan className="w-5 h-5" />
               <span className="whitespace-nowrap">סורק כניסה</span>
             </Link>
-
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
 
             <Link to={createPageUrl('WristbandHistory')} className={linkClass('WristbandHistory')}>
               <Clock className="w-5 h-5" />
               <span className="whitespace-nowrap">היסטוריית צמידים</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
             <Link to={createPageUrl('ManagerDashboard')} className={linkClass('ManagerDashboard')}>
               <Users className="w-5 h-5" />
               <span className="whitespace-nowrap">נציגים</span>
             </Link>
 
-            <div className="w-px h-6 bg-slate-200 mx-1 flex-shrink-0" />
-
             <Link to={createPageUrl('Caspars')} className={linkClass('Caspars')}>
               <Users className="w-5 h-5" />
               <span className="whitespace-nowrap">כספרים</span>
             </Link>
-
+            
+            <Link to={createPageUrl('ReturnedToIsrael')} className={linkClass('ReturnedToIsrael')}>
+              <Plane className="w-5 h-5 transform rotate-180" />
+              <span className="whitespace-nowrap">חזר לארץ</span>
+            </Link>
           </div>
         </div>
       </nav>
