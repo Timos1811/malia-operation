@@ -125,6 +125,21 @@ export default function Layout({ children, currentPageName }) {
           
           {/* Row 2 - Management & Tools */}
           <div className="flex items-center gap-2 overflow-x-auto lg:overflow-visible lg:flex-wrap no-scrollbar border-t border-slate-100 pt-2">
+            <Link to={createPageUrl('ManagerDashboard')} className={linkClass('ManagerDashboard')}>
+              <Users className="w-5 h-5" />
+              <span className="whitespace-nowrap">נציגים</span>
+            </Link>
+
+            <Link to={createPageUrl('Caspars')} className={linkClass('Caspars')}>
+              <Users className="w-5 h-5" />
+              <span className="whitespace-nowrap">כספרים</span>
+            </Link>
+            
+            <Link to={createPageUrl('ReturnedToIsrael')} className={linkClass('ReturnedToIsrael')}>
+              <Plane className="w-5 h-5 transform rotate-180" />
+              <span className="whitespace-nowrap">חזר לארץ</span>
+            </Link>
+
             <Link to={createPageUrl('EventsAndAttractions')} className={linkClass('EventsAndAttractions')}>
               <Ticket className="w-5 h-5" />
               <span className="whitespace-nowrap">אירועים</span>
@@ -148,21 +163,6 @@ export default function Layout({ children, currentPageName }) {
             <Link to={createPageUrl('WristbandHistory')} className={linkClass('WristbandHistory')}>
               <Clock className="w-5 h-5" />
               <span className="whitespace-nowrap">היסטוריית צמידים</span>
-            </Link>
-
-            <Link to={createPageUrl('ManagerDashboard')} className={linkClass('ManagerDashboard')}>
-              <Users className="w-5 h-5" />
-              <span className="whitespace-nowrap">נציגים</span>
-            </Link>
-
-            <Link to={createPageUrl('Caspars')} className={linkClass('Caspars')}>
-              <Users className="w-5 h-5" />
-              <span className="whitespace-nowrap">כספרים</span>
-            </Link>
-            
-            <Link to={createPageUrl('ReturnedToIsrael')} className={linkClass('ReturnedToIsrael')}>
-              <Plane className="w-5 h-5 transform rotate-180" />
-              <span className="whitespace-nowrap">חזר לארץ</span>
             </Link>
           </div>
         </div>
