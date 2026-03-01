@@ -67,7 +67,7 @@ export default function Layout({ children, currentPageName }) {
 
   // פונקציית עזר לסימון הדף הפעיל
   const isActive = (page) => currentPageName === page;
-  const linkClass = (page) => `flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+  const linkClass = (page) => `flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
     isActive(page) ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-100'
   }`;
 
