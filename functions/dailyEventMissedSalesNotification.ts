@@ -12,15 +12,16 @@ export default Deno.serve(async (req) => {
         }
 
         // 1. Determine today's day and date
+        // Use Jerusalem time
         const now = new Date();
-        // Adjust for Jerusalem time (UTC+2/3). 
-        // Simple way: Add 3 hours (cover Summer time mostly) or use proper timezone if possible.
-        // Deno Deploy is UTC.
-        // Jerusalem is UTC+2 (Winter) or UTC+3 (Summer).
-        // Let's assume UTC+3 for safety or use formatting.
-        const jerusalemDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jerusalem" }));
+        const jerusalemDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+        const jerusalemDate = new Date(jerusalemDateStr);
         const todayDay = jerusalemDate.getDay(); // 0=Sunday
-        const todayStr = jerusalemDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        // Format YYYY-MM-DD manually to be safe
+        const year = jerusalemDate.getFullYear();
+        const month = String(jerusalemDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jerusalemDate.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
 
         console.log(`Checking events for day: ${todayDay} (Date: ${todayStr})`);
 
@@ -38,14 +39,11 @@ export default Deno.serve(async (req) => {
         console.log(`Found ${eventsToday.length} events today: ${eventsToday.map(e => e.name).join(', ')}`);
 
         // 3. Get active orders (departure_date >= today)
-        // Since we can't easily filter by range in basic filter, we fetch recent/all and filter in JS.
-        // Assuming TableData isn't huge. If it is, we might need a better strategy.
-        // We'll fetch last 1000 records.
-        const allOrders = await base44.asServiceRole.entities.TableData.list('-created_date', 1000);
+        // Sort by departure_date descending to get future dates first
+        const allOrders = await base44.asServiceRole.entities.TableData.list('-departure_date', 1000);
         
         const activeOrders = allOrders.filter(order => {
             if (!order.departure_date) return false;
-            // Compare string dates YYYY-MM-DD
             return order.departure_date >= todayStr;
         });
 
@@ -55,22 +53,19 @@ export default Deno.serve(async (req) => {
             return Response.json({ message: "No active orders" });
         }
 
-        // 4. Get all wristbands for these orders
-        // Optimization: Fetch all wristbands for active orders.
-        // We can't filter wristbands by order_number easily if there are many orders.
-        // We'll fetch all wristbands (limit 2000?) or fetch per order (too slow).
-        // Let's fetch all active wristbands (valid_until >= today)?
-        // Entity Wristband has `valid_until`.
+        // 4. Get all active wristbands (valid_until >= today)
+        // Sort by valid_until descending
         const allWristbands = await base44.asServiceRole.entities.Wristband.list('-valid_until', 2000);
         
         // Map order_number -> list of wristbands
         const wristbandsByOrder = {};
-        allWristbands.forEach(wb => {
+        for (const wb of allWristbands) {
+            if (wb.valid_until && wb.valid_until < todayStr) continue; // Skip expired
             if (!wristbandsByOrder[wb.order_number]) {
                 wristbandsByOrder[wb.order_number] = [];
             }
             wristbandsByOrder[wb.order_number].push(wb);
-        });
+        }
 
         const messagesSent = [];
 
@@ -80,6 +75,8 @@ export default Deno.serve(async (req) => {
 
             for (const order of activeOrders) {
                 const orderWristbands = wristbandsByOrder[order.order_number] || [];
+                
+                // Check if any wristband has this event
                 const hasTicket = orderWristbands.some(wb => 
                     wb.allowed_events && 
                     Array.isArray(wb.allowed_events) && 
@@ -98,33 +95,39 @@ export default Deno.serve(async (req) => {
             for (const order of missedOrders) {
                 const rep = order.sales_rep || 'ללא נציג';
                 if (!missedByRep[rep]) missedByRep[rep] = [];
-                missedByRep[rep].push(order.order_number);
+                // Add order number + customer name
+                const label = `${order.order_number} (${order.customer || '?'})`;
+                missedByRep[rep].push(label);
             }
 
             // Construct Message
-            let messageBody = "";
+            let messageBody = `אירוע: ${event.name}\nסה"כ חסרים: ${missedOrders.length}\n`;
             for (const [rep, orders] of Object.entries(missedByRep)) {
                 messageBody += `\n👤 ${rep}:\n ${orders.join(', ')}\n`;
             }
 
-            const title = `⚠️ פיספוסי מכירה להיום: ${event.name}`;
+            const title = `⚠️ פיספוסי מכירה להיום`;
             
             // Send Pushover
-            const pushRes = await fetch("https://api.pushover.net/1/messages.json", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    token: token,
-                    user: userKey,
-                    title: title,
-                    message: messageBody,
-                    priority: 0, 
-                    sound: "mechanical"
-                })
-            });
-            
-            const resData = await pushRes.json();
-            messagesSent.push({ event: event.name, count: missedOrders.length, status: resData.status });
+            try {
+                const pushRes = await fetch("https://api.pushover.net/1/messages.json", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        token: token,
+                        user: userKey,
+                        title: title,
+                        message: messageBody,
+                        priority: 0, 
+                        sound: "mechanical"
+                    })
+                });
+                
+                const resData = await pushRes.json();
+                messagesSent.push({ event: event.name, count: missedOrders.length, status: resData.status });
+            } catch (err) {
+                console.error("Pushover send error:", err);
+            }
         }
 
         return Response.json({ success: true, messages: messagesSent });
