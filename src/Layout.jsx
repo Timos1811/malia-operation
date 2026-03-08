@@ -28,22 +28,22 @@ export default function Layout({ children, currentPageName }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
+      <div className="min-h-screen w-full flex items-center justify-center bg-blue-50/30">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-400" />
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-6 p-4" dir="rtl">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-blue-50/30 gap-6 p-4" dir="rtl">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-black text-slate-900">ברוכים הבאים</h1>
-          <p className="text-slate-500 text-lg">יש להתחבר או להירשם למערכת כדי להמשיך</p>
+          <h1 className="text-3xl font-black text-blue-900">ברוכים הבאים</h1>
+          <p className="text-blue-600 text-lg">יש להתחבר או להירשם למערכת כדי להמשיך</p>
         </div>
         <Button 
           size="lg" 
-          className="gap-2 bg-slate-900 text-white hover:bg-slate-800"
+          className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
           onClick={() => base44.auth.redirectToLogin(window.location.href)}
         >
           <LogIn className="w-5 h-5" />
@@ -59,7 +59,7 @@ export default function Layout({ children, currentPageName }) {
 
   if (shouldHideNav) {
     return (
-      <div dir="rtl" className="min-h-screen bg-slate-50">
+      <div dir="rtl" className="min-h-screen bg-blue-50/30">
         {children}
       </div>
     );
@@ -68,12 +68,12 @@ export default function Layout({ children, currentPageName }) {
   // פונקציית עזר לסימון הדף הפעיל
   const isActive = (page) => currentPageName === page;
   const linkClass = (page) => `flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
-    isActive(page) ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-100'
+    isActive(page) ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
   }`;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <div dir="rtl" className="min-h-screen bg-blue-50/30">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-blue-100 shadow-sm sticky top-0 z-50">
         <div className="max-w-[120rem] mx-auto px-4 py-2">
           {/* Row 1 - Main Actions */}
           <div className="flex items-center gap-2 mb-2 overflow-x-auto lg:overflow-visible lg:flex-wrap no-scrollbar pb-2 lg:pb-0">
