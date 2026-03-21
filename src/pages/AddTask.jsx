@@ -371,7 +371,7 @@ export default function AddTask() {
                     let isDisabled = false;
                     let disabledReason = '';
 
-                    if (refundType === 'partial' && orderNumber) {
+                    if (orderNumber) {
                       const targetWristbands = orderWristbands.length > 0 
                         ? (selectedWristbandIds.size > 0 
                             ? orderWristbands.filter(wb => selectedWristbandIds.has(wb.nfc_id)) 
