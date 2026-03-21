@@ -233,6 +233,16 @@ export default function AddTask() {
       return;
     }
 
+    if (departureDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const depDate = new Date(departureDate);
+      if (depDate < today) {
+        toast.error('לא ניתן לבקש החזר עבור קבוצה שכבר עזבה את היעד');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Create description string and array of event names
