@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16'];
@@ -15,6 +16,108 @@ export default function BankTable() {
   const queryClient = useQueryClient();
   const [newLocation, setNewLocation] = useState({ name: '', amount: '', currency: 'EUR' });
   const [isExporting, setIsExporting] = useState(false);
+  
+  const [isBitModalOpen, setIsBitModalOpen] = useState(false);
+  const [bitCompany, setBitCompany] = useState('');
+  const [isProcessingBits, setIsProcessingBits] = useState(false);
+  const [bitSummary, setBitSummary] = useState(null);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!bitCompany) {
+      toast.error('נא לבחור חברה קודם');
+      return;
+    }
+
+    setIsProcessingBits(true);
+    setBitSummary(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        // Simple CSV parser supporting quotes
+        let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0;
+        for (let l of text) {
+            if ('"' === l) {
+                if (s && l === p) row[i] += l;
+                s = !s;
+            } else if (',' === l && s) l = row[++i] = '';
+            else if ('\n' === l && s) {
+                if ('\r' === p) row[i] = row[i].slice(0, -1);
+                row = ret[++r] = [l = '']; i = 0;
+            } else row[i] += l;
+            p = l;
+        }
+
+        const headers = ret[0].map(h => h?.trim()?.replace(/^"|"$/g, ''));
+        const descIndex = headers.findIndex(h => h && h.includes('תיאור עסקה'));
+        const paidIndex = headers.findIndex(h => h && h.includes('שולם'));
+
+        if (descIndex === -1 || paidIndex === -1) {
+            toast.error('לא נמצאו עמודות "תיאור עסקה" או "שולם" בקובץ. וודא שהוא בפורמט CSV (UTF-8).');
+            setIsProcessingBits(false);
+            return;
+        }
+
+        const orderSums = {};
+        for (let j = 1; j < ret.length; j++) {
+            const rowData = ret[j];
+            if (rowData.length <= Math.max(descIndex, paidIndex)) continue;
+
+            const desc = rowData[descIndex] || '';
+            const paidStr = rowData[paidIndex] || '0';
+            
+            // Extract numbers from description - usually 4 to 10 digits
+            const match = desc.match(/\d{4,10}/);
+            if (!match) continue;
+            
+            const orderNum = match[0];
+            const amount = parseFloat(paidStr.replace(/[^\d.-]/g, '')) || 0;
+
+            if (!orderSums[orderNum]) orderSums[orderNum] = 0;
+            orderSums[orderNum] += amount;
+        }
+
+        // Fetch PendingSales
+        const pendingSales = await base44.entities.PendingSale.filter({ company: bitCompany });
+        
+        let updatedCount = 0;
+        let missingOrders = [];
+        const updatePromises = [];
+
+        for (const [orderNum, sumAmount] of Object.entries(orderSums)) {
+            const sale = pendingSales.find(s => s.order_number === orderNum);
+            if (sale) {
+                updatePromises.push(base44.entities.PendingSale.update(sale.id, { bit_amount: sumAmount.toString() }));
+                updatedCount++;
+            } else {
+                missingOrders.push(orderNum);
+            }
+        }
+
+        await Promise.all(updatePromises);
+        
+        const companyName = bitCompany === 'ק' ? 'קשרי תעופה' : 'נטו פאן';
+        setBitSummary({
+            companyName,
+            updatedCount,
+            missingOrders
+        });
+        
+        toast.success('הסנכרון הושלם בהצלחה');
+      } catch (error) {
+        console.error(error);
+        toast.error('שגיאה בעיבוד הקובץ');
+      } finally {
+        setIsProcessingBits(false);
+        e.target.value = null;
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleExport = async () => {
     try {
@@ -204,14 +307,97 @@ export default function BankTable() {
               <Landmark className="w-8 h-8" />
               <h1 className="text-3xl font-bold">טבלת בנק</h1>
             </div>
-            <Button 
-                onClick={handleExport}
-                disabled={isExporting}
-                className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
-            >
-                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-                ייצוא לדרייב
-            </Button>
+            <div className="flex items-center gap-2">
+                <Dialog open={isBitModalOpen} onOpenChange={setIsBitModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button 
+                            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                        >
+                            <Wallet className="w-4 h-4" />
+                            טעינת ביטים
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md" dir="rtl">
+                        <DialogHeader>
+                            <DialogTitle>טעינת תשלומי משולם (ביט)</DialogTitle>
+                            <DialogDescription>
+                                העלה קובץ CSV של עסקאות 'משולם' כדי לחלץ ולהשלים תשלומי ביט לפי מספר הזמנה.
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        {!bitSummary ? (
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">בחר חברה:</label>
+                                    <Select value={bitCompany} onValueChange={setBitCompany}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="בחר חברה" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="נ">נטו פאן</SelectItem>
+                                            <SelectItem value="ק">קשרי תעופה</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">העלאת קובץ CSV:</label>
+                                    <Input 
+                                        type="file" 
+                                        accept=".csv"
+                                        disabled={!bitCompany || isProcessingBits}
+                                        onChange={handleFileUpload}
+                                        className="cursor-pointer"
+                                    />
+                                    <p className="text-xs text-slate-500">וודא שהקובץ בפורמט CSV סטנדרטי (UTF-8)</p>
+                                </div>
+
+                                {isProcessingBits && (
+                                    <div className="flex items-center gap-2 text-blue-600 justify-center mt-4">
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span>סורק ומעדכן נתונים...</span>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4 py-4">
+                                <div className="p-4 bg-green-50 text-green-800 rounded-lg border border-green-200">
+                                    <h4 className="font-bold mb-2">הסנכרון הושלם עבור {bitSummary.companyName}</h4>
+                                    <p>עודכנו {bitSummary.updatedCount} הזמנות בהצלחה.</p>
+                                </div>
+                                
+                                {bitSummary.missingOrders.length > 0 && (
+                                    <div className="p-4 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">
+                                        <h4 className="font-bold mb-2">רשימת מספרי הזמנה שלא נמצאו במערכת:</h4>
+                                        <div className="max-h-32 overflow-y-auto text-sm text-left font-mono break-words" dir="ltr">
+                                            [{bitSummary.missingOrders.join(', ')}]
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <Button 
+                                    onClick={() => {
+                                        setBitSummary(null);
+                                        setIsBitModalOpen(false);
+                                    }} 
+                                    className="w-full mt-4"
+                                >
+                                    סגור
+                                </Button>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+
+                <Button 
+                    onClick={handleExport}
+                    disabled={isExporting}
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                >
+                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+                    ייצוא לדרייב
+                </Button>
+            </div>
         </div>
 
         <div className="grid gap-6">
