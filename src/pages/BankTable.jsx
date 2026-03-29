@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16'];
@@ -34,25 +35,29 @@ export default function BankTable() {
     setIsProcessingBits(true);
     setBitSummary(null);
 
+    const isXlsx = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const text = event.target.result;
-        // Simple CSV parser supporting quotes
-        let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0;
-        for (let l of text) {
-            if ('"' === l) {
-                if (s && l === p) row[i] += l;
-                s = !s;
-            } else if (',' === l && s) l = row[++i] = '';
-            else if ('\n' === l && s) {
-                if ('\r' === p) row[i] = row[i].slice(0, -1);
-                row = ret[++r] = [l = '']; i = 0;
-            } else row[i] += l;
-            p = l;
+        let ret;
+        if (isXlsx) {
+          const wb = XLSX.read(event.target.result, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          ret = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        } else {
+          const text = event.target.result;
+          let p = '', row = [''], r2 = [row], i = 0, r = 0, s = !0;
+          for (let l of text) {
+              if ('"' === l) { if (s && l === p) row[i] += l; s = !s; }
+              else if (',' === l && s) l = row[++i] = '';
+              else if ('\n' === l && s) { if ('\r' === p) row[i] = row[i].slice(0, -1); row = r2[++r] = [l = '']; i = 0; }
+              else row[i] += l;
+              p = l;
+          }
+          ret = r2;
         }
 
-        const headers = ret[0].map(h => h?.trim()?.replace(/^"|"$/g, ''));
+        const headers = ret[0].map(h => String(h || '').trim().replace(/^"|"$/g, ''));
         const descIndex = headers.findIndex(h => h && h.includes('תיאור עסקה'));
         const paidIndex = headers.findIndex(h => h && h.includes('שולם'));
 
@@ -65,10 +70,10 @@ export default function BankTable() {
         const orderSums = {};
         for (let j = 1; j < ret.length; j++) {
             const rowData = ret[j];
-            if (rowData.length <= Math.max(descIndex, paidIndex)) continue;
+            if (!rowData || rowData.length <= Math.max(descIndex, paidIndex)) continue;
 
-            const desc = rowData[descIndex] || '';
-            const paidStr = rowData[paidIndex] || '0';
+            const desc = String(rowData[descIndex] || '');
+            const paidStr = String(rowData[paidIndex] || '0');
             
             // Extract numbers from description - usually 4 to 10 digits
             const match = desc.match(/\d{4,10}/);
@@ -116,7 +121,8 @@ export default function BankTable() {
         e.target.value = null;
       }
     };
-    reader.readAsText(file);
+    if (isXlsx) reader.readAsArrayBuffer(file);
+    else reader.readAsText(file);
   };
 
   const handleExport = async () => {
@@ -341,15 +347,15 @@ export default function BankTable() {
                                 </div>
                                 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">העלאת קובץ CSV:</label>
+                                    <label className="text-sm font-medium">העלאת קובץ נתונים:</label>
                                     <Input 
                                         type="file" 
-                                        accept=".csv"
+                                        accept=".csv,.xlsx,.xls"
                                         disabled={!bitCompany || isProcessingBits}
                                         onChange={handleFileUpload}
                                         className="cursor-pointer"
                                     />
-                                    <p className="text-xs text-slate-500">וודא שהקובץ בפורמט CSV סטנדרטי (UTF-8)</p>
+                                    <p className="text-xs text-slate-500">וודא שהקובץ בפורמט נתמך (CSV / Excel)</p>
                                 </div>
 
                                 {isProcessingBits && (
