@@ -80,7 +80,7 @@ export default function BankTable() {
             if (!match) continue;
             
             const orderNum = match[0];
-            const amount = parseFloat(paidStr.replace(/[^\d.-]/g, '')) || 0;
+            const amount = Math.abs(parseFloat(paidStr.replace(/[^\d.-]/g, '')) || 0);
 
             if (!orderSums[orderNum]) orderSums[orderNum] = 0;
             orderSums[orderNum] += amount;
