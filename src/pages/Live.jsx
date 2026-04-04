@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -353,7 +353,13 @@ export default function Live() {
                         // Calculate days difference
                         const timeDiff = group.parsedDepartureDate.getTime() - today.getTime();
                         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-                        const isUrgent = daysDiff <= 1 && !group.departure_sent;
+                        
+                        // Check for debt
+                        const eurStatus = parseFloat(group.eur_status) || 0;
+                        const hasDebt = eurStatus < 0;
+                        
+                        // Urgent if leaving today/tomorrow AND has debt
+                        const isUrgent = daysDiff <= 1 && hasDebt;
 
                         return (
                         <TableRow key={group.id} className={isUrgent ? "bg-red-100 hover:bg-red-200" : ""}>
