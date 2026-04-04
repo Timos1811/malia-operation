@@ -37,6 +37,11 @@ export default function Live() {
     queryFn: () => base44.entities.User.list(),
   });
 
+  const { data: wristbands = [] } = useQuery({
+    queryKey: ['wristbands_live'],
+    queryFn: () => base44.entities.Wristband.filter({ status: 'active' }),
+  });
+
   // Main Data Query
   const { data: tableData = [], isLoading, isError, error } = useQuery({
     queryKey: ['tableData', filters],
@@ -126,24 +131,37 @@ export default function Live() {
   const stats = useMemo(() => {
     let totalCustomers = 0;
     const genderDist = {};
+    const eventsDist = {};
+    const liveOrderNumbers = new Set();
     
     liveGroups.forEach(g => {
       // User specified to use the number in the customer column
       const count = parseInt(g.customer) || 0;
       totalCustomers += count;
+      if (g.order_number) liveOrderNumbers.add(g.order_number);
 
       const gender = g.gender ? g.gender.trim() : 'לא צוין';
       genderDist[gender] = (genderDist[gender] || 0) + count;
     });
 
+    wristbands.forEach(wb => {
+      if (wb.order_number && liveOrderNumbers.has(wb.order_number) && wb.allowed_events) {
+        wb.allowed_events.forEach(ev => {
+          eventsDist[ev] = (eventsDist[ev] || 0) + 1;
+        });
+      }
+    });
+
     const chartData = Object.entries(genderDist).map(([name, value]) => ({ name, value }));
+    const eventsChartData = Object.entries(eventsDist).map(([name, value]) => ({ name, value }));
 
     return {
       total: totalCustomers,
       genderDist,
-      chartData
+      chartData,
+      eventsChartData
     };
-  }, [liveGroups]);
+  }, [liveGroups, wristbands]);
 
   if (isLoading) {
     return (
@@ -277,7 +295,7 @@ export default function Live() {
             </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
                 <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-slate-500">סה״כ לקוחות ביעד</CardTitle>
@@ -316,6 +334,27 @@ export default function Live() {
                     ) : (
                         <div className="h-full flex items-center justify-center text-slate-400 text-sm">
                             אין נתונים להצגה
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+            <Card className="flex flex-col">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-500">התפלגות אירועים</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 min-h-[200px] max-h-[250px] overflow-y-auto">
+                    {stats.eventsChartData.length > 0 ? (
+                        <div className="space-y-3 mt-2">
+                            {stats.eventsChartData.sort((a, b) => b.value - a.value).map((ev, idx) => (
+                                <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                    <span className="font-medium text-slate-700 text-sm">{ev.name}</span>
+                                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">{ev.value} רוכשים</Badge>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                            אין נתוני אירועים להצגה
                         </div>
                     )}
                 </CardContent>
