@@ -4,6 +4,7 @@ import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
 import { Loader2, Users, Receipt, TrendingUp, TrendingDown, ArrowDownCircle, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);

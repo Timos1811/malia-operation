@@ -193,7 +193,7 @@ export default function EventScanner() {
 
         if ('NDEFReader' in window) {
             try {
-                const ndef = new NDEFReader();
+                const ndef = new window.NDEFReader();
                 await ndef.scan();
                 setIsScanning(true);
                 toast.success("מוכן לסריקה... קרב את הצמיד");

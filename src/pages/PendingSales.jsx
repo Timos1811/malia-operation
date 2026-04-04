@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw, Save, Plus, Trash2, Filter, X, ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2 } from "lucide-react";
@@ -167,7 +167,7 @@ export default function PendingSales() {
                     dollar_amount: existing.dollar_amount,
                     bit_amount: existing.bit_amount,
                     eur_status: existing.eur_status,
-                    sales_rep: existing.sales_rep || row.sales_rep, // Keep current if empty
+                    sales_rep: existing.sales_rep || originalRow.sales_rep, // Keep current if empty
                     comments: existing.comments
                 };
                 updateMutation.mutate({ id, data: newUpdates });

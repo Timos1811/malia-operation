@@ -26,6 +26,12 @@ export default function CreateExpense() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
+  // Fetch latest users
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => base44.entities.User.list(),
+  });
+
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: () => base44.entities.User.list(),

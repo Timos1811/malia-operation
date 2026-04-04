@@ -129,7 +129,7 @@ export default function NewSale() {
 
     setIsScanning(true);
     try {
-      const ndef = new NDEFReader();
+      const ndef = new window.NDEFReader();
       await ndef.scan();
       toast.info("מוכן לסריקה: הצמד צמיד...");
 
