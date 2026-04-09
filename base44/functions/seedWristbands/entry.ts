@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 function randomString(length) {
     let result = '';
-    const characters = 'abcdef0123456789';
+    const characters = '0123456789abcdef';
     for (let i = 0; i < length; i++) {
         result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
                     wristbandsToCreate.push({
                         nfc_id: `${randomString(2)}:${randomString(2)}:${randomString(2)}:${randomString(2)}:${randomString(2)}:${randomString(2)}:${randomString(2)}`,
                         order_number: order.order_number,
-                        customer_name: `אורח ${i + 1} מתוך ${numPeople}`,
+                        customer_name: `אורח ${i + 1}`,
                         allowed_events: events,
                         status: 'active',
                         valid_until: order.departure_date
@@ -51,15 +51,27 @@ Deno.serve(async (req) => {
                 // Update order amounts
                 const oldReqAmount = parseFloat(order.requested_amount) || 0;
                 const oldEurAmount = parseFloat(order.eur_amount) || 0;
+                const oldEurStatus = parseFloat(order.eur_status) || 0;
                 
-                updates.push({
-                    entityName,
-                    id: order.id,
-                    data: {
-                        requested_amount: (oldReqAmount + orderTotalExtras).toString(),
-                        eur_amount: (oldEurAmount + orderTotalExtras).toString()
-                    }
-                });
+                if (entityName === 'TableData') {
+                    updates.push({
+                        entityName,
+                        id: order.id,
+                        data: {
+                            requested_amount: (oldReqAmount + orderTotalExtras).toString(),
+                            eur_amount: (oldEurAmount + orderTotalExtras).toString()
+                        }
+                    });
+                } else {
+                    updates.push({
+                        entityName,
+                        id: order.id,
+                        data: {
+                            requested_amount: (oldReqAmount + orderTotalExtras).toString(),
+                            eur_status: (oldEurStatus - orderTotalExtras).toString()
+                        }
+                    });
+                }
             }
         };
 
