@@ -12,9 +12,7 @@ import { toast } from "sonner";
 import { createPageUrl } from '../utils';
 
 const EXPENSE_CATEGORIES = [
-  "יצא מהיעד", "החזר מלא", "החזר חלקי", "רכב", "אחר", "משיכה לאדם", 
-  "תשלום לספק", "פיצוי קשרי תעופה", "פיצוי נטו פאן", "פינוק ללקוחות", 
-  "פינוק לנציגים", "אשל"
+  "אחר", "דלק", "פינוק ללקוחות"
 ];
 
 export default function SubmitReceipt() {
