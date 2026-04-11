@@ -73,8 +73,8 @@ export default function GlobalDataChat() {
                                     <X className="w-4 h-4" />
                                 </Button>
                             </CardHeader>
-                            <CardContent className="p-0 bg-slate-50 h-[400px] flex flex-col">
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+                            <CardContent className="p-0 bg-slate-50 h-[400px] flex flex-col relative">
+                                <div className="flex-1 overflow-y-auto p-4 pb-16 space-y-4" ref={scrollRef}>
                                     {messages.map((msg, idx) => (
                                         <div 
                                             key={idx} 
@@ -104,8 +104,31 @@ export default function GlobalDataChat() {
                                         </div>
                                     )}
                                 </div>
+                                <div className="absolute bottom-2 left-0 right-0 px-4 flex gap-2 overflow-x-auto no-scrollbar">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => {
+                                            setInputValue('תן לי סיכום יומי חכם ותובנות להיום');
+                                        }}
+                                        className="text-xs bg-white/80 backdrop-blur border-indigo-100 text-indigo-700 hover:bg-indigo-50 rounded-full whitespace-nowrap shadow-sm"
+                                    >
+                                        <Sparkles className="w-3 h-3 ml-1" />
+                                        סיכום יומי ותובנות
+                                    </Button>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => {
+                                            setInputValue('האם יש חוסרים חריגים לנציגים? ממה הם נובעים?');
+                                        }}
+                                        className="text-xs bg-white/80 backdrop-blur border-indigo-100 text-indigo-700 hover:bg-indigo-50 rounded-full whitespace-nowrap shadow-sm"
+                                    >
+                                        הסבר חוסרים 
+                                    </Button>
+                                </div>
                             </CardContent>
-                            <CardFooter className="p-3 bg-white border-t border-slate-100">
+                            <CardFooter className="p-3 bg-white border-t border-slate-100 z-10">
                                 <form onSubmit={handleSend} className="flex w-full gap-2">
                                     <Input
                                         placeholder="שאל שאלה על הנתונים..."

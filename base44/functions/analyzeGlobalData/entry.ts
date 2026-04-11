@@ -32,6 +32,8 @@ export default Deno.serve(async (req) => {
             base44.asServiceRole.entities.PendingSale.list('-created_date', 5000),
             base44.asServiceRole.entities.ExpenseEvent.list(),
             base44.asServiceRole.entities.MoneyLocation.list(),
+            base44.asServiceRole.entities.Wristband.list(),
+            base44.asServiceRole.entities.WristbandScanLog.list('-scan_time', 2000),
         ];
 
         if (potentialOrderNumbers.length > 0) {
@@ -58,6 +60,8 @@ export default Deno.serve(async (req) => {
             pendingSalesData,
             eventsData,
             moneyLocationsData,
+            wristbandsData,
+            scansData,
             searchedIncomes,
             searchedTasks,
             searchedPendingSales
@@ -138,6 +142,17 @@ export default Deno.serve(async (req) => {
         });
         // -----------------------------------------------------------
 
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        // Wristbands & Scans Aggregation for Live Insights
+        const activeWristbandsCount = wristbandsData.filter(w => w.status === 'active').length;
+        const scansToday = scansData.filter(s => s.scan_time && s.scan_time.startsWith(todayStr));
+        const scansByEvent = scansToday.reduce((acc, scan) => {
+            if(scan.status === 'success' || scan.status === 'processed') {
+               acc[scan.event_name] = (acc[scan.event_name] || 0) + 1;
+            }
+            return acc;
+        }, {});
 
         const contextData = {
             // PRE-CALCULATED STATS (The Source of Truth)
@@ -184,7 +199,8 @@ export default Deno.serve(async (req) => {
                 order: p.order_number,
                 rep: p.sales_rep,
                 customer: p.customer,
-                gender: p.gender // Added for gender analysis
+                gender: p.gender, // Added for gender analysis
+                date: p.created_date ? p.created_date.split('T')[0] : null
             })),
             event_stats: eventsData.map(e => ({
                 name: e.event_name,
@@ -196,27 +212,32 @@ export default Deno.serve(async (req) => {
                 name: m.name,
                 amount: m.amount,
                 currency: m.currency
-            }))
-            };
+            })),
+            wristbands_stats: {
+                total_active_in_destination: activeWristbandsCount,
+                successful_scans_today_by_event: scansByEvent
+            },
+            today_date: todayStr
+        };
 
         const recentMessages = messages.slice(-8);
         const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
 
         const prompt = `
-        You are a smart business analyst AI with access to ALL system data. ${type ? `Focus your analysis on: ${type}.` : ''}
+        You are a PROACTIVE and SMART business analyst AI with access to ALL system data. ${type ? `Focus your analysis on: ${type}.` : ''}
         
-        CONSTRAINTS:
-        1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. It contains pre-calculated, accurate data.
-        2. **Deep Analysis**: You have access to raw data (incomes, expenses, etc.). Use it to answer complex questions like "which day had the most sales for females".
-           - For gender analysis: Check 'gender' field in 'incomes' and 'pending'.
-           - For money locations: Check 'money_locations'.
-        3. **Quantity vs Amount**: 
-           - "How many" / "כמה" / "quantity" = COUNT items.
-           - "How much" / "סכום" / "amount" / "total" = SUM monetary value.
-        4. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
-        5. **Search**: If user asked for an Order ID and it's in the data -> Show details. If not -> Say "Not found".
+        CONSTRAINTS & ADVANCED ANALYSIS LOGIC:
+        1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. 
+        2. **Drill-down (Cross-referencing)**: If asked WHY a rep has a shortage or to explain a discrepancy, cross-reference their specific 'incomes' vs 'expenses' (especially withdrawals/refunds) to explain exactly where the gap comes from.
+        3. **Proactive Insights & Daily Summary**: If the user asks for a "סיכום יומי", "תובנות" or general status, you MUST provide a structured summary including:
+           - ⚠️ **Departures Alert**: Identify any groups in 'incomes' or 'pending' where 'departure' date is today (${todayStr}) or tomorrow. Highlight if they have missing payments (if you can infer it).
+           - 🚨 **Anomalies**: Highlight any rep from 'reps_stats' with unusually high 'shortage' (> 0) or 'withdrawals'.
+           - 📊 **Live Event Stats**: Report 'successful_scans_today_by_event' and 'total_active_in_destination' from 'wristbands_stats'.
+           - 💰 **Financial Day Summary**: Summarize incomes/expenses created today (${todayStr}).
+        4. **Quantity vs Amount**: "How many" = COUNT items. "How much" / "סכום" = SUM monetary value.
+        5. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
         6. **Language**: Hebrew.
-        7. **Style**: Professional, concise, data-driven.
+        7. **Style**: Professional, insightful, action-oriented, use emojis for readability (💰, 🚨, 📊, ✈️).
 
         DATA CONTEXT:
         ${JSON.stringify(contextData)}
