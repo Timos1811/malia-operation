@@ -126,6 +126,17 @@ export default function GlobalDataChat() {
                                     >
                                         הסבר חוסרים 
                                     </Button>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => {
+                                            setInputValue('מהן מגמות האירועים? אילו אירועים חלשים יותר והשווה שבוע נוכחי לעומת שבוע קודם בכמות משתתפים.');
+                                        }}
+                                        className="text-xs bg-white/80 backdrop-blur border-indigo-100 text-indigo-700 hover:bg-indigo-50 rounded-full whitespace-nowrap shadow-sm"
+                                    >
+                                        <Sparkles className="w-3 h-3 ml-1" />
+                                        מגמות אירועים
+                                    </Button>
                                 </div>
                             </CardContent>
                             <CardFooter className="p-3 bg-white border-t border-slate-100 z-10">

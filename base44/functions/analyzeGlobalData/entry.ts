@@ -142,7 +142,16 @@ export default Deno.serve(async (req) => {
         });
         // -----------------------------------------------------------
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        const lastWeek = new Date(now);
+        lastWeek.setDate(now.getDate() - 7);
+        const lastWeekStr = lastWeek.toISOString().split('T')[0];
+        
+        const twoWeeksAgo = new Date(now);
+        twoWeeksAgo.setDate(now.getDate() - 14);
+        const twoWeeksAgoStr = twoWeeksAgo.toISOString().split('T')[0];
         
         // Wristbands & Scans Aggregation for Live Insights
         const activeWristbandsCount = wristbandsData.filter(w => w.status === 'active').length;
@@ -217,7 +226,11 @@ export default Deno.serve(async (req) => {
                 total_active_in_destination: activeWristbandsCount,
                 successful_scans_today_by_event: scansByEvent
             },
-            today_date: todayStr
+            time_context: {
+                today: todayStr,
+                one_week_ago: lastWeekStr,
+                two_weeks_ago: twoWeeksAgoStr
+            }
         };
 
         const recentMessages = messages.slice(-8);
@@ -229,15 +242,16 @@ export default Deno.serve(async (req) => {
         CONSTRAINTS & ADVANCED ANALYSIS LOGIC:
         1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. 
         2. **Drill-down (Cross-referencing)**: If asked WHY a rep has a shortage or to explain a discrepancy, cross-reference their specific 'incomes' vs 'expenses' (especially withdrawals/refunds) to explain exactly where the gap comes from.
-        3. **Proactive Insights & Daily Summary**: If the user asks for a "סיכום יומי", "תובנות" or general status, you MUST provide a structured summary including:
-           - ⚠️ **Departures Alert**: Identify any groups in 'incomes' or 'pending' where 'departure' date is today (${todayStr}) or tomorrow. Highlight if they have missing payments (if you can infer it).
+        3. **Event Trends & Popularity**: If asked about event trends, compare 'event_stats' (which holds event_date, buyers, scanned). Compare the current week (between ${lastWeekStr} and ${todayStr}) vs previous week (between ${twoWeeksAgoStr} and ${lastWeekStr}). Explicitly state which events are selling more/less, and which events have the lowest/highest buyers.
+        4. **Proactive Insights & Daily Summary**: If the user asks for a "סיכום יומי", "תובנות" or general status, you MUST provide a structured summary including:
+           - ⚠️ **Departures Alert**: Identify any groups in 'incomes' or 'pending' where 'departure' date is today (${todayStr}) or tomorrow. Highlight if they have missing payments.
            - 🚨 **Anomalies**: Highlight any rep from 'reps_stats' with unusually high 'shortage' (> 0) or 'withdrawals'.
            - 📊 **Live Event Stats**: Report 'successful_scans_today_by_event' and 'total_active_in_destination' from 'wristbands_stats'.
            - 💰 **Financial Day Summary**: Summarize incomes/expenses created today (${todayStr}).
-        4. **Quantity vs Amount**: "How many" = COUNT items. "How much" / "סכום" = SUM monetary value.
-        5. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
-        6. **Language**: Hebrew.
-        7. **Style**: Professional, insightful, action-oriented, use emojis for readability (💰, 🚨, 📊, ✈️).
+        5. **Quantity vs Amount**: "How many" = COUNT items. "How much" / "סכום" = SUM monetary value.
+        6. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
+        7. **Language**: Hebrew.
+        8. **Style**: Professional, insightful, action-oriented, use emojis for readability (💰, 🚨, 📊, ✈️, 📈).
 
         DATA CONTEXT:
         ${JSON.stringify(contextData)}
