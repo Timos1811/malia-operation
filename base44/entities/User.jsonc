@@ -1,0 +1,23 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved"
+      ],
+      "default": "pending",
+      "description": "User approval status"
+    }
+  }
+}

@@ -6,6 +6,7 @@ import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import SubmitReceipt from './pages/SubmitReceipt';
+import UserApproval from './pages/UserApproval';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -62,6 +63,11 @@ const AuthenticatedApp = () => {
       <Route path="/SubmitReceipt" element={
         <LayoutWrapper currentPageName="SubmitReceipt">
           <SubmitReceipt />
+        </LayoutWrapper>
+      } />
+      <Route path="/UserApproval" element={
+        <LayoutWrapper currentPageName="UserApproval">
+          <UserApproval />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />
