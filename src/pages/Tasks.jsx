@@ -164,6 +164,29 @@ function TaskList() {
       }
     }
 
+    // Handle Expense Receipt Task Completion
+    if (newStatus === 'done' && task.task_type === 'expense_receipt') {
+      try {
+        await base44.entities.Expense.create({
+          reason: task.expense_category || 'אחר',
+          recipient: task.sales_rep || 'נציג',
+          amount: task.expense_amount || 0,
+          currency: task.expense_currency || 'EUR',
+          expense_date: task.actual_expense_date || new Date().toISOString().split('T')[0],
+          sales_rep: task.sales_rep || '',
+          notes: task.description || ''
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        queryClient.invalidateQueries({ queryKey: ['expensesAll'] });
+        
+        toast.success('ההוצאה נוצרה ואושרה בהצלחה');
+      } catch (error) {
+        console.error('Failed to process expense receipt:', error);
+        toast.error('שגיאה ביצירת הוצאה מקבלה');
+      }
+    }
+
     // Handle Supplier Payment Task Completion
     if (newStatus === 'done' && task.task_type === 'supplier_payment') {
       try {
@@ -217,6 +240,7 @@ function TaskList() {
         const isRefund = task.task_type === 'refund';
         const isSupplierPayment = task.task_type === 'supplier_payment';
         const isAddEvent = task.task_type === 'add_event';
+        const isExpenseReceipt = task.task_type === 'expense_receipt';
         
         // Determine "Done" status
         const todayDateString = new Date().toLocaleDateString('en-CA');
@@ -226,9 +250,9 @@ function TaskList() {
         }
         
         // For supplier payments and add_event, amount is already total. For refunds, it's per person.
-        const displayAmount = (isSupplierPayment || isAddEvent)
-            ? task.amount 
-            : (task.amount * (task.people_count || 1));
+        const displayAmount = (isSupplierPayment || isAddEvent || isExpenseReceipt)
+            ? (task.expense_amount || task.amount || 0)
+            : ((task.amount || 0) * (task.people_count || 1));
 
         return (
           <Card 
@@ -262,13 +286,25 @@ function TaskList() {
                       הוספת אירוע
                     </Badge>
                   )}
-                  {task.amount > 0 && (
+                  {isExpenseReceipt && (
+                    <Badge className="bg-teal-100 text-teal-700 hover:bg-teal-200">
+                      קבלה: {task.expense_category}
+                    </Badge>
+                  )}
+                  {displayAmount > 0 && (
                     <Badge variant="secondary" className="text-lg font-bold px-3 py-1">
-                      €{parseFloat(displayAmount.toFixed(2))}
+                      {task.expense_currency === 'ILS' ? '₪' : task.expense_currency === 'USD' ? '$' : '€'}{parseFloat(displayAmount.toFixed(2))}
                     </Badge>
                   )}
                 </div>
                 <p className="text-slate-600 text-sm whitespace-pre-wrap">{task.description}</p>
+                {isExpenseReceipt && task.receipt_file_url && (
+                  <div className="mt-3">
+                    <a href={task.receipt_file_url} target="_blank" rel="noopener noreferrer">
+                      <img src={task.receipt_file_url} alt="קבלה" className="w-24 h-24 object-cover rounded-lg border border-slate-200 hover:opacity-80 transition-opacity" />
+                    </a>
+                  </div>
+                )}
                 {task.order_number && (
                   <div className="flex gap-4 text-sm mt-2 text-slate-700">
                     <Link 

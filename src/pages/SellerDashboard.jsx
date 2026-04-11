@@ -4,7 +4,7 @@ import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PartyPopper, CheckSquare, UserCircle, LogOut, RefreshCcw, Users } from 'lucide-react';
+import { PartyPopper, CheckSquare, UserCircle, LogOut, RefreshCcw, Users, Receipt } from 'lucide-react';
 import { Loader2 } from "lucide-react";
 
 export default function SellerDashboard() {
@@ -273,6 +273,24 @@ export default function SellerDashboard() {
                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2">
                   <Users className="w-4 h-4" />
                   צפה בקבוצות
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/SubmitReceipt" className="block group">
+            <Card className="h-full border-slate-200 hover:border-teal-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
+              <CardHeader className="pb-4">
+                <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                  <Receipt className="w-6 h-6 text-teal-600" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-teal-700 transition-colors">הגשת קבלה</CardTitle>
+                <CardDescription>צילום והגשת קבלות לאישור והחזר</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white gap-2">
+                  <Receipt className="w-4 h-4" />
+                  הגש קבלה
                 </Button>
               </CardContent>
             </Card>
