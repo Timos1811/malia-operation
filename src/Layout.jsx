@@ -107,6 +107,7 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div dir="rtl" className="min-h-screen bg-blue-50/30">
+      {user?.role === 'admin' && (
       <nav className="bg-white/80 backdrop-blur-md border-b border-blue-100 shadow-sm sticky top-0 z-50">
         <div className="max-w-[120rem] mx-auto px-4 py-2">
           {/* Row 1 - Main Actions */}
@@ -212,13 +213,14 @@ export default function Layout({ children, currentPageName }) {
           )}
         </div>
       </nav>
+      )}
       
       <main>
         {children}
       </main>
       <Toaster />
       <NotificationsManager />
-      {user?.role === 'admin' && <GlobalDataChat />}
+      <GlobalDataChat />
       </div>
       );
       }

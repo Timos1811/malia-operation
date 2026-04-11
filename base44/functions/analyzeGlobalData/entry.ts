@@ -20,30 +20,36 @@ export default Deno.serve(async (req) => {
         // 1. Smart Search Detection
         const potentialOrderNumbers = lastMessage.match(/\b\d{4,10}\b/g) || [];
 
+        const isAdmin = user.role === 'admin';
+        const repFilter = isAdmin ? {} : { sales_rep: user.full_name };
+
         // 2. Parallel Data Fetching
-        // INCREASED LIMITS to ensure accurate global stats calculation
+        // Limit data fetching to user's data if they are not an admin
         const promises = [
-            base44.asServiceRole.entities.TableData.list('-created_date', 5000),
-            base44.asServiceRole.entities.Expense.list('-expense_date', 5000),
-            base44.asServiceRole.entities.User.list(),
-            base44.asServiceRole.entities.Task.list('-created_date', 5000),
-            base44.asServiceRole.entities.CasparFilling.list('-departure_date', 5000),
+            base44.asServiceRole.entities.TableData.filter(repFilter, '-created_date', 5000),
+            base44.asServiceRole.entities.Expense.filter(repFilter, '-expense_date', 5000),
+            isAdmin ? base44.asServiceRole.entities.User.list() : Promise.resolve([{ full_name: user.full_name, role: user.role }]),
+            base44.asServiceRole.entities.Task.filter(repFilter, '-created_date', 5000),
+            isAdmin ? base44.asServiceRole.entities.CasparFilling.list('-departure_date', 5000) : Promise.resolve([]),
             base44.asServiceRole.entities.Attraction.list(),
-            base44.asServiceRole.entities.PendingSale.list('-created_date', 5000),
-            base44.asServiceRole.entities.ExpenseEvent.list(),
-            base44.asServiceRole.entities.MoneyLocation.list(),
-            base44.asServiceRole.entities.Wristband.list(),
-            base44.asServiceRole.entities.WristbandScanLog.list('-scan_time', 2000),
+            base44.asServiceRole.entities.PendingSale.filter(repFilter, '-created_date', 5000),
+            isAdmin ? base44.asServiceRole.entities.ExpenseEvent.list() : Promise.resolve([]),
+            isAdmin ? base44.asServiceRole.entities.MoneyLocation.list() : Promise.resolve([]),
+            isAdmin ? base44.asServiceRole.entities.Wristband.list() : Promise.resolve([]),
+            isAdmin ? base44.asServiceRole.entities.WristbandScanLog.list('-scan_time', 2000) : Promise.resolve([]),
         ];
 
         if (potentialOrderNumbers.length > 0) {
             promises.push(base44.asServiceRole.entities.TableData.filter({
+                ...repFilter,
                 order_number: { $in: potentialOrderNumbers }
             }));
             promises.push(base44.asServiceRole.entities.Task.filter({
+                ...repFilter,
                 order_number: { $in: potentialOrderNumbers }
             }));
              promises.push(base44.asServiceRole.entities.PendingSale.filter({
+                ...repFilter,
                 order_number: { $in: potentialOrderNumbers }
             }));
         }
@@ -237,16 +243,18 @@ export default Deno.serve(async (req) => {
         const historyText = recentMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
 
         const prompt = `
-        You are a PROACTIVE and SMART business analyst AI with access to ALL system data. ${type ? `Focus your analysis on: ${type}.` : ''}
+        You are a PROACTIVE and SMART business analyst AI with access to system data. ${type ? `Focus your analysis on: ${type}.` : ''}
+        
+        USER ROLE: ${isAdmin ? 'ADMIN (Full Access)' : 'SALES REP (Limited Access to own data)'}
+        If the user is a SALES REP, your answers must focus ONLY on their own sales, groups, and tasks. Do not attempt to answer questions about global cash locations, other sales reps, or global event statistics since that data is not provided to you.
         
         CONSTRAINTS & ADVANCED ANALYSIS LOGIC:
-        1. **Truth Source**: TRUST the 'reps_stats' object for any questions about sales reps, averages, totals, or performance. 
-        2. **Drill-down (Cross-referencing)**: If asked WHY a rep has a shortage or to explain a discrepancy, cross-reference their specific 'incomes' vs 'expenses' (especially withdrawals/refunds) to explain exactly where the gap comes from.
-        3. **Event Trends & Popularity**: If asked about event trends, compare 'event_stats' (which holds event_date, buyers, scanned). Compare the current week (between ${lastWeekStr} and ${todayStr}) vs previous week (between ${twoWeeksAgoStr} and ${lastWeekStr}). Explicitly state which events are selling more/less, and which events have the lowest/highest buyers.
+        1. **Truth Source**: TRUST the 'reps_stats' object for any questions about averages, totals, or performance. 
+        2. **Drill-down (Cross-referencing)**: If asked WHY there is a shortage or to explain a discrepancy, cross-reference specific 'incomes' vs 'expenses' (especially withdrawals/refunds) to explain exactly where the gap comes from.
+        3. **Event Trends & Popularity**: (ADMIN ONLY) If asked about event trends, compare 'event_stats' (which holds event_date, buyers, scanned). Compare the current week (between ${lastWeekStr} and ${todayStr}) vs previous week (between ${twoWeeksAgoStr} and ${lastWeekStr}). Explicitly state which events are selling more/less, and which events have the lowest/highest buyers.
         4. **Proactive Insights & Daily Summary**: If the user asks for a "סיכום יומי", "תובנות" or general status, you MUST provide a structured summary including:
            - ⚠️ **Departures Alert**: Identify any groups in 'incomes' or 'pending' where 'departure' date is today (${todayStr}) or tomorrow. Highlight if they have missing payments.
-           - 🚨 **Anomalies**: Highlight any rep from 'reps_stats' with unusually high 'shortage' (> 0) or 'withdrawals'.
-           - 📊 **Live Event Stats**: Report 'successful_scans_today_by_event' and 'total_active_in_destination' from 'wristbands_stats'.
+           - ${isAdmin ? `- 🚨 **Anomalies**: Highlight any rep from 'reps_stats' with unusually high 'shortage' (> 0) or 'withdrawals'.\n           - 📊 **Live Event Stats**: Report 'successful_scans_today_by_event' and 'total_active_in_destination' from 'wristbands_stats'.` : ''}
            - 💰 **Financial Day Summary**: Summarize incomes/expenses created today (${todayStr}).
         5. **Quantity vs Amount**: "How many" = COUNT items. "How much" / "סכום" = SUM monetary value.
         6. **Currency**: Keep original currencies (ILS/EUR/USD). DO NOT CONVERT unless asked.
