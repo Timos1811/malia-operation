@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine, Search, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine, Search, CheckCircle2, AlertTriangle, History, Receipt, CheckSquare, RefreshCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { createPageUrl } from '../utils';
 
@@ -45,6 +45,20 @@ export default function OrderDetails() {
   const { data: scanLogs = [] } = useQuery({
     queryKey: ['scanLogs', orderNumber],
     queryFn: () => base44.entities.WristbandScanLog.filter({ order_number: orderNumber }),
+    enabled: !!orderNumber
+  });
+
+  // Fetch tasks related to this order (refunds, add events, etc.)
+  const { data: orderTasks = [], isLoading: loadingTasks } = useQuery({
+    queryKey: ['orderTasks', orderNumber],
+    queryFn: () => base44.entities.Task.filter({ order_number: orderNumber }),
+    enabled: !!orderNumber
+  });
+
+  // Fetch expenses related to this order (where recipient is usually the order number for refunds)
+  const { data: orderExpenses = [] } = useQuery({
+    queryKey: ['orderExpenses', orderNumber],
+    queryFn: () => base44.entities.Expense.filter({ recipient: orderNumber }),
     enabled: !!orderNumber
   });
 
@@ -358,6 +372,86 @@ export default function OrderDetails() {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* History and Actions Section */}
+            <Card className="md:col-span-2 shadow-sm border-slate-200">
+                <CardHeader className="border-b border-slate-100 bg-white/50">
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                        <History className="w-5 h-5 text-blue-600" />
+                        היסטוריית פעולות ותיעוד
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                    {loadingTasks ? (
+                        <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-500" /></div>
+                    ) : (
+                        <div className="space-y-4">
+                            {/* Inactive Wristbands (Swapped/Cancelled) */}
+                            {wristbands.filter(wb => wb.status === 'inactive').map(wb => (
+                                <div key={wb.id} className="flex items-start gap-4 p-4 bg-orange-50 border border-orange-100 rounded-lg">
+                                    <div className="bg-orange-100 p-2 rounded-full mt-1">
+                                        <RefreshCcw className="w-4 h-4 text-orange-600" />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-orange-900">צמיד בוטל / הוחלף</div>
+                                        <div className="text-sm text-orange-800 mt-1">
+                                            הצמיד של <strong>{wb.customer_name}</strong> (מספר: {wb.nfc_id?.replace(/:/g, "")}) סומן כלא פעיל במערכת.
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Tasks (Refunds, Add Events, General) */}
+                            {orderTasks.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).map(task => (
+                                <div key={task.id} className="flex items-start gap-4 p-4 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100 transition-colors">
+                                    <div className="bg-white p-2 rounded-full shadow-sm mt-1 border border-slate-200">
+                                        {task.task_type === 'refund' ? <Receipt className="w-4 h-4 text-red-500" /> : 
+                                         task.task_type === 'add_event' ? <PartyPopper className="w-4 h-4 text-purple-500" /> : 
+                                         <CheckSquare className="w-4 h-4 text-blue-500" />}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-start">
+                                            <div className="font-bold text-slate-800">{task.title}</div>
+                                            <Badge variant="outline" className={task.status === 'done' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}>
+                                                {task.status === 'done' ? 'בוצע' : 'ממתין לטיפול'}
+                                            </Badge>
+                                        </div>
+                                        <div className="text-sm text-slate-600 mt-1">{task.description}</div>
+                                        <div className="flex gap-3 mt-2 text-xs text-slate-500">
+                                            <span>נוצר ב: {new Date(task.created_date).toLocaleDateString('he-IL')}</span>
+                                            {task.sales_rep && <span>ע"י: {task.sales_rep}</span>}
+                                            {task.amount > 0 && <span className="font-bold text-slate-700">סכום: {task.amount} {task.currency}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Direct Expenses (If any direct refunds were logged without a task) */}
+                            {orderExpenses.filter(e => !orderTasks.some(t => t.id === e.id)).sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).map(expense => (
+                                <div key={expense.id} className="flex items-start gap-4 p-4 bg-red-50 border border-red-100 rounded-lg">
+                                    <div className="bg-red-100 p-2 rounded-full mt-1">
+                                        <CreditCard className="w-4 h-4 text-red-600" />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-red-900">הוצאה / החזר: {expense.reason}</div>
+                                        <div className="text-sm text-red-800 mt-1">{expense.notes}</div>
+                                        <div className="flex gap-3 mt-2 text-xs text-red-700">
+                                            <span>תאריך: {new Date(expense.expense_date).toLocaleDateString('he-IL')}</span>
+                                            <span className="font-bold">סכום: {expense.amount} {expense.currency}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {orderTasks.length === 0 && orderExpenses.length === 0 && wristbands.filter(wb => wb.status === 'inactive').length === 0 && (
+                                <div className="text-center text-slate-500 py-6">
+                                    לא נמצאו פעולות, בקשות או החזרים להזמנה זו.
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
