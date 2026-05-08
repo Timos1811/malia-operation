@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 export default function EventScanner() {
     const [attractions, setAttractions] = useState([]);
+    const [eventInstances, setEventInstances] = useState([]); // List of unique strings like "Boat Party - 15/05/2026"
     const [selectedEvent, setSelectedEvent] = useState("");
     const [uniqueScans, setUniqueScans] = useState(0);
     const [totalBuyers, setTotalBuyers] = useState(0);
@@ -34,6 +35,23 @@ export default function EventScanner() {
             try {
                 const data = await base44.entities.Attraction.list();
                 setAttractions(data);
+                
+                // Fetch active wristbands to find all unique event instances with dates
+                const activeWristbands = await base44.entities.Wristband.filter({ status: 'active' });
+                const allEvents = new Set();
+                activeWristbands.forEach(wb => {
+                    if (wb.allowed_events) {
+                        wb.allowed_events.forEach(ev => allEvents.add(ev));
+                    }
+                });
+                
+                // If there are no active wristbands with events, fallback to generic attraction names
+                if (allEvents.size === 0) {
+                    setEventInstances(data.map(a => a.name));
+                } else {
+                    setEventInstances(Array.from(allEvents).sort());
+                }
+                
             } catch (error) {
                 console.error("Failed to fetch attractions", error);
                 toast.error(`שגיאה בטעינת אירועים: ${error.message || 'אנא בדוק את החיבור'}`);
@@ -105,7 +123,8 @@ export default function EventScanner() {
         if (!selectedEvent) return;
         setLoading(true);
         try {
-            const attraction = attractions.find(a => a.name === selectedEvent);
+            const baseEventName = selectedEvent ? selectedEvent.split(' - ')[0] : '';
+            const attraction = attractions.find(a => a.name === baseEventName);
             const costPrice = attraction?.cost_price_eur || 0;
             const signatures = parseInt(signaturesCount) || 0;
             
@@ -435,9 +454,9 @@ export default function EventScanner() {
                                     <SelectValue placeholder="בחר אירוע מהרשימה..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {attractions.map((attr) => (
-                                        <SelectItem key={attr.id} value={attr.name}>
-                                            {attr.name}
+                                    {eventInstances.map((eventName, idx) => (
+                                        <SelectItem key={idx} value={eventName}>
+                                            {eventName}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -527,7 +546,9 @@ export default function EventScanner() {
                     
                     <div className="space-y-4 py-4">
                         {(() => {
-                            const selectedAttraction = attractions.find(a => a.name === selectedEvent);
+                            // Extract the base attraction name without the date (e.g. "Boat Party - 15/05/2026" -> "Boat Party")
+                            const baseEventName = selectedEvent ? selectedEvent.split(' - ')[0] : '';
+                            const selectedAttraction = attractions.find(a => a.name === baseEventName);
                             const costPrice = selectedAttraction?.cost_price_eur || 0;
                             const signatures = parseInt(signaturesCount) || 0;
                             // Calculate payment based on Total Scans + Signatures

@@ -19,6 +19,7 @@ export default function AddEventToWristband() {
   const [foundOrder, setFoundOrder] = useState(null);
   const [selectedWristbands, setSelectedWristbands] = useState(new Set());
   const [selectedEvents, setSelectedEvents] = useState(new Set());
+  const [eventDates, setEventDates] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- Fetch Data ---
@@ -146,7 +147,12 @@ export default function AddEventToWristband() {
         return sum + (ev?.price_eur || 0);
       }, 0) * selectedWristbands.size;
 
-      const eventNames = validEventIds.map(id => attractions.find(a => a.id === id)?.name).filter(Boolean);
+      const eventNames = validEventIds.map(id => {
+          const att = attractions.find(a => a.id === id);
+          if (!att) return null;
+          const date = eventDates[id];
+          return date ? `${att.name} - ${date.split('-').reverse().join('/')}` : att.name;
+      }).filter(Boolean);
 
       // 1. Update Wristbands Immediately
       const updatePromises = Array.from(selectedWristbands).map(async (nfcId) => {
@@ -329,41 +335,51 @@ export default function AddEventToWristband() {
                   }).length;
                   const isDisabled = conflictCount > 0;
 
+                  const isSelected = !isDisabled && selectedEvents.has(att.id);
+
                   return (
-                  <div 
-                    key={att.id}
-                    onClick={() => {
-                        if (isDisabled) return;
-                        setSelectedEvents(prev => {
-                            const next = new Set(prev);
-                            next.has(att.id) ? next.delete(att.id) : next.add(att.id);
-                            return next;
-                        });
-                    }}
-                    className={`
-                        p-4 rounded-xl border flex justify-between items-center transition-all relative
-                        ${isDisabled ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' : 'cursor-pointer'}
-                        ${!isDisabled && selectedEvents.has(att.id) ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : ''}
-                        ${!isDisabled && !selectedEvents.has(att.id) ? 'bg-white border-slate-200 hover:border-green-300' : ''}
-                    `}
-                  >
-                    <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center 
-                            ${isDisabled ? 'border-slate-300 bg-slate-200' : ''}
-                            ${!isDisabled && selectedEvents.has(att.id) ? 'bg-green-500 border-green-500' : 'border-slate-300'}
-                        `}>
-                            {!isDisabled && selectedEvents.has(att.id) && <div className="w-2 h-2 bg-white rounded-full" />}
+                  <div key={att.id} className={`flex flex-col gap-3 p-4 rounded-xl border transition-all relative ${isDisabled ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : ''} ${!isDisabled && !isSelected ? 'bg-white border-slate-200 hover:border-green-300' : ''}`}>
+                      <div 
+                        onClick={() => {
+                            if (isDisabled) return;
+                            setSelectedEvents(prev => {
+                                const next = new Set(prev);
+                                next.has(att.id) ? next.delete(att.id) : next.add(att.id);
+                                return next;
+                            });
+                        }}
+                        className="flex justify-between items-center"
+                      >
+                        <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center 
+                                ${isDisabled ? 'border-slate-300 bg-slate-200' : ''}
+                                ${isSelected ? 'bg-green-500 border-green-500' : 'border-slate-300'}
+                            `}>
+                                {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className={`font-medium ${isDisabled ? 'text-slate-500' : ''}`}>{att.name}</span>
+                                {isDisabled && (
+                                    <span className="text-[10px] text-red-500 font-medium">
+                                        {conflictCount === selectedWristbands.size ? 'קיים כבר בכל הצמידים שנבחרו' : `קיים ב-${conflictCount} צמידים שנבחרו`}
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex flex-col">
-                            <span className={`font-medium ${isDisabled ? 'text-slate-500' : ''}`}>{att.name}</span>
-                            {isDisabled && (
-                                <span className="text-[10px] text-red-500 font-medium">
-                                    {conflictCount === selectedWristbands.size ? 'קיים כבר בכל הצמידים שנבחרו' : `קיים ב-${conflictCount} צמידים שנבחרו`}
-                                </span>
-                            )}
+                        <span className={`font-bold ${isDisabled ? 'text-slate-400' : 'text-slate-900'}`}>€{att.price_eur}</span>
+                      </div>
+                      
+                      {isSelected && (
+                        <div className="pl-9 pr-2 pb-2">
+                            <Label className="text-xs text-slate-500 mb-1 block">תאריך האירוע הספציפי בשבוע זה:</Label>
+                            <Input 
+                                type="date" 
+                                value={eventDates[att.id] || ''} 
+                                onChange={(e) => setEventDates(prev => ({ ...prev, [att.id]: e.target.value }))}
+                                className="bg-white border-green-200"
+                            />
                         </div>
-                    </div>
-                    <span className={`font-bold ${isDisabled ? 'text-slate-400' : 'text-slate-900'}`}>€{att.price_eur}</span>
+                      )}
                   </div>
                   );
                 })}

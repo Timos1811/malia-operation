@@ -25,6 +25,7 @@ export default function NewSale() {
 
   // --- State: Party Selection ---
   const [selectedAttractions, setSelectedAttractions] = useState(new Set());
+  const [attractionDates, setAttractionDates] = useState({});
 
   // --- State: Scanning Process ---
   const [isScanning, setIsScanning] = useState(false);
@@ -162,7 +163,12 @@ export default function NewSale() {
 
           // Register the wristband
           const selectedNames = Array.from(selectedAttractions)
-            .map(id => attractions.find(a => a.id === id)?.name)
+            .map(id => {
+                const att = attractions.find(a => a.id === id);
+                if (!att) return null;
+                const date = attractionDates[id];
+                return date ? `${att.name} - ${date.split('-').reverse().join('/')}` : att.name;
+            })
             .filter(Boolean);
 
           await base44.entities.Wristband.create({
@@ -397,33 +403,42 @@ export default function NewSale() {
 
         {/* Step 2: Parties */}
         <div className="space-y-3">
-          <h3 className="font-bold text-slate-700 px-1">בחירת מסיבות</h3>
-          {attractions.map(att => (
-            <div 
-              key={att.id} 
-              onClick={() => setSelectedAttractions(prev => {
-                const next = new Set(prev);
-                next.has(att.id) ? next.delete(att.id) : next.add(att.id);
-                return next;
-              })}
-              className={`
-                flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer
-                ${selectedAttractions.has(att.id) 
-                  ? 'bg-indigo-50 border-indigo-500 shadow-sm' 
-                  : 'bg-white border-slate-100 hover:border-slate-300'
-                }
-              `}
-            >
-              <Checkbox 
-                checked={selectedAttractions.has(att.id)} 
-                className="w-5 h-5 rounded-full"
-              />
-              <div className="flex-1 flex justify-between items-center font-medium">
-                <span>{att.name}</span>
-                <span className="text-indigo-600 font-bold">€{att.price_eur}</span>
+          <h3 className="font-bold text-slate-700 px-1">בחירת מסיבות ותאריכים</h3>
+          {attractions.map(att => {
+            const isSelected = selectedAttractions.has(att.id);
+            return (
+            <div key={att.id} className={`flex flex-col gap-3 p-4 rounded-2xl border transition-all ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm' : 'bg-white border-slate-100 hover:border-slate-300'}`}>
+              <div 
+                onClick={() => setSelectedAttractions(prev => {
+                  const next = new Set(prev);
+                  next.has(att.id) ? next.delete(att.id) : next.add(att.id);
+                  return next;
+                })}
+                className="flex items-center gap-4 cursor-pointer"
+              >
+                <Checkbox 
+                  checked={isSelected} 
+                  className="w-5 h-5 rounded-full"
+                />
+                <div className="flex-1 flex justify-between items-center font-medium">
+                  <span>{att.name}</span>
+                  <span className="text-indigo-600 font-bold">€{att.price_eur}</span>
+                </div>
               </div>
+              
+              {isSelected && (
+                <div className="pl-9 pr-2 pb-2">
+                    <Label className="text-xs text-slate-500 mb-1 block">תאריך האירוע הספציפי בשבוע זה:</Label>
+                    <Input 
+                        type="date" 
+                        value={attractionDates[att.id] || ''} 
+                        onChange={(e) => setAttractionDates(prev => ({ ...prev, [att.id]: e.target.value }))}
+                        className="bg-white border-indigo-200"
+                    />
+                </div>
+              )}
             </div>
-          ))}
+          )})}
         </div>
 
         {/* Step 3: Scanning Feedback */}
