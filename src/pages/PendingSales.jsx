@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
@@ -472,15 +474,26 @@ export default function PendingSales() {
                       {COLUMN_KEYS.map((colKey) => (
                         <td key={colKey} className="px-1 py-1">
                           {colKey === 'order_number' ? (
-                             row.is_combo ? (
+                             (!row[colKey] || String(row[colKey]).trim() === '') ? (
+                                <EditableCell 
+                                    value={row[colKey] || ''}
+                                    onBlur={(val) => handleBlur(row.id, colKey, val, row)}
+                                    disabled={false}
+                                    type="text"
+                                />
+                             ) : row.is_combo ? (
                                 <div className="flex items-center gap-2 px-2">
-                                    <span className="font-bold text-slate-700">{row[colKey]}</span>
+                                    <Link to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`} className="font-bold text-blue-600 hover:text-blue-800 hover:underline">{row[colKey]}</Link>
                                     <span className="text-[10px] bg-gradient-to-r from-yellow-200 to-orange-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold shadow-sm border border-yellow-300/50">
                                         COMBO
                                     </span>
                                 </div>
                              ) : (
-                                <div className="px-3 font-bold text-slate-700">{row[colKey]}</div>
+                                <div className="px-3">
+                                    <Link to={`${createPageUrl('OrderDetails')}?orderNumber=${row[colKey]}`} className="font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                        {row[colKey]}
+                                    </Link>
+                                </div>
                              )
                           ) : colKey === 'eur_status' ? (
                             <div className={`mx-2 px-3 py-1.5 rounded-full text-center text-xs font-bold shadow-sm ${status.color}`}>
