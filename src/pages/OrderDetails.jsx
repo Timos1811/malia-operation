@@ -95,6 +95,22 @@ export default function OrderDetails() {
             }
         }
 
+        // If STILL not found, it might be in PendingSale
+        if (!results || results.length === 0) {
+            console.log('Not in TableData, checking PendingSale for:', trimmedOrderNumber);
+            let pendingResults = await base44.entities.PendingSale.filter({ order_number: trimmedOrderNumber });
+            if (!pendingResults || pendingResults.length === 0) {
+                const allPending = await base44.entities.PendingSale.list('-created_date', 1000);
+                const foundPending = allPending.find(item => String(item.order_number).trim() === trimmedOrderNumber);
+                if (foundPending) {
+                    pendingResults = [foundPending];
+                }
+            }
+            if (pendingResults && pendingResults.length > 0) {
+                results = pendingResults;
+            }
+        }
+
         if (results && results.length > 0) {
           setData(results[0]);
         } else {
