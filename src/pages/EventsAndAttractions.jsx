@@ -192,10 +192,10 @@ export default function EventsAndAttractions() {
   const [editingId, setEditingId] = useState(null);
   
   // New Item State (Attractions)
-  const [newItem, setNewItem] = useState({ name: '', price_eur: '', cost_price_eur: '', event_days: [] });
+  const [newItem, setNewItem] = useState({ name: '', price_eur: '', cost_price_eur: '', event_days: [], start_time: '20:00' });
   
   // Edit Item State (Attractions)
-  const [editItem, setEditItem] = useState({ name: '', price_eur: '', cost_price_eur: '', event_days: [] });
+  const [editItem, setEditItem] = useState({ name: '', price_eur: '', cost_price_eur: '', event_days: [], start_time: '20:00' });
 
   // Fetch Attractions
   const { data: attractions = [], isLoading } = useQuery({
@@ -286,7 +286,8 @@ export default function EventsAndAttractions() {
       name: newItem.name,
       price_eur: parseFloat(newItem.price_eur),
       cost_price_eur: newItem.cost_price_eur ? parseFloat(newItem.cost_price_eur) : 0,
-      event_days: newItem.event_days || []
+      event_days: newItem.event_days || [],
+      start_time: newItem.start_time || '20:00'
     });
   };
 
@@ -296,7 +297,8 @@ export default function EventsAndAttractions() {
       name: attraction.name, 
       price_eur: attraction.price_eur,
       cost_price_eur: attraction.cost_price_eur || '',
-      event_days: attraction.event_days || []
+      event_days: attraction.event_days || [],
+      start_time: attraction.start_time || '20:00'
     });
   };
 
@@ -311,7 +313,8 @@ export default function EventsAndAttractions() {
         name: editItem.name,
         price_eur: parseFloat(editItem.price_eur),
         cost_price_eur: editItem.cost_price_eur ? parseFloat(editItem.cost_price_eur) : 0,
-        event_days: editItem.event_days || []
+        event_days: editItem.event_days || [],
+        start_time: editItem.start_time || '20:00'
       }
     });
   };
@@ -429,7 +432,7 @@ export default function EventsAndAttractions() {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead className="text-right font-bold w-[25%]">שם אירוע</TableHead>
-                        <TableHead className="text-right font-bold w-[25%]">ימי האירוע</TableHead>
+                        <TableHead className="text-right font-bold w-[20%]">ימי ושעת האירוע</TableHead>
                         <TableHead className="text-right font-bold w-[15%]">מחיר עלות (€)</TableHead>
                         <TableHead className="text-right font-bold w-[15%]">מחיר ללקוח (€)</TableHead>
                         <TableHead className="text-center font-bold w-[20%]">פעולות</TableHead>
@@ -449,6 +452,7 @@ export default function EventsAndAttractions() {
                             />
                           </TableCell>
                           <TableCell>
+                            <div className="flex flex-col gap-2">
                             <div className="flex flex-wrap gap-1">
                               {DAYS.map(day => (
                                 <div
@@ -464,6 +468,13 @@ export default function EventsAndAttractions() {
                                   {day.label}
                                 </div>
                               ))}
+                            </div>
+                            <Input
+                                type="time"
+                                value={newItem.start_time}
+                                onChange={(e) => setNewItem({ ...newItem, start_time: e.target.value })}
+                                className="bg-white h-7 text-xs w-24"
+                            />
                             </div>
                           </TableCell>
                           <TableCell>
@@ -522,6 +533,7 @@ export default function EventsAndAttractions() {
                                   />
                                 </TableCell>
                                 <TableCell>
+                                  <div className="flex flex-col gap-2">
                                   <div className="flex flex-wrap gap-1">
                                     {DAYS.map(day => (
                                       <div
@@ -537,9 +549,16 @@ export default function EventsAndAttractions() {
                                         {day.label}
                                       </div>
                                     ))}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
+                                    </div>
+                                    <Input
+                                      type="time"
+                                      value={editItem.start_time || ''}
+                                      onChange={(e) => setEditItem({ ...editItem, start_time: e.target.value })}
+                                      className="bg-white h-7 text-xs w-24"
+                                    />
+                                    </div>
+                                    </TableCell>
+                                    <TableCell>
                                   <Input
                                     type="number"
                                     value={editItem.cost_price_eur}
@@ -568,6 +587,7 @@ export default function EventsAndAttractions() {
                               <>
                                 <TableCell className="font-medium">{item.name}</TableCell>
                                 <TableCell>
+                                  <div className="flex flex-col gap-1">
                                   <div className="flex flex-wrap gap-1">
                                     {(item.event_days && item.event_days.length > 0) ? (
                                       item.event_days.sort().map(dayId => (
@@ -578,9 +598,15 @@ export default function EventsAndAttractions() {
                                     ) : (
                                       <span className="text-slate-400 text-xs">-</span>
                                     )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-mono text-slate-500">€{item.cost_price_eur?.toFixed(2) || '0.00'}</TableCell>
+                                    </div>
+                                    {item.start_time && (
+                                      <div className="text-xs text-slate-500">
+                                          שעה: {item.start_time}
+                                      </div>
+                                    )}
+                                    </div>
+                                    </TableCell>
+                                    <TableCell className="font-mono text-slate-500">€{item.cost_price_eur?.toFixed(2) || '0.00'}</TableCell>
                                 <TableCell className="font-mono text-lg font-bold text-slate-800">€{item.price_eur?.toFixed(2)}</TableCell>
                                 <TableCell>
                                   <div className="flex items-center justify-center gap-2">

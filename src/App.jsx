@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import SubmitReceipt from './pages/SubmitReceipt';
 import UserApproval from './pages/UserApproval';
+import EventStats from './pages/EventStats';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -68,6 +69,11 @@ const AuthenticatedApp = () => {
       <Route path="/UserApproval" element={
         <LayoutWrapper currentPageName="UserApproval">
           <UserApproval />
+        </LayoutWrapper>
+      } />
+      <Route path="/EventStats" element={
+        <LayoutWrapper currentPageName="EventStats">
+          <EventStats />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />

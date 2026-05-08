@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock, UserCircle, RefreshCcw, Loader2, LogIn, Scan, LogOut, UserCheck } from 'lucide-react';
+import { Table2, Database, Receipt, PlusCircle, Landmark, Plane, Ticket, CheckSquare, Users, PartyPopper, Clock, UserCircle, RefreshCcw, Loader2, LogIn, Scan, LogOut, UserCheck, BarChart3 } from 'lucide-react';
 import { Toaster } from "@/components/ui/sonner";
 import NotificationsManager from "@/components/NotificationsManager";
 import GlobalDataChat from "@/components/GlobalDataChat";
@@ -183,6 +183,11 @@ export default function Layout({ children, currentPageName }) {
               <Link to={createPageUrl('EventsAndAttractions')} className={linkClass('EventsAndAttractions')}>
                 <Ticket className="w-5 h-5" />
                 <span className="whitespace-nowrap">אירועים</span>
+              </Link>
+              
+              <Link to={createPageUrl('EventStats')} className={linkClass('EventStats')}>
+                <BarChart3 className="w-5 h-5" />
+                <span className="whitespace-nowrap">דוחות אירועים</span>
               </Link>
               
               <Link to={createPageUrl('NewSale')} target="_blank" className={linkClass('NewSale')}>

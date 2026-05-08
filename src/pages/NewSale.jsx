@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, CheckCircle2, ShieldAlert, PartyPopper, ScanLine, AlertTriangle, Users, Building2, Moon, Calendar, User } from "lucide-react";
+import { getNextEventDate } from "@/utils/dateHelpers";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -25,7 +26,6 @@ export default function NewSale() {
 
   // --- State: Party Selection ---
   const [selectedAttractions, setSelectedAttractions] = useState(new Set());
-  const [attractionDates, setAttractionDates] = useState({});
 
   // --- State: Scanning Process ---
   const [isScanning, setIsScanning] = useState(false);
@@ -166,8 +166,8 @@ export default function NewSale() {
             .map(id => {
                 const att = attractions.find(a => a.id === id);
                 if (!att) return null;
-                const date = attractionDates[id];
-                return date ? `${att.name} - ${date.split('-').reverse().join('/')}` : att.name;
+                const nextDateStr = getNextEventDate(att.event_days, att.start_time);
+                return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
             })
             .filter(Boolean);
 
@@ -403,7 +403,7 @@ export default function NewSale() {
 
         {/* Step 2: Parties */}
         <div className="space-y-3">
-          <h3 className="font-bold text-slate-700 px-1">בחירת מסיבות ותאריכים</h3>
+          <h3 className="font-bold text-slate-700 px-1">בחירת מסיבות</h3>
           {attractions.map(att => {
             const isSelected = selectedAttractions.has(att.id);
             return (
@@ -426,15 +426,11 @@ export default function NewSale() {
                 </div>
               </div>
               
-              {isSelected && (
+              {isSelected && getNextEventDate(att.event_days, att.start_time) && (
                 <div className="pl-9 pr-2 pb-2">
-                    <Label className="text-xs text-slate-500 mb-1 block">תאריך האירוע הספציפי בשבוע זה:</Label>
-                    <Input 
-                        type="date" 
-                        value={attractionDates[att.id] || ''} 
-                        onChange={(e) => setAttractionDates(prev => ({ ...prev, [att.id]: e.target.value }))}
-                        className="bg-white border-indigo-200"
-                    />
+                    <span className="text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md block w-fit">
+                        תאריך נבחר: {getNextEventDate(att.event_days, att.start_time).split('-').reverse().join('/')}
+                    </span>
                 </div>
               )}
             </div>

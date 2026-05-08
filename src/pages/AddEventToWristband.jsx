@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, TicketPlus, ScanLine, AlertCircle, ArrowRight } from "lucide-react";
+import { getNextEventDate } from "@/utils/dateHelpers";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
@@ -19,7 +20,6 @@ export default function AddEventToWristband() {
   const [foundOrder, setFoundOrder] = useState(null);
   const [selectedWristbands, setSelectedWristbands] = useState(new Set());
   const [selectedEvents, setSelectedEvents] = useState(new Set());
-  const [eventDates, setEventDates] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- Fetch Data ---
@@ -150,8 +150,8 @@ export default function AddEventToWristband() {
       const eventNames = validEventIds.map(id => {
           const att = attractions.find(a => a.id === id);
           if (!att) return null;
-          const date = eventDates[id];
-          return date ? `${att.name} - ${date.split('-').reverse().join('/')}` : att.name;
+          const nextDateStr = getNextEventDate(att.event_days, att.start_time);
+          return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
       }).filter(Boolean);
 
       // 1. Update Wristbands Immediately
@@ -369,15 +369,11 @@ export default function AddEventToWristband() {
                         <span className={`font-bold ${isDisabled ? 'text-slate-400' : 'text-slate-900'}`}>€{att.price_eur}</span>
                       </div>
                       
-                      {isSelected && (
+                      {isSelected && getNextEventDate(att.event_days, att.start_time) && (
                         <div className="pl-9 pr-2 pb-2">
-                            <Label className="text-xs text-slate-500 mb-1 block">תאריך האירוע הספציפי בשבוע זה:</Label>
-                            <Input 
-                                type="date" 
-                                value={eventDates[att.id] || ''} 
-                                onChange={(e) => setEventDates(prev => ({ ...prev, [att.id]: e.target.value }))}
-                                className="bg-white border-green-200"
-                            />
+                            <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-md block w-fit">
+                                תאריך נבחר: {getNextEventDate(att.event_days, att.start_time).split('-').reverse().join('/')}
+                            </span>
                         </div>
                       )}
                   </div>

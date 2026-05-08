@@ -1,0 +1,33 @@
+{
+  "name": "Attraction",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d0\u05d9\u05e8\u05d5\u05e2"
+    },
+    "price_eur": {
+      "type": "number",
+      "description": "\u05de\u05d7\u05d9\u05e8 \u05d1\u05d9\u05d5\u05e8\u05d5"
+    },
+    "cost_price_eur": {
+      "type": "number",
+      "description": "\u05de\u05d7\u05d9\u05e8 \u05e2\u05dc\u05d5\u05ea \u05d1\u05d9\u05d5\u05e8\u05d5"
+    },
+    "event_days": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "\u05d9\u05de\u05d9 \u05d4\u05d0\u05d9\u05e8\u05d5\u05e2 (0=\u05e8\u05d0\u05e9\u05d5\u05df, 6=\u05e9\u05d1\u05ea)"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "\u05e9\u05e2\u05ea \u05d4\u05ea\u05d7\u05dc\u05d4 (HH:MM)"
+    }
+  },
+  "required": [
+    "name",
+    "price_eur"
+  ]
+}
