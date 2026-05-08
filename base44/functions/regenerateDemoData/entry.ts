@@ -175,12 +175,13 @@ Deno.serve(async (req) => {
         }
 
         const chunkArray = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
+        const delay = ms => new Promise(res => setTimeout(res, ms));
 
-        for (const chunk of chunkArray(tableData, 10)) await base44.asServiceRole.entities.TableData.bulkCreate(chunk);
-        for (const chunk of chunkArray(wristbands, 10)) await base44.asServiceRole.entities.Wristband.bulkCreate(chunk);
-        for (const chunk of chunkArray(expenses, 10)) await base44.asServiceRole.entities.Expense.bulkCreate(chunk);
-        for (const chunk of chunkArray(tasks, 10)) await base44.asServiceRole.entities.Task.bulkCreate(chunk);
-        for (const chunk of chunkArray(scans, 10)) await base44.asServiceRole.entities.WristbandScanLog.bulkCreate(chunk);
+        for (const chunk of chunkArray(tableData, 50)) { await base44.asServiceRole.entities.TableData.bulkCreate(chunk); await delay(1000); }
+        for (const chunk of chunkArray(wristbands, 50)) { await base44.asServiceRole.entities.Wristband.bulkCreate(chunk); await delay(1000); }
+        for (const chunk of chunkArray(expenses, 50)) { await base44.asServiceRole.entities.Expense.bulkCreate(chunk); await delay(1000); }
+        for (const chunk of chunkArray(tasks, 50)) { await base44.asServiceRole.entities.Task.bulkCreate(chunk); await delay(1000); }
+        for (const chunk of chunkArray(scans, 50)) { await base44.asServiceRole.entities.WristbandScanLog.bulkCreate(chunk); await delay(1000); }
 
         return Response.json({ 
             success: true, 
