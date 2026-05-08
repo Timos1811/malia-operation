@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowRight, User, Calendar, Briefcase, Hash, Users, Building2, CreditCard, PartyPopper, ScanLine, Search, CheckCircle2, AlertTriangle, History, Receipt, CheckSquare, RefreshCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { createPageUrl } from '../utils';
+import { getNextEventDate } from "@/utils/dateHelpers";
 
 export default function OrderDetails() {
   const [searchParams] = useSearchParams();
@@ -72,14 +73,20 @@ export default function OrderDetails() {
     onError: () => toast.error("שגיאה בעדכון הצמיד")
   });
 
-  const handleEventToggle = (wristband, eventName) => {
+  const handleEventToggle = (wristband, attraction) => {
     const currentEvents = wristband.allowed_events || [];
     let newEvents;
     
-    if (currentEvents.includes(eventName)) {
-      newEvents = currentEvents.filter(e => e !== eventName);
+    const existingEvent = currentEvents.find(e => e === attraction.name || e.startsWith(attraction.name + ' - '));
+    
+    if (existingEvent) {
+      newEvents = currentEvents.filter(e => e !== existingEvent);
     } else {
-      newEvents = [...currentEvents, eventName];
+      const nextDateStr = getNextEventDate(attraction.event_days, attraction.start_time);
+      const eventNameToAdd = nextDateStr 
+          ? `${attraction.name} - ${nextDateStr.split('-').reverse().join('/')}` 
+          : attraction.name;
+      newEvents = [...currentEvents, eventNameToAdd];
     }
     
     updateWristbandMutation.mutate({
@@ -303,6 +310,7 @@ export default function OrderDetails() {
 
                             {/* Wristband List */}
                             {wristbands
+                                .filter(wb => wb.status !== 'inactive')
                                 .filter(wb => {
                                     if (!wristbandFilter) return true;
                                     const search = wristbandFilter.toLowerCase();
@@ -329,7 +337,7 @@ export default function OrderDetails() {
                                     <div className="md:p-4 md:col-span-3">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                             {attractions.map(att => {
-                                                const isChecked = (wb.allowed_events || []).includes(att.name);
+                                                const isChecked = (wb.allowed_events || []).some(e => e === att.name || e.startsWith(att.name + ' - '));
                                                 const isInactive = wb.status === 'inactive';
                                                 const isExpired = wb.valid_until && new Date().toISOString().split('T')[0] > wb.valid_until;
                                                 // Disable if inactive, expired, or user is NOT admin
@@ -338,7 +346,7 @@ export default function OrderDetails() {
                                                 // Check if scanned
                                                 const isScanned = scanLogs.some(log => 
                                                     log.nfc_id === wb.nfc_id && 
-                                                    log.event_name === att.name && 
+                                                    (log.event_name === att.name || log.event_name.startsWith(att.name + ' - ')) && 
                                                     (log.status === 'success' || log.status === 'processed')
                                                 );
 
@@ -348,7 +356,7 @@ export default function OrderDetails() {
                                                             <Checkbox 
                                                                 id={`wb-${wb.id}-${att.id}`} 
                                                                 checked={isChecked}
-                                                                onCheckedChange={() => !isDisabled && handleEventToggle(wb, att.name)}
+                                                                onCheckedChange={() => !isDisabled && handleEventToggle(wb, att)}
                                                                 disabled={isDisabled}
                                                                 className="h-5 w-5"
                                                             />
