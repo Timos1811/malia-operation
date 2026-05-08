@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
 
                 for (let j=0; j<customers; j++) {
                     const nfcId = Math.random().toString(36).substring(2, 10).toUpperCase();
-                    const wbStatus = departureDate < today ? "inactive" : "active";
+                    const wbStatus = "active";
                     
                     wristbands.push({
                         nfc_id: nfcId,
