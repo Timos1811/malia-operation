@@ -133,7 +133,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Floating Language Switcher */}
       <button 
         onClick={toggleLanguage}
-        className="fixed bottom-6 left-6 z-[100] bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:bg-blue-50 transition-all duration-300 flex items-center justify-center group"
+        className="fixed bottom-6 right-6 z-[100] bg-white p-3 rounded-full shadow-lg border border-blue-100 hover:bg-blue-50 transition-all duration-300 flex items-center justify-center group"
         title="Translate to English / עברית"
       >
         <Languages className="w-6 h-6 text-blue-600" />
