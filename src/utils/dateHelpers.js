@@ -7,7 +7,7 @@ export function getNextEventDate(eventDays, startTimeStr) {
     const now = new Date();
     const sortedDays = [...eventDays].sort((a,b) => a-b);
     
-    for (let i = 0; i <= 7; i++) {
+    for (let i = -1; i <= 7; i++) {
         const d = new Date(now);
         d.setDate(now.getDate() + i);
         const dayOfWeek = d.getDay();
@@ -15,9 +15,9 @@ export function getNextEventDate(eventDays, startTimeStr) {
         if (sortedDays.includes(dayOfWeek)) {
             d.setHours(startHour, startMin, 0, 0);
             
-            // האירוע נשאר "האירוע הנוכחי" עד 4 שעות אחרי תחילתו
+            // האירוע נשאר "האירוע הנוכחי" עד 8 שעות אחרי תחילתו
             const cutoffTime = new Date(d);
-            cutoffTime.setHours(cutoffTime.getHours() + 4);
+            cutoffTime.setHours(cutoffTime.getHours() + 8);
             
             if (now <= cutoffTime) {
                 // Return YYYY-MM-DD

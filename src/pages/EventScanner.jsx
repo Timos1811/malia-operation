@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Scan, CheckCircle2, XCircle, AlertTriangle, ThumbsUp, FileCheck, Home } from "lucide-react";
+import { getNextEventDate } from "@/utils/dateHelpers";
 import { toast } from "sonner";
 
 export default function EventScanner() {
@@ -36,22 +37,12 @@ export default function EventScanner() {
                 const data = await base44.entities.Attraction.list();
                 setAttractions(data);
                 
-                // Fetch active wristbands to find all unique event instances with dates
-                const activeWristbands = await base44.entities.Wristband.filter({ status: 'active' });
-                const allEvents = new Set();
-                activeWristbands.forEach(wb => {
-                    if (wb.allowed_events) {
-                        wb.allowed_events.forEach(ev => allEvents.add(ev));
-                    }
+                const nextEvents = data.map(att => {
+                    const nextDateStr = getNextEventDate(att.event_days, att.start_time);
+                    return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
                 });
                 
-                // If there are no active wristbands with events, fallback to generic attraction names
-                if (allEvents.size === 0) {
-                    setEventInstances(data.map(a => a.name));
-                } else {
-                    setEventInstances(Array.from(allEvents).sort());
-                }
-                
+                setEventInstances([...new Set(nextEvents)].sort());
             } catch (error) {
                 console.error("Failed to fetch attractions", error);
                 toast.error(`שגיאה בטעינת אירועים: ${error.message || 'אנא בדוק את החיבור'}`);
