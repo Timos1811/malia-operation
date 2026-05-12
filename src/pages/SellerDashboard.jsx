@@ -298,6 +298,24 @@ export default function SellerDashboard() {
             </Card>
           </Link>
 
+          <Link to={createPageUrl('MyOrder')} target="_blank" className="block group">
+            <Card className="h-full border-slate-200 hover:border-pink-300 hover:shadow-md transition-all duration-300 cursor-pointer group-hover:-translate-y-1">
+              <CardHeader className="pb-4">
+                <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                  <PartyPopper className="w-6 h-6 text-pink-600" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-pink-700 transition-colors">ההזמנה שלי (ללקוחות)</CardTitle>
+                <CardDescription>קישור להעברה ללקוחות לצפייה באירועים שרכשו</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full border-pink-200 text-pink-700 hover:bg-pink-50 gap-2">
+                  <PartyPopper className="w-4 h-4" />
+                  פתח עמוד לקוח
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
         </div>
 
       </div>

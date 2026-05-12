@@ -8,6 +8,7 @@ import PageNotFound from './lib/PageNotFound';
 import SubmitReceipt from './pages/SubmitReceipt';
 import UserApproval from './pages/UserApproval';
 import EventStats from './pages/EventStats';
+import MyOrder from './pages/MyOrder';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -74,6 +75,11 @@ const AuthenticatedApp = () => {
       <Route path="/EventStats" element={
         <LayoutWrapper currentPageName="EventStats">
           <EventStats />
+        </LayoutWrapper>
+      } />
+      <Route path="/MyOrder" element={
+        <LayoutWrapper currentPageName="MyOrder">
+          <MyOrder />
         </LayoutWrapper>
       } />
       <Route path="*" element={<PageNotFound />} />

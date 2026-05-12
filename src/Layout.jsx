@@ -82,7 +82,7 @@ export default function Layout({ children, currentPageName }) {
   }
 
   // הסתרת התפריט בעמודים ספציפיים
-  const hideNavPages = ['AddTask', 'NewSale', 'OrderSuccess'];
+  const hideNavPages = ['AddTask', 'NewSale', 'OrderSuccess', 'MyOrder'];
   const shouldHideNav = hideNavPages.includes(currentPageName);
 
   if (user && user.role !== 'admin' && user.status === 'pending') {
