@@ -111,8 +111,13 @@ export default function MyOrder() {
               {wristbands.map((wb, idx) => (
                 <div key={idx} className={`bg-white rounded-xl shadow-sm border ${wb.status === 'active' ? 'border-indigo-100' : 'border-red-100 opacity-75'} overflow-hidden`}>
                   <div className={`p-4 border-b ${wb.status === 'active' ? 'bg-indigo-50/50 border-indigo-50' : 'bg-red-50/50 border-red-50'} flex justify-between items-center`}>
-                    <div className="font-bold text-slate-800 text-lg">
+                    <div className="font-bold text-slate-800 text-lg flex items-center gap-2">
                       {wb.customer_name || `צמיד ${idx + 1}`}
+                      {wb.nfc_id && (
+                        <span className="text-xs font-normal text-slate-500 bg-white/50 px-2 py-0.5 rounded-full border border-slate-200">
+                          {wb.nfc_id}
+                        </span>
+                      )}
                     </div>
                     <div className={`text-xs font-bold px-2 py-1 rounded-full ${wb.status === 'active' ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700'}`}>
                       {wb.status === 'active' ? 'פעיל' : 'לא פעיל'}
