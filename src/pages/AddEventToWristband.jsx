@@ -370,7 +370,7 @@ export default function AddEventToWristband() {
                 {attractions.map(att => {
                   const conflictCount = Array.from(selectedWristbands).filter(nfcId => {
                       const wb = foundOrder.wristbands.find(w => w.nfc_id === nfcId);
-                      return wb?.allowed_events?.includes(att.name);
+                      return wb?.allowed_events?.some(e => e.split(' - ')[0] === att.name);
                   }).length;
                   const isDisabled = conflictCount > 0;
 
