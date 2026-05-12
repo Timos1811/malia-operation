@@ -30,6 +30,7 @@ export default function NewSale() {
   // --- State: Scanning Process ---
   const [isScanning, setIsScanning] = useState(false);
   const [scannedIds, setScannedIds] = useState(new Set());
+  const scannedIdsRef = useRef(new Set());
   const [lastScanned, setLastScanned] = useState(null); // Feedback state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -138,10 +139,18 @@ export default function NewSale() {
         // Remove colons and normalize to lowercase
         const nfcId = event.serialNumber.replace(/:/g, "").toLowerCase();
 
-        // Prevent duplicate processing of the same tag in this session
-        if (scannedIds.has(nfcId)) return;
-        if (isProcessingRef.current) return;
+        // Check against the ref directly to avoid stale closures
+        if (scannedIdsRef.current.has(nfcId)) return;
         
+        // Also check if we already reached the max limit to prevent excess scans
+        // Parse it here again to avoid stale closure if it changed
+        const currentMax = parseInt(document.querySelector('input[type="number"]')?.value) || maxCustomers;
+        if (scannedIdsRef.current.size >= currentMax) {
+           setIsScanning(false);
+           return;
+        }
+
+        if (isProcessingRef.current) return;
         isProcessingRef.current = true;
 
         try {
@@ -171,23 +180,29 @@ export default function NewSale() {
             })
             .filter(Boolean);
 
+          const guestNumber = scannedIdsRef.current.size + 1;
+
           await base44.entities.Wristband.create({
             nfc_id: nfcId,
             order_number: formData.orderNumber.toString(),
             // Wristband only holds the parties link and the order link
-            customer_name: `אורח ${scannedIds.size + 1}`, // Optional: internal numbering
+            customer_name: `אורח ${guestNumber}`, // Optional: internal numbering
             allowed_events: selectedNames,
             status: 'active',
             valid_until: formData.departureDate // Set expiration from form
           });
 
           playSound('success');
-          setScannedIds(prev => new Set(prev).add(nfcId));
+          
+          // Update both ref and state
+          scannedIdsRef.current.add(nfcId);
+          setScannedIds(new Set(scannedIdsRef.current));
+          
           setLastScanned({
             status: 'success',
             id: nfcId,
             message: "צמיד שויך בהצלחה",
-            details: `אורח ${scannedIds.size + 1} שויך להזמנה ${formData.orderNumber}`
+            details: `אורח ${guestNumber} שויך להזמנה ${formData.orderNumber}`
           });
           toast.success("צמיד נוסף להזמנה");
 
@@ -196,7 +211,12 @@ export default function NewSale() {
           toast.error("שגיאה ברישום הצמיד");
         } finally {
           isProcessingRef.current = false;
-          if (scannedIds.size + 1 >= maxCustomers) setIsScanning(false);
+          
+          const currentMax = parseInt(document.querySelector('input[type="number"]')?.value) || maxCustomers;
+          if (scannedIdsRef.current.size >= currentMax) {
+            setIsScanning(false);
+            toast.success("כל הצמידים להזמנה נסרקו!");
+          }
         }
       };
     } catch (error) {
@@ -328,6 +348,7 @@ export default function NewSale() {
                 onChange={e => {
                   setFormData({...formData, customerCount: e.target.value});
                   setScannedIds(new Set()); // Reset scans on count change to avoid confusion
+                  scannedIdsRef.current = new Set();
                 }}
                 className="bg-slate-50 border-slate-200 font-bold"
               />
