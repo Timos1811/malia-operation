@@ -275,13 +275,19 @@ const ComboManager = ({ attractions }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-4 border-b bg-slate-50 flex justify-between items-center">
-        <h3 className="font-bold flex items-center gap-2 text-slate-700">
-          <Layers className="w-5 h-5" /> ניהול קומבואים אישיים
-        </h3>
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-100 p-2 rounded-lg text-indigo-700">
+            <Layers className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800">חבילות וקומבואים נוספים (למשל קומבו ערב)</h3>
+            <p className="text-xs text-slate-500">ניתן להגדיר שילובים נוספים של אירועים במחיר מיוחד</p>
+          </div>
+        </div>
         <Button onClick={() => setIsAdding(true)} size="sm" className="gap-2 bg-slate-800 hover:bg-slate-900" disabled={isAdding}>
-          <Plus className="w-4 h-4" /> הוסף קומבו
+          <Plus className="w-4 h-4" /> הוסף חבילה
         </Button>
       </div>
       <Table>
@@ -566,12 +572,9 @@ export default function EventsAndAttractions() {
         </div>
 
         <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-white border shadow-sm rounded-xl mb-6">
+            <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-white border shadow-sm rounded-xl mb-6">
                 <TabsTrigger value="events" className="gap-2 py-3 rounded-lg data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
-                    <Ticket className="w-4 h-4" /> אירועים
-                </TabsTrigger>
-                <TabsTrigger value="combos" className="gap-2 py-3 rounded-lg data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
-                    <Layers className="w-4 h-4" /> חבילות וקומבואים
+                    <Ticket className="w-4 h-4" /> אירועים ואטרקציות
                 </TabsTrigger>
                 <TabsTrigger value="hotels" className="gap-2 py-3 rounded-lg data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
                     <Building2 className="w-4 h-4" /> בתי מלון
@@ -589,8 +592,8 @@ export default function EventsAndAttractions() {
                             <AlertCircle className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="font-bold text-slate-800">מחיר עסקת קומבו (Combo Deal)</div>
-                            <div className="text-sm text-slate-500">מחיר כולל לכל האירועים יחד</div>
+                            <div className="font-bold text-slate-800">מחיר קומבו כללי (כל האירועים)</div>
+                            <div className="text-sm text-slate-500">מחיר כולל במצב בו לקוח רוכש את כל האירועים המוגדרים</div>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-100 w-full md:w-auto justify-between md:justify-start">
@@ -617,6 +620,9 @@ export default function EventsAndAttractions() {
                         </div>
                     </div>
                 </div>
+
+                {/* Additional Combos Management */}
+                <ComboManager attractions={attractions} />
 
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="p-4 border-b bg-slate-50 flex justify-between items-center">
@@ -829,10 +835,6 @@ export default function EventsAndAttractions() {
                     </TableBody>
                   </Table>
                 </div>
-            </TabsContent>
-
-            <TabsContent value="combos" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <ComboManager attractions={attractions} />
             </TabsContent>
 
             <TabsContent value="hotels" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
