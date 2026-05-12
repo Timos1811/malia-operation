@@ -25,22 +25,11 @@ export default function MyOrder() {
     }
   };
 
-  // Group events from all wristbands
-  const allEvents = new Set();
   let hasValidWristband = false;
 
   if (wristbands && wristbands.length > 0) {
-    wristbands.forEach(wb => {
-      if (wb.status === 'active') {
-        hasValidWristband = true;
-        if (wb.allowed_events) {
-          wb.allowed_events.forEach(event => allEvents.add(event));
-        }
-      }
-    });
+    hasValidWristband = wristbands.some(wb => wb.status === 'active');
   }
-
-  const eventsList = Array.from(allEvents).sort();
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center p-4 md:p-8" dir="rtl">
@@ -116,26 +105,40 @@ export default function MyOrder() {
               </CardContent>
             </Card>
 
-            <h3 className="font-bold text-slate-700 px-2 pt-2">האירועים והמסיבות שלך:</h3>
+            <h3 className="font-bold text-slate-700 px-2 pt-2">הצמידים והאירועים שלך:</h3>
             
-            {eventsList.length > 0 ? (
-              <div className="grid gap-3">
-                {eventsList.map((event, idx) => (
-                  <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    </div>
+            <div className="grid gap-4">
+              {wristbands.map((wb, idx) => (
+                <div key={idx} className={`bg-white rounded-xl shadow-sm border ${wb.status === 'active' ? 'border-indigo-100' : 'border-red-100 opacity-75'} overflow-hidden`}>
+                  <div className={`p-4 border-b ${wb.status === 'active' ? 'bg-indigo-50/50 border-indigo-50' : 'bg-red-50/50 border-red-50'} flex justify-between items-center`}>
                     <div className="font-bold text-slate-800 text-lg">
-                      {event}
+                      {wb.customer_name || `צמיד ${idx + 1}`}
+                    </div>
+                    <div className={`text-xs font-bold px-2 py-1 rounded-full ${wb.status === 'active' ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700'}`}>
+                      {wb.status === 'active' ? 'פעיל' : 'לא פעיל'}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl p-6 text-center shadow-sm border border-slate-100 text-slate-500">
-                לא מוגדרים אירועים מיוחדים לצמידים אלו.
-              </div>
-            )}
+                  <div className="p-4">
+                    {wb.status === 'active' ? (
+                      wb.allowed_events && wb.allowed_events.length > 0 ? (
+                        <div className="grid gap-2">
+                          {wb.allowed_events.map((event, eIdx) => (
+                            <div key={eIdx} className="flex items-center gap-3">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span className="text-slate-700">{event}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-slate-500 text-sm">אין אירועים מוגדרים לצמיד זה.</div>
+                      )
+                    ) : (
+                      <div className="text-red-500 text-sm">הצמיד בוטל או אינו פעיל יותר.</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
             
             {!hasValidWristband && (
                <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 text-sm font-medium flex items-start gap-2">
