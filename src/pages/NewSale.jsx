@@ -72,6 +72,11 @@ export default function NewSale() {
 
   // --- Calculated Values ---
   const maxCustomers = parseInt(formData.customerCount) || 1;
+  const maxCustomersRef = useRef(maxCustomers);
+  useEffect(() => {
+    maxCustomersRef.current = maxCustomers;
+  }, [maxCustomers]);
+
   const scannedCount = scannedIds.size;
   const isAllWristbandsScanned = scannedCount >= maxCustomers;
   
@@ -143,8 +148,7 @@ export default function NewSale() {
         if (scannedIdsRef.current.has(nfcId)) return;
         
         // Also check if we already reached the max limit to prevent excess scans
-        // Parse it here again to avoid stale closure if it changed
-        const currentMax = parseInt(document.querySelector('input[type="number"]')?.value) || maxCustomers;
+        const currentMax = maxCustomersRef.current;
         if (scannedIdsRef.current.size >= currentMax) {
            setIsScanning(false);
            return;
@@ -212,7 +216,7 @@ export default function NewSale() {
         } finally {
           isProcessingRef.current = false;
           
-          const currentMax = parseInt(document.querySelector('input[type="number"]')?.value) || maxCustomers;
+          const currentMax = maxCustomersRef.current;
           if (scannedIdsRef.current.size >= currentMax) {
             setIsScanning(false);
             toast.success("כל הצמידים להזמנה נסרקו!");
