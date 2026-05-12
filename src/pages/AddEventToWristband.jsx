@@ -33,6 +33,17 @@ export default function AddEventToWristband() {
     queryFn: () => base44.auth.me(),
   });
 
+  const { data: comboPriceSetting } = useQuery({
+    queryKey: ['appSettings', 'combo_price_eur'],
+    queryFn: async () => {
+        const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
+        return settings[0]?.value || '550';
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const comboPrice = parseFloat(comboPriceSetting) || 550;
+
   // --- Handlers ---
 
   const handleSearch = async () => {
@@ -126,49 +137,54 @@ export default function AddEventToWristband() {
 
     setIsSubmitting(true);
     try {
-      // Filter out invalid events
-      const validEventIds = Array.from(selectedEvents).filter(eventId => {
-          const ev = attractions.find(a => a.id === eventId);
-          if (!ev) return false;
-          const isConflict = Array.from(selectedWristbands).some(nfcId => {
-              const wb = foundOrder?.wristbands.find(w => w.nfc_id === nfcId);
-              return wb?.allowed_events?.includes(ev.name);
-          });
-          return !isConflict;
-      });
-
-      if (validEventIds.length === 0) {
-          setIsSubmitting(false);
-          return toast.error("אין אירועים תקינים להוספה (האירועים שנבחרו כבר קיימים בצמידים)");
-      }
-
-      const totalAmount = validEventIds.reduce((sum, eventId) => {
-        const ev = attractions.find(a => a.id === eventId);
-        return sum + (ev?.price_eur || 0);
-      }, 0) * selectedWristbands.size;
-
-      const eventNames = validEventIds.map(id => {
-          const att = attractions.find(a => a.id === id);
-          if (!att) return null;
-          const nextDateStr = getNextEventDate(att.event_days, att.start_time);
-          return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
-      }).filter(Boolean);
+      let anyEventAdded = false;
+      let isAnyComboNow = false;
 
       // 1. Update Wristbands Immediately
       const updatePromises = Array.from(selectedWristbands).map(async (nfcId) => {
           const wb = foundOrder.wristbands.find(w => w.nfc_id === nfcId);
           if (wb && wb.status === 'active') {
               const currentEvents = wb.allowed_events || [];
-              const uniqueEvents = [...new Set([...currentEvents, ...eventNames])];
-              return base44.entities.Wristband.update(wb.id, { allowed_events: uniqueEvents });
+              const currentBaseNames = currentEvents.map(e => e.split(' - ')[0]);
+              
+              // Find which selected events this wristband doesn't have yet
+              const eventsToAdd = Array.from(selectedEvents).filter(id => {
+                  const ev = attractions.find(a => a.id === id);
+                  return ev && !currentBaseNames.includes(ev.name);
+              });
+              
+              if (eventsToAdd.length > 0) {
+                  anyEventAdded = true;
+                  
+                  const eventNamesToAdd = eventsToAdd.map(id => {
+                      const att = attractions.find(a => a.id === id);
+                      const nextDateStr = getNextEventDate(att.event_days, att.start_time);
+                      return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
+                  });
+                  
+                  const uniqueEvents = [...new Set([...currentEvents, ...eventNamesToAdd])];
+                  
+                  // Check if it became a combo
+                  const newBaseNames = uniqueEvents.map(e => e.split(' - ')[0]);
+                  if (new Set(newBaseNames).size >= attractions.length) {
+                      isAnyComboNow = true;
+                  }
+
+                  return base44.entities.Wristband.update(wb.id, { allowed_events: uniqueEvents });
+              }
           }
+          return Promise.resolve();
       });
       await Promise.all(updatePromises);
 
+      if (!anyEventAdded) {
+          setIsSubmitting(false);
+          return toast.error("האירועים שנבחרו כבר קיימים בכל הצמידים שסומנו");
+      }
+
       // 2. Create PendingSale Immediately
-      // Calculate new total requested amount (Old + New)
       const oldRequested = parseFloat(foundOrder.details.requested_amount || 0);
-      const newRequested = oldRequested + totalAmount;
+      const newRequested = oldRequested + calculatedTotal;
 
       const baseData = {
           customer: foundOrder.details.customer,
@@ -182,19 +198,17 @@ export default function AddEventToWristband() {
       await base44.entities.PendingSale.create({
           order_number: foundOrder.details.order_number,
           requested_amount: newRequested.toString(),
-          comments: foundOrder.details.comments, // Keep original comments
-          sales_rep: foundOrder.details.sales_rep, // Keep original sales rep
+          comments: foundOrder.details.comments, 
+          sales_rep: foundOrder.details.sales_rep, 
           ...baseData,
-          // Copy existing payment amounts
           eur_amount: foundOrder.details.eur_amount || "0",
           shekel_amount: foundOrder.details.shekel_amount || "0",
           dollar_amount: foundOrder.details.dollar_amount || "0",
           bit_amount: foundOrder.details.bit_amount || "0",
           eur_status: foundOrder.details.eur_status || "0", 
+          is_combo: foundOrder.details.is_combo || isAnyComboNow,
           created_date: new Date().toISOString()
       });
-
-      // Task creation removed as per user request
 
       toast.success("האירועים נוספו והתשלום עבר למכירה בהמתנה");
       navigate(createPageUrl('SellerDashboard'));
@@ -208,23 +222,48 @@ export default function AddEventToWristband() {
   };
 
   // --- Calculations ---
-  const calculatedTotal = useMemo(() => {
-    const eventPrice = Array.from(selectedEvents).reduce((sum, id) => {
-      const ev = attractions.find(a => a.id === id);
-      if (!ev) return sum;
+  const { calculatedTotal, isUpgradingToCombo } = useMemo(() => {
+    let total = 0;
+    let upgraded = false;
+    
+    if (!attractions || attractions.length === 0) return { calculatedTotal: 0, isUpgradingToCombo: false };
+
+    Array.from(selectedWristbands).forEach(nfcId => {
+      const wb = foundOrder?.wristbands.find(w => w.nfc_id === nfcId);
+      if (!wb) return;
       
-      // Check for conflicts
-      const isConflict = Array.from(selectedWristbands).some(nfcId => {
-          const wb = foundOrder?.wristbands.find(w => w.nfc_id === nfcId);
-          return wb?.allowed_events?.includes(ev.name);
+      const currentEvents = wb.allowed_events || [];
+      const currentBaseNames = currentEvents.map(e => e.split(' - ')[0]);
+      
+      const newValidEvents = Array.from(selectedEvents).filter(id => {
+         const ev = attractions.find(a => a.id === id);
+         return ev && !currentBaseNames.includes(ev.name);
       });
       
-      if (isConflict) return sum;
+      const newBaseNames = newValidEvents.map(id => attractions.find(a => a.id === id).name);
+      
+      const allBaseNames = new Set([...currentBaseNames, ...newBaseNames]);
+      
+      const isComboNow = allBaseNames.size >= attractions.length;
+      const wasComboBefore = currentBaseNames.length >= attractions.length;
+      
+      if (isComboNow && !wasComboBefore) {
+         upgraded = true;
+         const alreadyPaid = currentBaseNames.reduce((sum, name) => {
+             const att = attractions.find(a => a.name === name);
+             return sum + (att?.price_eur || 0);
+         }, 0);
+         total += Math.max(0, comboPrice - alreadyPaid);
+      } else {
+         total += newValidEvents.reduce((sum, id) => {
+            const ev = attractions.find(a => a.id === id);
+            return sum + (ev?.price_eur || 0);
+         }, 0);
+      }
+    });
 
-      return sum + (ev.price_eur || 0);
-    }, 0);
-    return eventPrice * selectedWristbands.size;
-  }, [selectedEvents, selectedWristbands, attractions, foundOrder]);
+    return { calculatedTotal: total, isUpgradingToCombo: upgraded };
+  }, [selectedEvents, selectedWristbands, attractions, foundOrder, comboPrice]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 pb-24" dir="rtl">
@@ -387,7 +426,14 @@ export default function AddEventToWristband() {
                 <div className="max-w-xl mx-auto flex items-center justify-between gap-4">
                     <div>
                         <div className="text-xs text-slate-500">סה"כ לתשלום</div>
-                        <div className="text-2xl font-black text-slate-900">€{calculatedTotal}</div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl font-black text-slate-900">€{calculatedTotal}</span>
+                            {isUpgradingToCombo && (
+                                <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white animate-pulse border-none">
+                                    שדרוג לקומבו!
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                     <Button 
                         size="lg" 
