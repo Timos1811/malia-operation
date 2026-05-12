@@ -35,6 +35,7 @@ export default function SwapWristband() {
   const [feedback, setFeedback] = useState(null);
 
   const scanLockRef = useRef(false);
+  const ndefRef = useRef(null);
 
   // --- Logic ---
 
@@ -43,7 +44,10 @@ export default function SwapWristband() {
     
     setScanning(true);
     try {
-      const ndef = new window.NDEFReader();
+      if (!ndefRef.current) {
+        ndefRef.current = new window.NDEFReader();
+      }
+      const ndef = ndefRef.current;
       await ndef.scan();
       toast.info(targetStep === 1 ? "קרב צמיד ישן..." : "קרב צמיד חדש...");
 
@@ -179,6 +183,9 @@ export default function SwapWristband() {
       setStep(3);
       playSound('success');
       toast.success("הצמיד הוחלף בהצלחה!");
+      if (ndefRef.current) {
+        ndefRef.current.onreading = null;
+      }
     } catch (error) {
       console.error(error);
       toast.error("שגיאה בביצוע ההחלפה");
@@ -194,6 +201,9 @@ export default function SwapWristband() {
     setManualOldId('');
     setScanning(false);
     setFeedback(null);
+    if (ndefRef.current) {
+      ndefRef.current.onreading = null;
+    }
   };
 
   const playSound = (type = 'success') => {
