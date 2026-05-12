@@ -1,0 +1,26 @@
+{
+  "name": "Combo",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d4\u05e7\u05d5\u05de\u05d1\u05d5"
+    },
+    "price_eur": {
+      "type": "number",
+      "description": "\u05de\u05d7\u05d9\u05e8 \u05d4\u05e7\u05d5\u05de\u05d1\u05d5 \u05d1\u05d9\u05d5\u05e8\u05d5"
+    },
+    "attractions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "\u05e8\u05e9\u05d9\u05de\u05ea \u05de\u05d6\u05d4\u05d9 \u05d0\u05d9\u05e8\u05d5\u05e2\u05d9\u05dd (Attraction IDs) \u05d4\u05db\u05dc\u05d5\u05dc\u05d9\u05dd \u05d1\u05e7\u05d5\u05de\u05d1\u05d5"
+    }
+  },
+  "required": [
+    "name",
+    "price_eur",
+    "attractions"
+  ]
+}

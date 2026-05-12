@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Ticket, Plus, Trash2, Save, X, Pencil, Building2, Truck, AlertCircle } from "lucide-react";
+import { Ticket, Plus, Trash2, Save, X, Pencil, Building2, Truck, AlertCircle, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -171,6 +171,206 @@ const SimpleEntityManager = ({ entityName, title, icon: Icon, placeholder }) => 
                         <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(item.id)} className="h-8 w-8 text-slate-500 hover:text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </Button>
+                      </div>
+                    </TableCell>
+                  </>
+                )}
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
+
+const ComboManager = ({ attractions }) => {
+  const queryClient = useQueryClient();
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [newItem, setNewItem] = useState({ name: '', price_eur: '', attractions: [] });
+  const [editItem, setEditItem] = useState({ name: '', price_eur: '', attractions: [] });
+
+  const { data: combos = [], isLoading } = useQuery({
+    queryKey: ['combos'],
+    queryFn: () => base44.entities.Combo.list('-created_date'),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => base44.entities.Combo.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['combos'] });
+      setNewItem({ name: '', price_eur: '', attractions: [] });
+      setIsAdding(false);
+      toast.success('קומבו נוסף בהצלחה');
+    },
+    onError: () => toast.error('שגיאה בהוספת קומבו'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Combo.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['combos'] });
+      setEditingId(null);
+      toast.success('קומבו עודכן בהצלחה');
+    },
+    onError: () => toast.error('שגיאה בעדכון קומבו'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.Combo.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['combos'] });
+      toast.success('קומבו נמחק בהצלחה');
+    },
+    onError: () => toast.error('שגיאה במחיקת קומבו'),
+  });
+
+  const handleAdd = () => {
+    if (!newItem.name || !newItem.price_eur || newItem.attractions.length === 0) {
+      return toast.error('נא למלא שם, מחיר ולבחור לפחות אירוע אחד');
+    }
+    createMutation.mutate({
+      name: newItem.name,
+      price_eur: parseFloat(newItem.price_eur),
+      attractions: newItem.attractions
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!editItem.name || !editItem.price_eur || editItem.attractions.length === 0) {
+      return toast.error('נא למלא שם, מחיר ולבחור לפחות אירוע אחד');
+    }
+    updateMutation.mutate({
+      id: editingId,
+      data: {
+        name: editItem.name,
+        price_eur: parseFloat(editItem.price_eur),
+        attractions: editItem.attractions
+      }
+    });
+  };
+
+  const startEdit = (combo) => {
+    setEditingId(combo.id);
+    setEditItem({
+      name: combo.name,
+      price_eur: combo.price_eur,
+      attractions: combo.attractions || []
+    });
+  };
+
+  const toggleAttraction = (attractionId, isEditing) => {
+    if (isEditing) {
+      setEditItem(prev => {
+        const atts = prev.attractions || [];
+        return { ...prev, attractions: atts.includes(attractionId) ? atts.filter(id => id !== attractionId) : [...atts, attractionId] };
+      });
+    } else {
+      setNewItem(prev => {
+        const atts = prev.attractions || [];
+        return { ...prev, attractions: atts.includes(attractionId) ? atts.filter(id => id !== attractionId) : [...atts, attractionId] };
+      });
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="p-4 border-b bg-slate-50 flex justify-between items-center">
+        <h3 className="font-bold flex items-center gap-2 text-slate-700">
+          <Layers className="w-5 h-5" /> ניהול קומבואים אישיים
+        </h3>
+        <Button onClick={() => setIsAdding(true)} size="sm" className="gap-2 bg-slate-800 hover:bg-slate-900" disabled={isAdding}>
+          <Plus className="w-4 h-4" /> הוסף קומבו
+        </Button>
+      </div>
+      <Table>
+        <TableHeader className="bg-slate-50">
+          <TableRow>
+            <TableHead className="text-right font-bold w-[25%]">שם הקומבו</TableHead>
+            <TableHead className="text-right font-bold w-[40%]">אירועים כלולים</TableHead>
+            <TableHead className="text-right font-bold w-[15%]">מחיר (€)</TableHead>
+            <TableHead className="text-center font-bold w-[20%]">פעולות</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isAdding && (
+            <TableRow className="bg-blue-50/50">
+              <TableCell>
+                <Input placeholder="שם הקומבו (לדוג׳ קומבו ערב)" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} className="bg-white" autoFocus />
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-2">
+                  {attractions.map(att => (
+                    <Badge 
+                      key={att.id} 
+                      onClick={() => toggleAttraction(att.id, false)}
+                      className={`cursor-pointer ${newItem.attractions.includes(att.id) ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                    >
+                      {att.name}
+                    </Badge>
+                  ))}
+                </div>
+              </TableCell>
+              <TableCell>
+                <Input type="number" placeholder="0.00" value={newItem.price_eur} onChange={(e) => setNewItem({ ...newItem, price_eur: e.target.value })} className="bg-white" />
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center justify-center gap-2">
+                  <Button size="sm" onClick={handleAdd} className="bg-green-600 hover:bg-green-700"><Save className="w-4 h-4" /></Button>
+                  <Button size="sm" variant="ghost" onClick={() => setIsAdding(false)}><X className="w-4 h-4" /></Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+
+          {isLoading ? (
+            <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">טוען נתונים...</TableCell></TableRow>
+          ) : combos.length === 0 && !isAdding ? (
+            <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">לא הוגדרו קומבואים נוספים</TableCell></TableRow>
+          ) : (
+            combos.map((item) => (
+              <TableRow key={item.id} className="hover:bg-slate-50/50">
+                {editingId === item.id ? (
+                  <>
+                    <TableCell><Input value={editItem.name} onChange={(e) => setEditItem({ ...editItem, name: e.target.value })} /></TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        {attractions.map(att => (
+                          <Badge 
+                            key={att.id} 
+                            onClick={() => toggleAttraction(att.id, true)}
+                            className={`cursor-pointer ${editItem.attractions.includes(att.id) ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                          >
+                            {att.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell><Input type="number" value={editItem.price_eur} onChange={(e) => setEditItem({ ...editItem, price_eur: e.target.value })} /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-2">
+                        <Button size="sm" onClick={handleUpdate} className="bg-green-600 hover:bg-green-700"><Save className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}><X className="w-4 h-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {(item.attractions || []).map(id => {
+                          const att = attractions.find(a => a.id === id);
+                          return att ? <Badge key={id} variant="outline" className="bg-white">{att.name}</Badge> : null;
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-lg font-bold text-slate-800">€{item.price_eur?.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-2">
+                        <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-8 w-8 text-slate-500 hover:text-blue-600"><Pencil className="w-4 h-4" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(item.id)} className="h-8 w-8 text-slate-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </TableCell>
                   </>
@@ -366,9 +566,12 @@ export default function EventsAndAttractions() {
         </div>
 
         <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-white border shadow-sm rounded-xl mb-6">
+            <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-white border shadow-sm rounded-xl mb-6">
                 <TabsTrigger value="events" className="gap-2 py-3 rounded-lg data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
-                    <Ticket className="w-4 h-4" /> אירועים ואטרקציות
+                    <Ticket className="w-4 h-4" /> אירועים
+                </TabsTrigger>
+                <TabsTrigger value="combos" className="gap-2 py-3 rounded-lg data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
+                    <Layers className="w-4 h-4" /> חבילות וקומבואים
                 </TabsTrigger>
                 <TabsTrigger value="hotels" className="gap-2 py-3 rounded-lg data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
                     <Building2 className="w-4 h-4" /> בתי מלון
@@ -626,6 +829,10 @@ export default function EventsAndAttractions() {
                     </TableBody>
                   </Table>
                 </div>
+            </TabsContent>
+
+            <TabsContent value="combos" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <ComboManager attractions={attractions} />
             </TabsContent>
 
             <TabsContent value="hotels" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
