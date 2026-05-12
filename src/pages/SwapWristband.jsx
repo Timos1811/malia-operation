@@ -98,6 +98,11 @@ export default function SwapWristband() {
       setStep(2);
       setFeedback(null);
       playSound('success');
+      
+      if (ndefRef.current) {
+        ndefRef.current.onreading = null;
+      }
+      setScanning(false);
     } catch (error) {
       toast.error("שגיאה בחיפוש צמיד");
     } finally {
