@@ -31,10 +31,12 @@ export default function SellerDashboard() {
         setUser(currentUser);
 
         if (currentUser?.full_name) {
-          // Fetch sales for this user
-          const sales = await base44.entities.TableData.filter({ 
-            sales_rep: currentUser.full_name 
-          }, '-created_date', 1000);
+          // Fetch sales and pending sales for this user
+          const [tableSales, pendingSales] = await Promise.all([
+            base44.entities.TableData.filter({ sales_rep: currentUser.full_name }, '-created_date', 1000),
+            base44.entities.PendingSale.filter({ sales_rep: currentUser.full_name }, '-created_date', 500)
+          ]);
+          const sales = [...tableSales, ...pendingSales];
           
           const totalGroups = sales.length;
           

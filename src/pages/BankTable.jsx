@@ -141,7 +141,13 @@ export default function BankTable() {
 
   const { data: incomeData = [], isLoading: isLoadingIncome } = useQuery({
     queryKey: ['tableDataAll'],
-    queryFn: () => base44.entities.TableData.list('-created_date', 1000),
+    queryFn: async () => {
+        const [tableData, pendingSales] = await Promise.all([
+            base44.entities.TableData.list('-created_date', 1000),
+            base44.entities.PendingSale.list('-created_date', 1000)
+        ]);
+        return [...tableData, ...pendingSales];
+    },
     staleTime: 60000,
     refetchOnWindowFocus: false,
   });
