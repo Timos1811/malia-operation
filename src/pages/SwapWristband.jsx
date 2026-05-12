@@ -80,7 +80,11 @@ export default function SwapWristband() {
     setLoading(true);
     setFeedback(null);
     try {
-      const results = await base44.entities.Wristband.filter({ nfc_id: id });
+      let results = await base44.entities.Wristband.filter({ nfc_id: id });
+      if (results.length === 0) {
+        results = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
+      }
+      
       if (results.length === 0) {
         const msg = "צמיד לא משויך לקבוצה";
         const det = `הצמיד ${id} אינו קיים במערכת`;
@@ -114,7 +118,11 @@ export default function SwapWristband() {
 
     setLoading(true);
     try {
-      const exists = await base44.entities.Wristband.filter({ nfc_id: id });
+      let exists = await base44.entities.Wristband.filter({ nfc_id: id });
+      if (exists.length === 0) {
+        exists = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
+      }
+      
       if (exists.length > 0) {
         const existingWb = exists[0];
         const hasEvents = existingWb.allowed_events && existingWb.allowed_events.length > 0;
