@@ -398,20 +398,43 @@ export default function OrderDetails() {
                         <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-500" /></div>
                     ) : (
                         <div className="space-y-4">
-                            {/* Inactive Wristbands (Swapped/Cancelled) */}
-                            {wristbands.filter(wb => wb.status === 'inactive').map(wb => (
-                                <div key={wb.id} className="flex items-start gap-4 p-4 bg-orange-50 border border-orange-100 rounded-lg">
-                                    <div className="bg-orange-100 p-2 rounded-full mt-1">
-                                        <RefreshCcw className="w-4 h-4 text-orange-600" />
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-orange-900">צמיד בוטל / הוחלף</div>
-                                        <div className="text-sm text-orange-800 mt-1">
-                                            הצמיד של <strong>{wb.customer_name}</strong> (מספר: {wb.nfc_id?.replace(/:/g, "")}) סומן כלא פעיל במערכת.
+                            {/* Inactive Wristbands (Swapped/Cancelled) - find matching replacement */}
+                            {wristbands.filter(wb => wb.status === 'inactive').map(wb => {
+                                // Find the active replacement wristband (same customer, same order)
+                                const replacement = wristbands.find(other =>
+                                    other.id !== wb.id &&
+                                    other.status === 'active' &&
+                                    other.customer_name === wb.customer_name
+                                );
+                                const oldNfc = wb.nfc_id?.replace(/:/g, "");
+                                const newNfc = replacement?.nfc_id?.replace(/:/g, "");
+                                return (
+                                    <div key={wb.id} className="flex items-start gap-4 p-4 bg-orange-50 border border-orange-100 rounded-lg">
+                                        <div className="bg-orange-100 p-2 rounded-full mt-1">
+                                            <RefreshCcw className="w-4 h-4 text-orange-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-bold text-orange-900">החלפת צמיד</div>
+                                            <div className="text-sm text-orange-800 mt-1">
+                                                הצמיד של <strong>{wb.customer_name}</strong> הוחלף.
+                                            </div>
+                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded font-mono">
+                                                    ישן: {oldNfc}
+                                                </span>
+                                                {newNfc && (
+                                                    <>
+                                                        <ArrowRight className="w-3 h-3 text-orange-600 rotate-180" />
+                                                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded font-mono">
+                                                            חדש: {newNfc}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
 
                             {/* Tasks (Refunds, Add Events, General) */}
                             {orderTasks.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).map(task => (

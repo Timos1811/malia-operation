@@ -134,8 +134,9 @@ export default function SwapWristband() {
       const lowerResults = await base44.entities.Wristband.filter({ nfc_id: normalizedId });
       const upperResults = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
       const allExisting = [...lowerResults, ...upperResults];
-      // Deduplicate by id
-      const exists = Array.from(new Map(allExisting.map(wb => [wb.id, wb])).values());
+      // Deduplicate by id, and exclude the old wristband itself from the existing list
+      const exists = Array.from(new Map(allExisting.map(wb => [wb.id, wb])).values())
+        .filter(wb => wb.id !== oldWristband.id);
       
       // Only block if there's an ACTIVE wristband with events
       const activeWithEvents = exists.find(wb => 
@@ -152,13 +153,8 @@ export default function SwapWristband() {
         return;
       }
       
-      // Delete ALL existing records with this NFC id (any status) to prevent duplicates
-      for (const wb of exists) {
-        await base44.entities.Wristband.delete(wb.id);
-      }
-      
       setNewWristbandId(normalizedId);
-      await performSwap(normalizedId);
+      await performSwap(normalizedId, exists);
     } catch (error) {
       console.error(error);
       toast.error("שגיאה בבדיקת צמיד חדש");
@@ -166,30 +162,64 @@ export default function SwapWristband() {
     }
   };
 
-  const performSwap = async (targetNewId) => {
+  const performSwap = async (targetNewId, existingRecords = []) => {
     try {
-      // 1. Create new wristband with old data
-      await base44.entities.Wristband.create({
-        nfc_id: targetNewId,
-        order_number: oldWristband.order_number,
-        customer_name: oldWristband.customer_name,
-        allowed_events: oldWristband.allowed_events,
-        status: 'active',
-        valid_until: oldWristband.valid_until // Copy expiration date
-      });
+      const oldNfcDisplay = (oldWristband.nfc_id || '').replace(/:/g, "");
+      const newNfcDisplay = targetNewId.replace(/:/g, "");
+
+      // 1. Reuse an existing record with this NFC id if present (update it), otherwise create new.
+      // This prevents duplicate records for the same nfc_id.
+      if (existingRecords.length > 0) {
+        const [primary, ...extras] = existingRecords;
+        await base44.entities.Wristband.update(primary.id, {
+          nfc_id: targetNewId,
+          order_number: oldWristband.order_number,
+          customer_name: oldWristband.customer_name,
+          allowed_events: oldWristband.allowed_events,
+          status: 'active',
+          valid_until: oldWristband.valid_until
+        });
+        // Remove any extra duplicates that may have existed
+        for (const dup of extras) {
+          await base44.entities.Wristband.delete(dup.id);
+        }
+      } else {
+        await base44.entities.Wristband.create({
+          nfc_id: targetNewId,
+          order_number: oldWristband.order_number,
+          customer_name: oldWristband.customer_name,
+          allowed_events: oldWristband.allowed_events,
+          status: 'active',
+          valid_until: oldWristband.valid_until
+        });
+      }
 
       // 2. Mark old wristband as inactive (instead of deleting)
       await base44.entities.Wristband.update(oldWristband.id, {
         status: 'inactive'
       });
 
-      // 3. Create PendingSale record for the swap fee
+      // 3. Create a Task entry to document the swap in order history
+      try {
+        await base44.entities.Task.create({
+          title: `החלפת צמיד - הזמנה ${oldWristband.order_number}`,
+          description: `הצמיד של ${oldWristband.customer_name || ''} הוחלף.\nצמיד ישן: ${oldNfcDisplay}\nצמיד חדש: ${newNfcDisplay}`,
+          status: 'done',
+          task_type: 'general',
+          order_number: oldWristband.order_number,
+          sales_rep: currentUser?.full_name || ''
+        });
+      } catch (e) {
+        console.error("Failed to create swap history task", e);
+      }
+
+      // 4. Create PendingSale record for the swap fee
       try {
         await base44.entities.PendingSale.create({
           order_number: oldWristband.order_number,
           requested_amount: "10",
           sales_rep: currentUser?.full_name || '',
-          comments: "החלפת צמיד",
+          comments: `החלפת צמיד (ישן: ${oldNfcDisplay} → חדש: ${newNfcDisplay})`,
           // Minimal required fields with empty values
           customer: "",
           nights: "",
