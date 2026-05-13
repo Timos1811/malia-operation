@@ -130,11 +130,12 @@ export default function SwapWristband() {
 
     setLoading(true);
     try {
-      // Check if new wristband is already assigned to ACTIVE order
-      let exists = await base44.entities.Wristband.filter({ nfc_id: normalizedId });
-      if (exists.length === 0) {
-        exists = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
-      }
+      // Check if new wristband already exists in any casing
+      const lowerResults = await base44.entities.Wristband.filter({ nfc_id: normalizedId });
+      const upperResults = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
+      const allExisting = [...lowerResults, ...upperResults];
+      // Deduplicate by id
+      const exists = Array.from(new Map(allExisting.map(wb => [wb.id, wb])).values());
       
       // Only block if there's an ACTIVE wristband with events
       const activeWithEvents = exists.find(wb => 
@@ -151,11 +152,9 @@ export default function SwapWristband() {
         return;
       }
       
-      // If there are inactive records with this ID, delete them to keep DB clean
+      // Delete ALL existing records with this NFC id (any status) to prevent duplicates
       for (const wb of exists) {
-        if (wb.status === 'inactive' || !wb.allowed_events || wb.allowed_events.length === 0) {
-          await base44.entities.Wristband.delete(wb.id);
-        }
+        await base44.entities.Wristband.delete(wb.id);
       }
       
       setNewWristbandId(normalizedId);
