@@ -308,9 +308,20 @@ export default function OrderDetails() {
                                 <div className="col-span-3">מסיבות ואירועים</div>
                             </div>
 
-                            {/* Wristband List */}
-                            {wristbands
-                                .filter(wb => wb.status !== 'inactive')
+                            {/* Wristband List - deduplicate active wristbands by nfc_id (keep most recent) */}
+                            {Array.from(
+                                wristbands
+                                    .filter(wb => wb.status !== 'inactive')
+                                    .reduce((map, wb) => {
+                                        const key = (wb.nfc_id || '').toLowerCase().replace(/:/g, "");
+                                        const existing = map.get(key);
+                                        if (!existing || new Date(wb.created_date) > new Date(existing.created_date)) {
+                                            map.set(key, wb);
+                                        }
+                                        return map;
+                                    }, new Map())
+                                    .values()
+                            )
                                 .filter(wb => {
                                     if (!wristbandFilter) return true;
                                     const search = wristbandFilter.toLowerCase();

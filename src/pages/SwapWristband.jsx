@@ -133,7 +133,13 @@ export default function SwapWristband() {
       // Check if new wristband already exists in any casing
       const lowerResults = await base44.entities.Wristband.filter({ nfc_id: normalizedId });
       const upperResults = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
-      const allExisting = [...lowerResults, ...upperResults];
+      // Also check for any wristband in the same order with the same customer (potential leftover duplicate)
+      const sameOrderResults = await base44.entities.Wristband.filter({ order_number: oldWristband.order_number });
+      const orderDuplicates = sameOrderResults.filter(wb =>
+        wb.id !== oldWristband.id &&
+        wb.customer_name === oldWristband.customer_name
+      );
+      const allExisting = [...lowerResults, ...upperResults, ...orderDuplicates];
       // Deduplicate by id, and exclude the old wristband itself from the existing list
       const exists = Array.from(new Map(allExisting.map(wb => [wb.id, wb])).values())
         .filter(wb => wb.id !== oldWristband.id);
