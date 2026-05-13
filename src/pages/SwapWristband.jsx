@@ -58,6 +58,12 @@ export default function SwapWristband() {
         // Remove colons from the serial number and normalize
         const serialNumber = event.serialNumber.replace(/:/g, "").toLowerCase();
         
+        // Immediately disable the reader after one read - require button press for next scan
+        if (ndefRef.current) {
+          ndefRef.current.onreading = null;
+        }
+        setScanning(false);
+        
         try {
           if (targetStep === 1) {
             await findOldWristband(serialNumber);
@@ -66,7 +72,6 @@ export default function SwapWristband() {
           }
         } finally {
           scanLockRef.current = false;
-          setScanning(false);
         }
       };
     } catch (error) {
