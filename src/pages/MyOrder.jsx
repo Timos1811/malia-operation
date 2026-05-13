@@ -1,15 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PartyPopper, Search, Loader2, Calendar, Users, ShieldAlert, CheckCircle2, Hash, Tag } from 'lucide-react';
+import { PartyPopper, Search, Loader2, Calendar, Users, ShieldAlert, CheckCircle2, Hash, Tag, ScanLine } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MyOrder() {
   const [searchInput, setSearchInput] = useState('');
   const [searchMode, setSearchMode] = useState('order'); // 'order' | 'wristband'
   const [activeSearch, setActiveSearch] = useState(null); // { mode, value }
+  const [scanning, setScanning] = useState(false);
+  const scanLockRef = useRef(false);
+
+  const handleNFCScan = async () => {
+    if (!('NDEFReader' in window)) {
+      toast.error("דפדפן זה לא תומך ב-NFC");
+      return;
+    }
+    setScanning(true);
+    try {
+      const ndef = new window.NDEFReader();
+      await ndef.scan();
+      toast.info("קרב את הצמיד למכשיר...");
+      ndef.onreading = (event) => {
+        if (scanLockRef.current) return;
+        scanLockRef.current = true;
+        const nfcId = event.serialNumber.replace(/:/g, "").toLowerCase();
+        setSearchInput(nfcId);
+        setActiveSearch({ mode: 'wristband', value: nfcId });
+        setScanning(false);
+        setTimeout(() => { scanLockRef.current = false; }, 1000);
+      };
+    } catch (error) {
+      console.error(error);
+      toast.error("שגיאה בהפעלת NFC");
+      setScanning(false);
+    }
+  };
 
   // Fetch wristbands related to the search
   const { data: wristbands, isLoading } = useQuery({
@@ -84,15 +113,34 @@ export default function MyOrder() {
             <form onSubmit={handleSearch} className="flex gap-2">
               <Input
                 type={searchMode === 'order' ? 'number' : 'text'}
-                placeholder={searchMode === 'order' ? 'הקלד מספר הזמנה...' : 'הקלד מזהה צמיד (NFC ID)...'}
+                placeholder={searchMode === 'order' ? 'הקלד מספר הזמנה...' : 'הקלד מזהה צמיד (אותיות ומספרים)...'}
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => setSearchInput(searchMode === 'wristband' ? e.target.value.toLowerCase() : e.target.value)}
                 className="text-lg h-12 bg-slate-50 border-slate-200"
               />
               <Button type="submit" className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700" disabled={isLoading}>
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
               </Button>
             </form>
+
+            {searchMode === 'wristband' && (
+              <Button
+                type="button"
+                onClick={handleNFCScan}
+                disabled={scanning}
+                className={`w-full h-14 text-base font-bold rounded-xl ${
+                  scanning 
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                }`}
+              >
+                {scanning ? (
+                  <><Loader2 className="w-5 h-5 animate-spin ml-2" /> ממתין לסריקה...</>
+                ) : (
+                  <><ScanLine className="w-5 h-5 ml-2" /> סרוק צמיד (NFC)</>
+                )}
+              </Button>
+            )}
           </CardContent>
         </Card>
 
