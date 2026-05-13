@@ -1,35 +1,45 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PartyPopper, Search, Loader2, Calendar, Users, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { PartyPopper, Search, Loader2, Calendar, Users, ShieldAlert, CheckCircle2, Hash, Tag } from 'lucide-react';
 
 export default function MyOrder() {
   const [searchInput, setSearchInput] = useState('');
-  const [orderNumber, setOrderNumber] = useState('');
+  const [searchMode, setSearchMode] = useState('order'); // 'order' | 'wristband'
+  const [activeSearch, setActiveSearch] = useState(null); // { mode, value }
 
-  // Fetch wristbands related to the order number
-  const { data: wristbands, isLoading, error } = useQuery({
-    queryKey: ['my-order', orderNumber],
-    queryFn: () => base44.entities.Wristband.filter({ order_number: orderNumber }),
-    enabled: !!orderNumber,
+  // Fetch wristbands related to the search
+  const { data: wristbands, isLoading } = useQuery({
+    queryKey: ['my-order', activeSearch?.mode, activeSearch?.value],
+    queryFn: async () => {
+      if (!activeSearch) return [];
+      if (activeSearch.mode === 'order') {
+        return base44.entities.Wristband.filter({ order_number: activeSearch.value });
+      } else {
+        const lower = activeSearch.value.toLowerCase();
+        const upper = activeSearch.value.toUpperCase();
+        const lowerResults = await base44.entities.Wristband.filter({ nfc_id: lower });
+        const upperResults = lower !== upper ? await base44.entities.Wristband.filter({ nfc_id: upper }) : [];
+        const all = [...lowerResults, ...upperResults];
+        return Array.from(new Map(all.map(wb => [wb.id, wb])).values());
+      }
+    },
+    enabled: !!activeSearch,
     retry: false
   });
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchInput.trim()) {
-      setOrderNumber(searchInput.trim());
+      setActiveSearch({ mode: searchMode, value: searchInput.trim() });
     }
   };
 
-  let hasValidWristband = false;
-
-  if (wristbands && wristbands.length > 0) {
-    hasValidWristband = wristbands.some(wb => wb.status === 'active');
-  }
+  const displayOrderNumber = wristbands && wristbands.length > 0 ? wristbands[0].order_number : null;
+  const hasValidWristband = wristbands && wristbands.some(wb => wb.status === 'active');
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center p-4 md:p-8" dir="rtl">
@@ -41,16 +51,40 @@ export default function MyOrder() {
             <PartyPopper className="w-8 h-8 text-indigo-600" />
           </div>
           <h1 className="text-3xl font-black text-slate-800">ההזמנה שלי</h1>
-          <p className="text-slate-500">הזן את מספר ההזמנה שקיבלת כדי לראות את האירועים שלך</p>
+          <p className="text-slate-500">חפש לפי מספר הזמנה או לפי מזהה צמיד</p>
         </div>
 
         {/* Search Form */}
         <Card className="border-none shadow-md overflow-hidden rounded-2xl">
-          <CardContent className="p-6">
+          <CardContent className="p-6 space-y-4">
+            {/* Mode Toggle */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => { setSearchMode('order'); setSearchInput(''); }}
+                className={`py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                  searchMode === 'order' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                <Hash className="w-4 h-4" />
+                מספר הזמנה
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSearchMode('wristband'); setSearchInput(''); }}
+                className={`py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                  searchMode === 'wristband' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                <Tag className="w-4 h-4" />
+                מזהה צמיד
+              </button>
+            </div>
+
             <form onSubmit={handleSearch} className="flex gap-2">
               <Input
-                type="number"
-                placeholder="הקלד מספר הזמנה..."
+                type={searchMode === 'order' ? 'number' : 'text'}
+                placeholder={searchMode === 'order' ? 'הקלד מספר הזמנה...' : 'הקלד מזהה צמיד (NFC ID)...'}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="text-lg h-12 bg-slate-50 border-slate-200"
@@ -69,15 +103,21 @@ export default function MyOrder() {
           </div>
         )}
 
-        {orderNumber && !isLoading && (!wristbands || wristbands.length === 0) && (
+        {activeSearch && !isLoading && (!wristbands || wristbands.length === 0) && (
           <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
             <ShieldAlert className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-slate-700 mb-1">הזמנה לא נמצאה</h3>
-            <p className="text-slate-500 text-sm">לא מצאנו צמידים שמשויכים למספר ההזמנה הזה. אנא ודא שהקשת את המספר הנכון.</p>
+            <h3 className="text-lg font-bold text-slate-700 mb-1">
+              {activeSearch.mode === 'order' ? 'הזמנה לא נמצאה' : 'צמיד לא נמצא'}
+            </h3>
+            <p className="text-slate-500 text-sm">
+              {activeSearch.mode === 'order' 
+                ? 'לא מצאנו צמידים שמשויכים למספר ההזמנה הזה. אנא ודא שהקשת את המספר הנכון.'
+                : 'לא מצאנו צמיד עם המזהה הזה. אנא ודא שהקשת את המזהה הנכון.'}
+            </p>
           </div>
         )}
 
-        {orderNumber && !isLoading && wristbands && wristbands.length > 0 && (
+        {activeSearch && !isLoading && wristbands && wristbands.length > 0 && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             <Card className="border-none shadow-md rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white overflow-hidden relative">
@@ -87,12 +127,14 @@ export default function MyOrder() {
               <CardContent className="p-6 relative z-10">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="text-indigo-100 text-sm font-medium mb-1">הזמנה מספר</p>
-                    <h2 className="text-3xl font-black">{orderNumber}</h2>
+                    <p className="text-indigo-100 text-sm font-medium mb-1">
+                      {activeSearch.mode === 'order' ? 'הזמנה מספר' : 'הזמנה משויכת'}
+                    </p>
+                    <h2 className="text-3xl font-black">{displayOrderNumber}</h2>
                   </div>
                   <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold backdrop-blur-sm flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    {wristbands.length} צמידים
+                    {wristbands.length} {wristbands.length === 1 ? 'צמיד' : 'צמידים'}
                   </div>
                 </div>
                 
@@ -105,7 +147,9 @@ export default function MyOrder() {
               </CardContent>
             </Card>
 
-            <h3 className="font-bold text-slate-700 px-2 pt-2">הצמידים והאירועים שלך:</h3>
+            <h3 className="font-bold text-slate-700 px-2 pt-2">
+              {activeSearch.mode === 'wristband' ? 'פרטי הצמיד:' : 'הצמידים והאירועים שלך:'}
+            </h3>
             
             <div className="grid gap-4">
               {wristbands.map((wb, idx) => (
@@ -148,7 +192,7 @@ export default function MyOrder() {
             {!hasValidWristband && (
                <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 text-sm font-medium flex items-start gap-2">
                  <ShieldAlert className="w-5 h-5 shrink-0" />
-                 שימו לב: נראה שהצמידים בהזמנה זו אינם פעילים כרגע. אנא פנו לנציג שלכם.
+                 שימו לב: נראה שהצמידים אינם פעילים כרגע. אנא פנו לנציג שלכם.
                </div>
             )}
 
