@@ -241,14 +241,19 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Check for duplicate order number
-      const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
+      // Check for duplicate order number (skip if no scanned wristbands - allow re-saving)
       const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
 
-      if (existingPending.length > 0 || existingTable.length > 0) {
+      if (existingTable.length > 0) {
         toast.error("מספר הזמנה זה כבר קיים במערכת!");
         setIsSubmitting(false);
         return;
+      }
+      
+      // If a PendingSale already exists for this order (e.g. from a previous attempt), delete it first
+      const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
+      for (const ps of existingPending) {
+        await base44.entities.PendingSale.delete(ps.id);
       }
 
       // מיפוי ערכי מגדר לעברית
