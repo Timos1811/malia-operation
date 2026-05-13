@@ -44,10 +44,9 @@ export default function SwapWristband() {
     
     setScanning(true);
     try {
-      if (!ndefRef.current) {
-        ndefRef.current = new window.NDEFReader();
-      }
-      const ndef = ndefRef.current;
+      // Always create a fresh reader instance for each scan to avoid "already scanning" errors
+      const ndef = new window.NDEFReader();
+      ndefRef.current = ndef;
       await ndef.scan();
       toast.info(targetStep === 1 ? "קרב צמיד ישן..." : "קרב צמיד חדש...");
 
