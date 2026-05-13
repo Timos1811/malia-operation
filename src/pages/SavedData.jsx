@@ -26,6 +26,7 @@ const COLUMNS = [
   'שקל',
   'דולר',
   'ביט',
+  'הנחה',
   'סטטוס בEUR',
   'שם נציג',
   'תאריך עזיבה',
@@ -45,6 +46,7 @@ const COLUMN_KEYS = [
   'shekel_amount',
   'dollar_amount',
   'bit_amount',
+  'discount_amount',
   'eur_status',
   'sales_rep',
   'departure_date',
@@ -416,10 +418,11 @@ export default function SavedData() {
                             const shekelAmount = parseFloat(row.shekel_amount) || 0;
                             const dollarAmount = parseFloat(row.dollar_amount) || 0;
                             const bitAmount = parseFloat(row.bit_amount) || 0;
+                            const discountAmount = parseFloat(row.discount_amount) || 0;
                             const requestedAmount = parseFloat(row.requested_amount) || 0;
 
                             // Convert to EUR: 1 Shekel = 0.26 EUR, 1 Dollar = 0.95 EUR, 1 Bit = 0.26 EUR
-                            const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26);
+                            const totalInEur = eurAmount + (shekelAmount * 0.26) + (dollarAmount * 0.95) + (bitAmount * 0.26) + discountAmount;
 
                             if (totalInEur && requestedAmount) {
                               const diff = totalInEur - requestedAmount;

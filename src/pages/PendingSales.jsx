@@ -15,12 +15,12 @@ import { createPageUrl } from '../utils';
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות', 'מעטפה'
+  'חברה', 'סכום מבוקש', 'EUR', 'שקל', 'דולר', 'ביט', 'הנחה', 'סטטוס בEUR', 'שם נציג', 'הערות', 'מעטפה'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments', 'envelope_received'
+  'company', 'requested_amount', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'discount_amount', 'eur_status', 'sales_rep', 'comments', 'envelope_received'
 ];
 
 function EditableCell({ value, onBlur, disabled, type = 'text' }) {
@@ -110,6 +110,7 @@ export default function PendingSales() {
           shekel_amount: "",
           dollar_amount: "",
           bit_amount: "",
+          discount_amount: "",
           eur_status: "",
           sales_rep: "",
           comments: "",
@@ -131,7 +132,7 @@ export default function PendingSales() {
     const updates = { [colKey]: (colKey === 'order_number' && value) ? value.trim() : value };
 
     // If currency fields changed, recalculate status
-    if (['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'requested_amount'].includes(colKey)) {
+    if (['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'discount_amount', 'requested_amount'].includes(colKey)) {
         // We calculate based on the new value and existing values
         const row = { ...originalRow, ...updates };
         const status = calculateStatusText(row);
@@ -168,6 +169,7 @@ export default function PendingSales() {
                     shekel_amount: existing.shekel_amount,
                     dollar_amount: existing.dollar_amount,
                     bit_amount: existing.bit_amount,
+                    discount_amount: existing.discount_amount,
                     eur_status: existing.eur_status,
                     sales_rep: existing.sales_rep || originalRow.sales_rep, // Keep current if empty
                     comments: existing.comments
@@ -193,6 +195,7 @@ export default function PendingSales() {
           shekel_amount: row.shekel_amount || '',
           dollar_amount: row.dollar_amount || '',
           bit_amount: row.bit_amount || '',
+          discount_amount: row.discount_amount || '',
           comments: row.comments || ''
       });
       setIsMoveDialogOpen(true);
@@ -243,6 +246,7 @@ export default function PendingSales() {
                   shekel_amount: row.shekel_amount,
                   dollar_amount: row.dollar_amount,
                   bit_amount: row.bit_amount,
+                  discount_amount: row.discount_amount,
                   eur_status: row.eur_status,
                   sales_rep: row.sales_rep,
                   comments: row.comments,
@@ -282,9 +286,10 @@ export default function PendingSales() {
     const nis = parseFloat(row.shekel_amount) || 0;
     const usd = parseFloat(row.dollar_amount) || 0;
     const bit = parseFloat(row.bit_amount) || 0;
+    const discount = parseFloat(row.discount_amount) || 0;
     const req = parseFloat(row.requested_amount) || 0;
     
-    const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+    const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26) + discount;
     
     if (!row.requested_amount) return "0";
 
@@ -299,9 +304,10 @@ export default function PendingSales() {
     const nis = parseFloat(row.shekel_amount) || 0;
     const usd = parseFloat(row.dollar_amount) || 0;
     const bit = parseFloat(row.bit_amount) || 0;
+    const discount = parseFloat(row.discount_amount) || 0;
     const req = parseFloat(row.requested_amount) || 0;
     
-    const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+    const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26) + discount;
     
     if (!row.requested_amount) return { text: '—', color: 'bg-slate-100 text-slate-600' };
 
@@ -591,6 +597,15 @@ export default function PendingSales() {
                         type="number" 
                         value={moveAmounts.bit_amount} 
                         onChange={(e) => setMoveAmounts({...moveAmounts, bit_amount: e.target.value})}
+                    />
+                </div>
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label htmlFor="discount">הנחה (EUR)</Label>
+                    <Input 
+                        id="discount" 
+                        type="number" 
+                        value={moveAmounts.discount_amount} 
+                        onChange={(e) => setMoveAmounts({...moveAmounts, discount_amount: e.target.value})}
                     />
                 </div>
             </div>

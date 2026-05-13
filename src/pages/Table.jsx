@@ -8,12 +8,12 @@ import { base44 } from "@/api/base44Client";
 
 const COLUMNS = [
   'מספר הזמנה', 'תאריך עזיבה', 'לקוחות', 'לילות', 'מגדר', 'מלון', 
-  'חברה', 'סכום מבוקש', 'קומבו', 'EUR', 'שקל', 'דולר', 'ביט', 'סטטוס בEUR', 'שם נציג', 'הערות'
+  'חברה', 'סכום מבוקש', 'קומבו', 'EUR', 'שקל', 'דולר', 'ביט', 'הנחה', 'סטטוס בEUR', 'שם נציג', 'הערות'
 ];
 
 const COLUMN_KEYS = [
   'order_number', 'departure_date', 'customer', 'nights', 'gender', 'hotel', 
-  'company', 'requested_amount', 'is_combo', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'eur_status', 'sales_rep', 'comments'
+  'company', 'requested_amount', 'is_combo', 'eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'discount_amount', 'eur_status', 'sales_rep', 'comments'
 ];
 
 export default function Table() {
@@ -152,7 +152,7 @@ export default function Table() {
       const required = ['order_number', 'customer', 'nights', 'gender', 'hotel', 'company', 'requested_amount'];
       const missing = required.filter(field => !row[field] || String(row[field]).trim() === '');
       
-      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount'].some(field => row[field] && String(row[field]).trim() !== '');
+      const hasCurrency = ['eur_amount', 'shekel_amount', 'dollar_amount', 'bit_amount', 'discount_amount'].some(field => row[field] && String(row[field]).trim() !== '');
 
       if (missing.length > 0 || !hasCurrency) {
         newMissingFields[index] = [...missing];
@@ -195,8 +195,9 @@ export default function Table() {
         const nis = parseFloat(row.shekel_amount) || 0;
         const usd = parseFloat(row.dollar_amount) || 0;
         const bit = parseFloat(row.bit_amount) || 0;
+        const discount = parseFloat(row.discount_amount) || 0;
         const req = parseFloat(row.requested_amount) || 0;
-        const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+        const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26) + discount;
         
         let calculatedStatus = '';
         if (row.requested_amount) {
@@ -265,8 +266,9 @@ export default function Table() {
                         const nis = parseFloat(row.shekel_amount) || 0;
                         const usd = parseFloat(row.dollar_amount) || 0;
                         const bit = parseFloat(row.bit_amount) || 0;
+                        const discount = parseFloat(row.discount_amount) || 0;
                         const req = parseFloat(row.requested_amount) || 0;
-                        const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26);
+                        const total = eur + (nis * 0.26) + (usd * 0.95) + (bit * 0.26) + discount;
                         
                         let status = '—';
                         let color = 'bg-slate-100 text-slate-600';
