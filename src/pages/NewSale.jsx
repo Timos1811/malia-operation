@@ -232,6 +232,12 @@ export default function NewSale() {
 
   const handleFinishSale = async () => {
     if (!formData.orderNumber) return toast.error("חסר מספר הזמנה");
+    
+    if (scannedCount < maxCustomers) {
+        const isConfirmed = window.confirm(`שים לב: הוגדרו ${maxCustomers} לקוחות בקבוצה, אך נסרקו רק ${scannedCount} צמידים. האם אתה בטוח שברצונך לסיים את המכירה?`);
+        if (!isConfirmed) return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -574,12 +580,12 @@ export default function NewSale() {
 
                 <Button 
                   className={`px-8 py-6 text-lg font-bold rounded-xl transition-all ${
-                    isAllWristbandsScanned && !isSubmitting
+                    scannedCount > 0 && !isSubmitting
                       ? 'bg-slate-900 text-white shadow-xl hover:scale-105'
                       : 'bg-slate-100 text-slate-300 cursor-not-allowed'
                   }`}
                   onClick={handleFinishSale}
-                  disabled={!isAllWristbandsScanned || isSubmitting}
+                  disabled={scannedCount === 0 || isSubmitting}
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" /> : "סיים מכירה"}
                 </Button>
