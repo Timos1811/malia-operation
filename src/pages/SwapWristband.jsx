@@ -112,7 +112,10 @@ export default function SwapWristband() {
 
   const validateNewWristband = async (id) => {
     setFeedback(null);
-    if (id === oldWristband.nfc_id) {
+    const normalizedId = id.toLowerCase();
+    const normalizedOldId = (oldWristband.nfc_id || '').toLowerCase();
+    
+    if (normalizedId === normalizedOldId) {
         const msg = "שגיאה: זהו אותו צמיד";
         const det = "לא ניתן להחליף צמיד בעצמו. יש לסרוק צמיד חדש וריק.";
         toast.error(msg);
@@ -123,20 +126,20 @@ export default function SwapWristband() {
 
     setLoading(true);
     try {
-      let exists = await base44.entities.Wristband.filter({ nfc_id: id });
+      // Check if new wristband is already assigned to ACTIVE order
+      let exists = await base44.entities.Wristband.filter({ nfc_id: normalizedId });
       if (exists.length === 0) {
         exists = await base44.entities.Wristband.filter({ nfc_id: id.toUpperCase() });
       }
       
-      if (exists.length > 0) {
-        const existingWb = exists[0];
-        const hasEvents = existingWb.allowed_events && existingWb.allowed_events.length > 0;
-        
-        const msg = hasEvents ? "הצמיד כבר מכיל אירועים" : "הצמיד כבר בשימוש";
-        const det = hasEvents 
-            ? `הצמיד מכיל ${existingWb.allowed_events.length} אירועים ושייך להזמנה ${existingWb.order_number}`
-            : `הצמיד משויך להזמנה ${existingWb.order_number}`;
-
+      // Only block if there's an ACTIVE wristband with events
+      const activeWithEvents = exists.find(wb => 
+        wb.status === 'active' && wb.allowed_events && wb.allowed_events.length > 0
+      );
+      
+      if (activeWithEvents) {
+        const msg = "הצמיד כבר בשימוש";
+        const det = `הצמיד מכיל ${activeWithEvents.allowed_events.length} אירועים ושייך להזמנה ${activeWithEvents.order_number}`;
         toast.error(msg);
         setFeedback({ type: 'error', message: msg, details: det });
         playSound('error');
@@ -144,9 +147,17 @@ export default function SwapWristband() {
         return;
       }
       
-      setNewWristbandId(id);
-      await performSwap(id);
+      // If there are inactive records with this ID, delete them to keep DB clean
+      for (const wb of exists) {
+        if (wb.status === 'inactive' || !wb.allowed_events || wb.allowed_events.length === 0) {
+          await base44.entities.Wristband.delete(wb.id);
+        }
+      }
+      
+      setNewWristbandId(normalizedId);
+      await performSwap(normalizedId);
     } catch (error) {
+      console.error(error);
       toast.error("שגיאה בבדיקת צמיד חדש");
       setLoading(false);
     }
