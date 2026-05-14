@@ -20,6 +20,17 @@ export default function CasparFilling() {
       const phoneAsOrderNumber = (data.phone_number || '').replace(/\D/g, '');
       const peopleCount = parseInt(data.people_count, 10);
 
+      // Calculate nights from today until departure date
+      let calculatedNights = "";
+      if (data.departure_date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const departure = new Date(data.departure_date);
+        departure.setHours(0, 0, 0, 0);
+        const diffTime = departure - today;
+        calculatedNights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))).toString();
+      }
+
       await base44.entities.CasparFilling.create({
         full_name: data.full_name,
         phone_number: data.phone_number,
@@ -39,7 +50,7 @@ export default function CasparFilling() {
             departure_date: data.departure_date,
             hotel: data.hotel,
             company: "כ",
-            nights: "",
+            nights: calculatedNights,
             gender: "",
             requested_amount: "",
             eur_amount: "",
