@@ -133,7 +133,13 @@ function TaskList() {
         }
 
         const totalAmount = (task.amount || 0) * (task.people_count || 1);
-        
+
+        // Build notes with cancelled events list
+        const cancelledEventsNote = (task.related_events && task.related_events.length > 0)
+          ? `אירועים שבוטלו: ${task.related_events.join(', ')}`
+          : '';
+        const fullNotes = [task.description, cancelledEventsNote].filter(Boolean).join('\n');
+
         // 1. Create Expense
         await base44.entities.Expense.create({
           reason: task.refund_type === 'full' ? 'החזר מלא' : 'החזר חלקי',
@@ -141,7 +147,8 @@ function TaskList() {
           amount: parseFloat(totalAmount.toFixed(2)),
           currency: 'EUR',
           expense_date: new Date().toISOString().split('T')[0],
-          sales_rep: task.sales_rep || ''
+          sales_rep: task.sales_rep || '',
+          notes: fullNotes
         });
 
         // Invalidate expense queries to update BankTable and AllExpenses immediately
