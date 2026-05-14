@@ -110,19 +110,17 @@ export default function NewSale() {
       // If a pending sale exists WITHOUT a sales_rep — it's a caspar entry, auto-fill it
       const unclaimedCaspar = existingPending.find(ps => !ps.sales_rep);
       if (unclaimedCaspar) {
+        // People count is stored in the `customer` field (e.g. "5") from CasparFilling
+        const peopleCount = parseInt(unclaimedCaspar.customer, 10);
         setFormData(prev => ({
           ...prev,
           departureDate: unclaimedCaspar.departure_date || prev.departureDate,
           hotel: unclaimedCaspar.hotel || prev.hotel,
           company: unclaimedCaspar.company || prev.company,
+          customerCount: (peopleCount && peopleCount > 0) ? peopleCount.toString() : prev.customerCount,
         }));
-        // Extract people count from comments if available
-        const peopleMatch = (unclaimedCaspar.comments || '').match(/(\d+)\s*אנשים/);
-        if (peopleMatch) {
-          setFormData(prev => ({ ...prev, customerCount: peopleMatch[1] }));
-        }
         setCasparLoaded(true);
-        toast.success(`נטענו פרטי כספר עבור ${unclaimedCaspar.customer || ''}`);
+        toast.success(`נטענו פרטי כספר (${peopleCount || '?'} אנשים)`);
         return false; // Not a real duplicate — allow seller to claim it
       }
 
