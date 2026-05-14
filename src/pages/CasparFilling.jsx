@@ -35,10 +35,10 @@ export default function CasparFilling() {
         if (existing.length === 0) {
           await base44.entities.PendingSale.create({
             order_number: phoneAsOrderNumber,
-            customer: data.full_name,
+            customer: peopleCount.toString(),
             departure_date: data.departure_date,
             hotel: data.hotel,
-            company: "מן הסתם",
+            company: "כ",
             nights: "",
             gender: "",
             requested_amount: "",
@@ -47,7 +47,7 @@ export default function CasparFilling() {
             dollar_amount: "",
             bit_amount: "",
             eur_status: "",
-            comments: `כספר - ${peopleCount} אנשים - טלפון ${data.phone_number}`,
+            comments: `כספר - ${data.full_name} - טלפון ${data.phone_number}`,
             sales_rep: ""
           });
         }
