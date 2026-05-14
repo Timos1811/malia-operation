@@ -212,8 +212,8 @@ export default function EventScanner() {
                     if (isProcessing.current) return;
                     isProcessing.current = true;
                     await handleScan(serialNumber);
-                    // Cooldown to prevent double scans
-                    setTimeout(() => { isProcessing.current = false; }, 2000);
+                    // Short cooldown to prevent accidental double scans of the same wristband
+                    setTimeout(() => { isProcessing.current = false; }, 500);
                 };
 
                 ndef.onreadingerror = () => {
