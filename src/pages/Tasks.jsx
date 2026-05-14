@@ -96,14 +96,32 @@ function TaskList() {
 
     if (newStatus === 'done' && task.task_type === 'refund') {
       try {
-        // Security Check: Verify no scans occurred between request creation and approval
-        if (task.order_number && task.related_events && task.related_events.length > 0) {
+        // Fetch ALL wristbands for the order (including ones that replaced originals via swap)
+        const allOrderWristbands = task.order_number
+          ? await base44.entities.Wristband.filter({ order_number: task.order_number })
+          : [];
+
+        // Determine which wristbands are targeted by this refund.
+        // If specific NFCs were chosen, include them PLUS any swap-replacements of them.
+        // Swap creates a new active wristband with the same customer_name in the same order.
+        let targetWristbands = allOrderWristbands;
+        if (task.related_wristbands && task.related_wristbands.length > 0) {
+          const originalTargets = allOrderWristbands.filter(wb => task.related_wristbands.includes(wb.nfc_id));
+          const targetCustomers = new Set(originalTargets.map(wb => wb.customer_name).filter(Boolean));
+          targetWristbands = allOrderWristbands.filter(wb =>
+            task.related_wristbands.includes(wb.nfc_id) ||
+            (wb.customer_name && targetCustomers.has(wb.customer_name))
+          );
+        }
+        const targetNfcIds = targetWristbands.map(wb => wb.nfc_id);
+
+        // Security Check: Verify no scans occurred on ANY of the targeted wristbands (including replacements)
+        if (task.related_events && task.related_events.length > 0 && targetNfcIds.length > 0) {
            const scanLogs = await base44.entities.WristbandScanLog.filter({ order_number: task.order_number });
-           const targetWristbandIds = task.related_wristbands || [];
-           
+
            const hasScanned = scanLogs.some(log => {
              const isRelatedEvent = task.related_events.includes(log.event_name);
-             const isTargetWristband = targetWristbandIds.length === 0 || targetWristbandIds.includes(log.nfc_id);
+             const isTargetWristband = targetNfcIds.includes(log.nfc_id);
              const isSuccessfulScan = log.status === 'success' || log.status === 'processed';
              return isRelatedEvent && isTargetWristband && isSuccessfulScan;
            });
@@ -130,30 +148,27 @@ function TaskList() {
         queryClient.invalidateQueries({ queryKey: ['expenses'] });
         queryClient.invalidateQueries({ queryKey: ['expensesAll'] });
 
-        // 2. Remove events from wristbands if related_events exists
-        if (task.order_number && task.related_events && task.related_events.length > 0) {
-          const allWristbands = await base44.entities.Wristband.filter({ order_number: task.order_number });
-          
-          // If specific wristbands were selected for the task, filter only them. Otherwise, apply to all.
-          const targetWristbands = (task.related_wristbands && task.related_wristbands.length > 0)
-            ? allWristbands.filter(wb => task.related_wristbands.includes(wb.nfc_id))
-            : allWristbands;
+        // 2. Remove events from targeted wristbands (incl. swap-replacements) and record them as cancelled
+        if (task.related_events && task.related_events.length > 0 && targetWristbands.length > 0) {
+          const updates = targetWristbands.map(wb => {
+            const currentEvents = wb.allowed_events || [];
+            const currentCancelled = wb.cancelled_events || [];
+            const newEvents = currentEvents.filter(event => !task.related_events.includes(event));
+            const removed = currentEvents.filter(event => task.related_events.includes(event));
 
-          if (targetWristbands.length > 0) {
-            const updates = targetWristbands.map(wb => {
-              const currentEvents = wb.allowed_events || [];
-              const newEvents = currentEvents.filter(event => !task.related_events.includes(event));
-              
-              if (currentEvents.length !== newEvents.length) {
-                return base44.entities.Wristband.update(wb.id, { allowed_events: newEvents });
-              }
-              return null;
-            }).filter(Boolean);
-
-            if (updates.length > 0) {
-              await Promise.all(updates);
-              toast.success(`הוסרו אירועים מ-${updates.length} צמידים`);
+            if (removed.length > 0) {
+              const newCancelled = Array.from(new Set([...currentCancelled, ...removed]));
+              return base44.entities.Wristband.update(wb.id, {
+                allowed_events: newEvents,
+                cancelled_events: newCancelled
+              });
             }
+            return null;
+          }).filter(Boolean);
+
+          if (updates.length > 0) {
+            await Promise.all(updates);
+            toast.success(`הוסרו אירועים מ-${updates.length} צמידים`);
           }
         }
 

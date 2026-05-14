@@ -175,6 +175,7 @@ export default function SwapWristband() {
 
       // 1. Reuse an existing record with this NFC id if present (update it), otherwise create new.
       // This prevents duplicate records for the same nfc_id.
+      // IMPORTANT: carry over cancelled_events so refund history is preserved on the new wristband.
       if (existingRecords.length > 0) {
         const [primary, ...extras] = existingRecords;
         await base44.entities.Wristband.update(primary.id, {
@@ -182,6 +183,7 @@ export default function SwapWristband() {
           order_number: oldWristband.order_number,
           customer_name: oldWristband.customer_name,
           allowed_events: oldWristband.allowed_events,
+          cancelled_events: oldWristband.cancelled_events || [],
           status: 'active',
           valid_until: oldWristband.valid_until
         });
@@ -195,6 +197,7 @@ export default function SwapWristband() {
           order_number: oldWristband.order_number,
           customer_name: oldWristband.customer_name,
           allowed_events: oldWristband.allowed_events,
+          cancelled_events: oldWristband.cancelled_events || [],
           status: 'active',
           valid_until: oldWristband.valid_until
         });

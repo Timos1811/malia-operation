@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PartyPopper, Search, Loader2, Calendar, Users, ShieldAlert, CheckCircle2, Hash, Tag, ScanLine } from 'lucide-react';
+import { PartyPopper, Search, Loader2, Calendar, Users, ShieldAlert, CheckCircle2, Hash, Tag, ScanLine, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function MyOrder() {
@@ -217,18 +217,35 @@ export default function MyOrder() {
                   </div>
                   <div className="p-4">
                     {wb.status === 'active' ? (
-                      wb.allowed_events && wb.allowed_events.length > 0 ? (
-                        <div className="grid gap-2">
-                          {wb.allowed_events.map((event, eIdx) => (
-                            <div key={eIdx} className="flex items-center gap-3">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                              <span className="text-slate-700">{event}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-slate-500 text-sm">אין אירועים מוגדרים לצמיד זה.</div>
-                      )
+                      <>
+                        {wb.allowed_events && wb.allowed_events.length > 0 ? (
+                          <div className="grid gap-2">
+                            {wb.allowed_events.map((event, eIdx) => (
+                              <div key={eIdx} className="flex items-center gap-3">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                <span className="text-slate-700">{event}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          (!wb.cancelled_events || wb.cancelled_events.length === 0) && (
+                            <div className="text-slate-500 text-sm">אין אירועים מוגדרים לצמיד זה.</div>
+                          )
+                        )}
+                        {wb.cancelled_events && wb.cancelled_events.length > 0 && (
+                          <div className={`grid gap-2 ${wb.allowed_events && wb.allowed_events.length > 0 ? 'mt-3 pt-3 border-t border-slate-100' : ''}`}>
+                            {wb.cancelled_events.map((event, eIdx) => (
+                              <div key={`c-${eIdx}`} className="flex items-center gap-3">
+                                <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                                <span className="text-slate-500 line-through">{event}</span>
+                                <span className="text-[10px] font-bold bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100 shrink-0">
+                                  בוטל - החזר
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="text-red-500 text-sm">הצמיד בוטל או אינו פעיל יותר.</div>
                     )}
