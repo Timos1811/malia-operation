@@ -107,20 +107,26 @@ export default function NewSale() {
       const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
       const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
 
-      // If a pending sale exists WITHOUT a sales_rep — it's a caspar entry, auto-fill it
-      const unclaimedCaspar = existingPending.find(ps => !ps.sales_rep);
-      if (unclaimedCaspar) {
-        // People count is stored in the `customer` field (e.g. "5") from CasparFilling
-        const peopleCount = parseInt(unclaimedCaspar.customer, 10);
+      // If a pending sale exists WITHOUT a sales_rep — it's an unclaimed entry (caspar or manual admin entry).
+      // Auto-fill the form so the seller can claim it.
+      const unclaimedEntry = existingPending.find(ps => !ps.sales_rep);
+      if (unclaimedEntry) {
+        // People count may be stored in `customer` (caspar entries store the count there as a number)
+        const peopleCount = parseInt(unclaimedEntry.customer, 10);
+
+        // Map gender from Hebrew (stored in DB) back to form value
+        const genderReverseMap = { 'גברים': 'male', 'נשים': 'female', 'מעורב': 'mixed' };
+
         setFormData(prev => ({
           ...prev,
-          departureDate: unclaimedCaspar.departure_date || prev.departureDate,
-          hotel: unclaimedCaspar.hotel || prev.hotel,
-          company: unclaimedCaspar.company || prev.company,
+          departureDate: unclaimedEntry.departure_date || prev.departureDate,
+          hotel: unclaimedEntry.hotel || prev.hotel,
+          company: unclaimedEntry.company || prev.company,
           customerCount: (peopleCount && peopleCount > 0) ? peopleCount.toString() : prev.customerCount,
+          gender: genderReverseMap[unclaimedEntry.gender] || prev.gender,
         }));
         setCasparLoaded(true);
-        toast.success(`נטענו פרטי כספר (${peopleCount || '?'} אנשים)`);
+        toast.success(`נטענו פרטי הזמנה ממתינה${peopleCount ? ` (${peopleCount} אנשים)` : ''}`);
         return false; // Not a real duplicate — allow seller to claim it
       }
 
@@ -260,7 +266,7 @@ export default function NewSale() {
     setIsSubmitting(true);
 
     try {
-      // Check for duplicate order number (skip if no scanned wristbands - allow re-saving)
+      // Check for duplicate order number in finalized sales
       const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
 
       if (existingTable.length > 0) {
@@ -268,12 +274,11 @@ export default function NewSale() {
         setIsSubmitting(false);
         return;
       }
-      
-      // If a PendingSale already exists for this order (e.g. from a previous attempt), delete it first
+
+      // Check for existing pending sale — if unclaimed (no sales_rep), we'll CLAIM it
+      // (preserving any money fields the admin may have pre-filled).
       const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
-      for (const ps of existingPending) {
-        await base44.entities.PendingSale.delete(ps.id);
-      }
+      const unclaimedExisting = existingPending.find(ps => !ps.sales_rep);
 
       // מיפוי ערכי מגדר לעברית
       const genderMap = {
@@ -290,28 +295,58 @@ export default function NewSale() {
       const diffTime = departure - today;
       const calculatedNights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))).toString();
 
-      // Create new row data with precise mapping
-      const newRow = {
+      // Build the row from the form
+      const formRow = {
         order_number: formData.orderNumber.toString(),
-        departure_date: formData.departureDate, // פורמט YYYY-MM-DD מתאים גם לטבלה
+        departure_date: formData.departureDate,
         customer: formData.customerCount.toString(),
         nights: calculatedNights,
-        gender: genderMap[formData.gender] || formData.gender, // המרה לעברית
+        gender: genderMap[formData.gender] || formData.gender,
         hotel: formData.hotel,
         company: formData.company,
         requested_amount: totalPrice.toString(),
-        eur_amount: "",
-        shekel_amount: "",
-        dollar_amount: "",
-        bit_amount: "",
-        eur_status: "0",
         timestamp: Date.now(),
         sales_rep: currentUser?.full_name || '',
         is_combo: isCombo
       };
 
-      // Create the pending sale in the database
-      await base44.entities.PendingSale.create(newRow);
+      if (unclaimedExisting) {
+        // CLAIM the existing entry — preserve money fields pre-filled by the admin
+        const preservedMoneyFields = {
+          eur_amount: unclaimedExisting.eur_amount || "",
+          shekel_amount: unclaimedExisting.shekel_amount || "",
+          dollar_amount: unclaimedExisting.dollar_amount || "",
+          bit_amount: unclaimedExisting.bit_amount || "",
+          discount_amount: unclaimedExisting.discount_amount || "",
+          eur_status: unclaimedExisting.eur_status || "0",
+          comments: unclaimedExisting.comments || "",
+          envelope_received: unclaimedExisting.envelope_received || false
+        };
+        await base44.entities.PendingSale.update(unclaimedExisting.id, {
+          ...formRow,
+          ...preservedMoneyFields
+        });
+        // Remove any other duplicate pending sales for this order
+        for (const ps of existingPending) {
+          if (ps.id !== unclaimedExisting.id) {
+            await base44.entities.PendingSale.delete(ps.id);
+          }
+        }
+      } else {
+        // Clean up any existing pending sales for this order (shouldn't happen since duplicate check passed)
+        for (const ps of existingPending) {
+          await base44.entities.PendingSale.delete(ps.id);
+        }
+        // Create new pending sale with empty money fields
+        await base44.entities.PendingSale.create({
+          ...formRow,
+          eur_amount: "",
+          shekel_amount: "",
+          dollar_amount: "",
+          bit_amount: "",
+          eur_status: "0"
+        });
+      }
       
       setIsSuccess(true);
     } catch (error) {
