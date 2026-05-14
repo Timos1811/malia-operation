@@ -17,14 +17,43 @@ export default function CasparFilling() {
  const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
+      const phoneAsOrderNumber = (data.phone_number || '').replace(/\D/g, '');
+      const peopleCount = parseInt(data.people_count, 10);
+
       await base44.entities.CasparFilling.create({
         full_name: data.full_name,
         phone_number: data.phone_number,
         hotel: data.hotel,
         departure_date: data.departure_date,
-        people_count: parseInt(data.people_count, 10),
-        notification_sent: false // <--- השורה הקריטית שהוספנו!
+        people_count: peopleCount,
+        notification_sent: false
       });
+
+      // Also create a PendingSale entry (without sales_rep) so a seller can claim it later
+      try {
+        const existing = await base44.entities.PendingSale.filter({ order_number: phoneAsOrderNumber });
+        if (existing.length === 0) {
+          await base44.entities.PendingSale.create({
+            order_number: phoneAsOrderNumber,
+            customer: data.full_name,
+            departure_date: data.departure_date,
+            hotel: data.hotel,
+            company: "מן הסתם",
+            nights: "",
+            gender: "",
+            requested_amount: "",
+            eur_amount: "",
+            shekel_amount: "",
+            dollar_amount: "",
+            bit_amount: "",
+            eur_status: "",
+            comments: `כספר - ${peopleCount} אנשים - טלפון ${data.phone_number}`,
+            sales_rep: ""
+          });
+        }
+      } catch (e) {
+        console.error("Failed to create pending sale from caspar", e);
+      }
       
       setIsSuccess(true);
       toast.success("הפרטים נשמרו בהצלחה!");

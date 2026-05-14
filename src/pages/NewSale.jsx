@@ -98,12 +98,33 @@ export default function NewSale() {
 
   // --- Handlers ---
 
+  const [casparLoaded, setCasparLoaded] = useState(false);
+
   const checkOrderDuplicate = async () => {
     if (!formData.orderNumber || formData.orderNumber.length < 3) return false;
     
     try {
       const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
       const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
+
+      // If a pending sale exists WITHOUT a sales_rep — it's a caspar entry, auto-fill it
+      const unclaimedCaspar = existingPending.find(ps => !ps.sales_rep);
+      if (unclaimedCaspar) {
+        setFormData(prev => ({
+          ...prev,
+          departureDate: unclaimedCaspar.departure_date || prev.departureDate,
+          hotel: unclaimedCaspar.hotel || prev.hotel,
+          company: unclaimedCaspar.company || prev.company,
+        }));
+        // Extract people count from comments if available
+        const peopleMatch = (unclaimedCaspar.comments || '').match(/(\d+)\s*אנשים/);
+        if (peopleMatch) {
+          setFormData(prev => ({ ...prev, customerCount: peopleMatch[1] }));
+        }
+        setCasparLoaded(true);
+        toast.success(`נטענו פרטי כספר עבור ${unclaimedCaspar.customer || ''}`);
+        return false; // Not a real duplicate — allow seller to claim it
+      }
 
       if (existingPending.length > 0 || existingTable.length > 0) {
         toast.error("מספר הזמנה זה כבר קיים במערכת!");
@@ -344,12 +365,22 @@ export default function NewSale() {
           </CardHeader>
           <CardContent className="p-5 grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-1">
-              <Label className="text-xs text-slate-500">מספר הזמנה</Label>
+              <Label className="text-xs text-slate-500 flex items-center gap-2">
+                מספר הזמנה
+                {casparLoaded && (
+                  <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                    ✓ נטענו פרטי כספר
+                  </span>
+                )}
+              </Label>
               <Input 
                 type="number" 
-                className="text-lg font-bold bg-slate-50 border-slate-200"
+                className={`text-lg font-bold border-slate-200 ${casparLoaded ? 'bg-green-50 border-green-300' : 'bg-slate-50'}`}
                 value={formData.orderNumber}
-                onChange={e => setFormData({...formData, orderNumber: e.target.value})}
+                onChange={e => {
+                  setFormData({...formData, orderNumber: e.target.value});
+                  setCasparLoaded(false);
+                }}
                 onBlur={checkOrderDuplicate}
                 placeholder="123456"
               />
