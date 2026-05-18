@@ -33,13 +33,19 @@ returns text
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
-  select full_name from public.users where id = auth.uid();
+  select coalesce(
+    (select raw_user_meta_data->>'full_name' from auth.users where id = auth.uid()),
+    (select email from auth.users where id = auth.uid())
+  );
 $$;
 
 -- USERS table — special handling
 alter table public.users enable row level security;
+
+-- Ensure full_name column exists (sourced from auth metadata on insert)
+alter table public.users add column if not exists full_name text;
 
 drop policy if exists "users select own or admin" on public.users;
 create policy "users select own or admin" on public.users
