@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,14 +21,9 @@ export default function OrderDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wristbandFilter, setWristbandFilter] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    base44.auth.me().then(user => {
-      setIsAdmin(user?.role === 'admin');
-    }).catch(console.error);
-  }, []);
 
   // Fetch wristbands associated with this order
   const { data: wristbands = [], isLoading: loadingWristbands } = useQuery({

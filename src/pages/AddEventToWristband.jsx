@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,10 +29,7 @@ export default function AddEventToWristband() {
     queryFn: () => base44.entities.Attraction.list(),
   });
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me(),
-  });
+  const { user: currentUser } = useAuth();
 
   const { data: comboPriceSetting } = useQuery({
     queryKey: ['appSettings', 'combo_price_eur'],

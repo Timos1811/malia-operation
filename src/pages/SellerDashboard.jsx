@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PartyPopper, CheckSquare, UserCircle, LogOut, RefreshCcw, Users, Receipt } from 'lucide-react';
 import { Loader2 } from "lucide-react";
 
 export default function SellerDashboard() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -27,9 +28,7 @@ export default function SellerDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-
+        const currentUser = user;
         if (currentUser?.full_name) {
           // Fetch sales and pending sales for this user
           const [tableSales, pendingSales] = await Promise.all([
@@ -106,8 +105,9 @@ export default function SellerDashboard() {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    if (user) fetchData();
+    else setLoading(false);
+  }, [user]);
 
   if (loading) {
     return (

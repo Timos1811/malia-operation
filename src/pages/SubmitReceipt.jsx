@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +18,9 @@ const EXPENSE_CATEGORIES = [
 
 export default function SubmitReceipt() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  
+
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [category, setCategory] = useState("אחר");
@@ -27,10 +28,6 @@ export default function SubmitReceipt() {
   const [currency, setCurrency] = useState("EUR");
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState("");
-
-  useEffect(() => {
-    base44.auth.me().then(setCurrentUser).catch(console.error);
-  }, []);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {

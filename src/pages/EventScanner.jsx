@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,7 +22,7 @@ export default function EventScanner() {
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null); // { status: 'success' | 'error' | 'warning', message: '', details: {} }
     const [loading, setLoading] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
+    const { user: currentUser } = useAuth();
     const [showFinishDialog, setShowFinishDialog] = useState(false);
     const [signaturesCount, setSignaturesCount] = useState("");
     const [isSuccess, setIsSuccess] = useState(false);
@@ -49,17 +50,7 @@ export default function EventScanner() {
             }
         };
         
-        const fetchUser = async () => {
-            try {
-                const user = await base44.auth.me();
-                setCurrentUser(user);
-            } catch (e) {
-                console.error("Failed to fetch user", e);
-            }
-        };
-
         fetchAttractions();
-        fetchUser();
     }, []);
 
     useEffect(() => {

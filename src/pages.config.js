@@ -1,110 +1,40 @@
-/**
- * pages.config.js - Page routing configuration
- * 
- * This file is AUTO-GENERATED. Do not add imports or modify PAGES manually.
- * Pages are auto-registered when you create files in the ./pages/ folder.
- * 
- * THE ONLY EDITABLE VALUE: mainPage
- * This controls which page is the landing page (shown when users visit the app).
- * 
- * Example file structure:
- * 
- *   import HomePage from './pages/HomePage';
- *   import Dashboard from './pages/Dashboard';
- *   import Settings from './pages/Settings';
- *   
- *   export const PAGES = {
- *       "HomePage": HomePage,
- *       "Dashboard": Dashboard,
- *       "Settings": Settings,
- *   }
- *   
- *   export const pagesConfig = {
- *       mainPage: "HomePage",
- *       Pages: PAGES,
- *   };
- * 
- * Example with Layout (wraps all pages):
- *
- *   import Home from './pages/Home';
- *   import Settings from './pages/Settings';
- *   import __Layout from './Layout.jsx';
- *
- *   export const PAGES = {
- *       "Home": Home,
- *       "Settings": Settings,
- *   }
- *
- *   export const pagesConfig = {
- *       mainPage: "Home",
- *       Pages: PAGES,
- *       Layout: __Layout,
- *   };
- *
- * To change the main page from HomePage to Dashboard, use find_replace:
- *   Old: mainPage: "HomePage",
- *   New: mainPage: "Dashboard",
- *
- * The mainPage value must match a key in the PAGES object exactly.
- */
-import AddEventToWristband from './pages/AddEventToWristband';
-import AddTask from './pages/AddTask';
-import AgentGroups from './pages/AgentGroups';
-import AllExpenses from './pages/AllExpenses';
-import BankTable from './pages/BankTable';
-import CasparFilling from './pages/CasparFilling';
-import Caspars from './pages/Caspars';
-import CreateExpense from './pages/CreateExpense';
-import EventScanner from './pages/EventScanner';
-import EventsAndAttractions from './pages/EventsAndAttractions';
-import Live from './pages/Live';
-import ManagerDashboard from './pages/ManagerDashboard';
-import NewSale from './pages/NewSale';
-import OrderDetails from './pages/OrderDetails';
-import OrderSuccess from './pages/OrderSuccess';
-import PendingSales from './pages/PendingSales';
-import ReturnedToIsrael from './pages/ReturnedToIsrael';
-import SalesRepDashboard from './pages/SalesRepDashboard';
-import SavedData from './pages/SavedData';
-import SellerDashboard from './pages/SellerDashboard';
-import SwapWristband from './pages/SwapWristband';
-import Table from './pages/Table';
-import TaskSentSuccess from './pages/TaskSentSuccess';
-import Tasks from './pages/Tasks';
-import WristbandHistory from './pages/WristbandHistory';
+import { lazy } from 'react';
 import __Layout from './Layout.jsx';
 
-
 export const PAGES = {
-    "AddEventToWristband": AddEventToWristband,
-    "AddTask": AddTask,
-    "AgentGroups": AgentGroups,
-    "AllExpenses": AllExpenses,
-    "BankTable": BankTable,
-    "CasparFilling": CasparFilling,
-    "Caspars": Caspars,
-    "CreateExpense": CreateExpense,
-    "EventScanner": EventScanner,
-    "EventsAndAttractions": EventsAndAttractions,
-    "Live": Live,
-    "ManagerDashboard": ManagerDashboard,
-    "NewSale": NewSale,
-    "OrderDetails": OrderDetails,
-    "OrderSuccess": OrderSuccess,
-    "PendingSales": PendingSales,
-    "ReturnedToIsrael": ReturnedToIsrael,
-    "SalesRepDashboard": SalesRepDashboard,
-    "SavedData": SavedData,
-    "SellerDashboard": SellerDashboard,
-    "SwapWristband": SwapWristband,
-    "Table": Table,
-    "TaskSentSuccess": TaskSentSuccess,
-    "Tasks": Tasks,
-    "WristbandHistory": WristbandHistory,
-}
+  AddEventToWristband: lazy(() => import('./pages/AddEventToWristband')),
+  AddTask:             lazy(() => import('./pages/AddTask')),
+  AgentGroups:         lazy(() => import('./pages/AgentGroups')),
+  AllExpenses:         lazy(() => import('./pages/AllExpenses')),
+  BankTable:           lazy(() => import('./pages/BankTable')),
+  CasparFilling:       lazy(() => import('./pages/CasparFilling')),
+  Caspars:             lazy(() => import('./pages/Caspars')),
+  CreateExpense:       lazy(() => import('./pages/CreateExpense')),
+  EventScanner:        lazy(() => import('./pages/EventScanner')),
+  EventsAndAttractions:lazy(() => import('./pages/EventsAndAttractions')),
+  EventStats:          lazy(() => import('./pages/EventStats')),
+  Live:                lazy(() => import('./pages/Live')),
+  ManagerDashboard:    lazy(() => import('./pages/ManagerDashboard')),
+  MyOrder:             lazy(() => import('./pages/MyOrder')),
+  NewSale:             lazy(() => import('./pages/NewSale')),
+  OrderDetails:        lazy(() => import('./pages/OrderDetails')),
+  OrderSuccess:        lazy(() => import('./pages/OrderSuccess')),
+  PendingSales:        lazy(() => import('./pages/PendingSales')),
+  ReturnedToIsrael:    lazy(() => import('./pages/ReturnedToIsrael')),
+  SalesRepDashboard:   lazy(() => import('./pages/SalesRepDashboard')),
+  SavedData:           lazy(() => import('./pages/SavedData')),
+  SellerDashboard:     lazy(() => import('./pages/SellerDashboard')),
+  SubmitReceipt:       lazy(() => import('./pages/SubmitReceipt')),
+  SwapWristband:       lazy(() => import('./pages/SwapWristband')),
+  Table:               lazy(() => import('./pages/Table')),
+  TaskSentSuccess:     lazy(() => import('./pages/TaskSentSuccess')),
+  Tasks:               lazy(() => import('./pages/Tasks')),
+  UserApproval:        lazy(() => import('./pages/UserApproval')),
+  WristbandHistory:    lazy(() => import('./pages/WristbandHistory')),
+};
 
 export const pagesConfig = {
-    mainPage: "Table",
-    Pages: PAGES,
-    Layout: __Layout,
+  mainPage: 'Table',
+  Pages: PAGES,
+  Layout: __Layout,
 };

@@ -56,16 +56,46 @@ export default function Login() {
             {mode === 'signup' && (
               <div className="space-y-2">
                 <Label>שם מלא</Label>
-                <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="ישראל ישראלי" required />
+                <Input
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  placeholder="ישראל ישראלי"
+                  autoComplete="name"
+                  enterKeyHint="next"
+                  required
+                />
               </div>
             )}
             <div className="space-y-2">
               <Label>אימייל</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" dir="ltr" required />
+              <Input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                dir="ltr"
+                autoComplete={mode === 'login' ? 'email' : 'email'}
+                inputMode="email"
+                enterKeyHint="next"
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>סיסמה</Label>
-              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" dir="ltr" required minLength={6} />
+              <Input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                dir="ltr"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                enterKeyHint="go"
+                required
+                minLength={8}
+              />
+              {mode === 'signup' && (
+                <p className="text-xs text-slate-500">לפחות 8 תווים</p>
+              )}
             </div>
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-11" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === 'login' ? <><LogIn className="w-4 h-4 ml-2" />התחבר</> : <><UserPlus className="w-4 h-4 ml-2" />הירשם</>}

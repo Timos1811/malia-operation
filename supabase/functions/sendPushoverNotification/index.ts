@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authenticate, corsHeaders, errorResponse, handleOptions, jsonResponse, serviceClient } from '../_shared/auth.ts';
 
 const PUSHOVER_API = 'https://api.pushover.net/1/messages.json';
 
@@ -12,25 +12,34 @@ async function sendPushover(token: string, user: string, message: string, title:
 }
 
 Deno.serve(async (req) => {
+  const opts = handleOptions(req);
+  if (opts) return opts;
+
   try {
     const pushoverToken = Deno.env.get('PUSHOVER_TOKEN');
     const pushoverUser = Deno.env.get('PUSHOVER_USER');
-
     if (!pushoverToken || !pushoverUser) {
-      return Response.json({ error: 'Pushover credentials not configured' }, { status: 500 });
+      return jsonResponse({ error: 'Pushover credentials not configured' }, 500);
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
+    const supabase = serviceClient();
     const body = await req.json().catch(() => ({}));
     const { event, entity, data } = body;
 
+    // Watchdog mode (no event) requires CRON_SECRET — used by scheduled cron
+    if (!event) {
+      const cronSecret = Deno.env.get('CRON_SECRET');
+      const provided = req.headers.get('x-cron-secret');
+      if (!cronSecret || provided !== cronSecret) {
+        return jsonResponse({ error: 'Unauthorized' }, 401);
+      }
+    } else {
+      // Live events require authenticated user
+      await authenticate(req);
+    }
+
     const messages: { title: string; message: string; priority: number }[] = [];
 
-    // Watchdog mode — scan for unsent CasparFilling notifications
     if (!event) {
       const { data: unsent } = await supabase
         .from('caspar_fillings')
@@ -43,14 +52,10 @@ Deno.serve(async (req) => {
           message: `${record.full_name} | ${record.phone_number}\nמלון: ${record.hotel}\nעזיבה: ${record.departure_date}\nאנשים: ${record.people_count}`,
           priority: 0,
         });
-        await supabase
-          .from('caspar_fillings')
-          .update({ notification_sent: true })
-          .eq('id', record.id);
+        await supabase.from('caspar_fillings').update({ notification_sent: true }).eq('id', record.id);
       }
     }
 
-    // Live event — CasparFilling created
     if (entity === 'CasparFilling' && event === 'create' && data) {
       messages.push({
         title: 'כספר חדש 🏨',
@@ -59,7 +64,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Live event — Task created (refund or supplier payment)
     if (entity === 'Task' && event === 'create' && data) {
       if (data.task_type === 'refund') {
         messages.push({
@@ -82,8 +86,8 @@ Deno.serve(async (req) => {
       sent++;
     }
 
-    return Response.json({ success: true, sent });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return jsonResponse({ success: true, sent });
+  } catch (err) {
+    return errorResponse(err);
   }
 });

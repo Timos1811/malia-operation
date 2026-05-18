@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
+import ConfirmDelete from "@/components/ConfirmDelete";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
@@ -533,14 +534,20 @@ export default function PendingSales() {
                             >
                               <Save className="w-4 h-4 ml-1" /> שמור
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeleteRow(row.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <ConfirmDelete
+                              description="האם למחוק את שורת המכירה הזו? פעולה זו אינה הפיכה."
+                              onConfirm={() => handleDeleteRow(row.id)}
+                              trigger={
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                  aria-label="מחק שורה"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              }
+                            />
                         </div>
                       </td>
                     </tr>

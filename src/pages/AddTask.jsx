@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ export default function AddTask() {
   const [peopleCount, setPeopleCount] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser } = useAuth();
   const [isCombo, setIsCombo] = useState(false);
   const [originalComboPrice, setOriginalComboPrice] = useState(null);
 
@@ -33,16 +34,6 @@ export default function AddTask() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState(''); // Replaces direct orderNumber input for searching
   const [scanLogs, setScanLogs] = useState([]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) { console.error(e); }
-    };
-    fetchUser();
-  }, []);
 
   // Fetch attractions/events
   const { data: attractions = [], isLoading: isLoadingAttractions } = useQuery({

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,24 +13,12 @@ import { Loader2, Users, ArrowRight, Filter, Plane, History, X } from "lucide-re
 import { toast } from "sonner";
 
 export default function AgentGroups() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [showLiveOnly, setShowLiveOnly] = useState(false);
   const [filters, setFilters] = useState({
     event_name: 'all',
     event_status: 'bought'
   });
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const u = await base44.auth.me();
-        setUser(u);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchUser();
-  }, []);
 
   const { data: attractions = [] } = useQuery({
     queryKey: ['attractions'],

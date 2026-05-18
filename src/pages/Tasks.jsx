@@ -5,6 +5,7 @@ import { createPageUrl } from '../utils';
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
@@ -365,17 +366,12 @@ function TaskList() {
 }
 
 export default function Tasks() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [isRecurringDialogOpen, setIsRecurringDialogOpen] = useState(false);
   const [recurringTitle, setRecurringTitle] = useState('');
-  const [recurringDays, setRecurringDays] = useState([0, 1, 2, 3, 4, 5, 6]); // Default all days
+  const [recurringDays, setRecurringDays] = useState([0, 1, 2, 3, 4, 5, 6]);
   const queryClient = useQueryClient();
-
-  React.useEffect(() => {
-    base44.auth.me().then(user => {
-      setIsAdmin(user?.role === 'admin');
-    }).catch(() => {});
-  }, []);
 
   const createRecurringTask = async () => {
     if (!recurringTitle.trim()) return;

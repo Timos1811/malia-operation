@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,20 +10,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SwapWristband() {
-  const [currentUser, setCurrentUser] = useState(null);
-  
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Failed to fetch user", e);
-      }
-    };
-    fetchUser();
-  }, []);
-
+  const { user: currentUser } = useAuth();
   const [mode, setMode] = useState('scan'); // 'scan' | 'manual'
   const [step, setStep] = useState(1); // 1: Find Old, 2: Get New, 3: Success
   const [loading, setLoading] = useState(false);

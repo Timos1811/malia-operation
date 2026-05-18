@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import ConfirmDelete from "@/components/ConfirmDelete";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -168,9 +169,15 @@ const SimpleEntityManager = ({ entityName, title, icon: Icon, placeholder }) => 
                         <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-8 w-8 text-slate-500 hover:text-blue-600">
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(item.id)} className="h-8 w-8 text-slate-500 hover:text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <ConfirmDelete
+                          description="האם למחוק פריט זה?"
+                          onConfirm={() => deleteMutation.mutate(item.id)}
+                          trigger={
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-600" aria-label="מחק">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          }
+                        />
                       </div>
                     </TableCell>
                   </>
@@ -376,7 +383,13 @@ const ComboManager = ({ attractions }) => {
                     <TableCell>
                       <div className="flex items-center justify-center gap-2">
                         <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-8 w-8 text-slate-500 hover:text-blue-600"><Pencil className="w-4 h-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(item.id)} className="h-8 w-8 text-slate-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                        <ConfirmDelete
+                          description="האם למחוק פריט זה?"
+                          onConfirm={() => deleteMutation.mutate(item.id)}
+                          trigger={
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-600" aria-label="מחק"><Trash2 className="w-4 h-4" /></Button>
+                          }
+                        />
                       </div>
                     </TableCell>
                   </>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,21 +35,9 @@ export default function NewSale() {
   const [lastScanned, setLastScanned] = useState(null); // Feedback state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  
-  const isProcessingRef = useRef(false);
+  const { user: currentUser } = useAuth();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Failed to fetch user", e);
-      }
-    };
-    fetchUser();
-  }, []);
+  const isProcessingRef = useRef(false);
 
   // --- Data Fetching ---
   const { data: attractions = [] } = useQuery({

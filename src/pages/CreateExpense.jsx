@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // Sheet imports removed
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -46,19 +47,7 @@ export default function CreateExpense() {
       return Array.from(names);
   }, [users, salesReps]);
 
-  const [currentUser, setCurrentUser] = useState(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Failed to fetch user", e);
-      }
-    };
-    fetchUser();
-  }, []);
+  const { user: currentUser } = useAuth();
 
   const [tableData, setTableData] = useState(() => {
     const saved = localStorage.getItem('expenseTableData_v2');

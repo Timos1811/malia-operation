@@ -1,5 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
+import { authenticate, errorResponse, handleOptions, jsonResponse, requireAdmin, serviceClient } from '../_shared/auth.ts';
 
 async function getGoogleAccessToken(): Promise<string> {
   const serviceAccount = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON') || '{}');
@@ -13,24 +13,25 @@ async function getGoogleAccessToken(): Promise<string> {
     exp: now + 3600,
   };
 
-  // Create JWT
   const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const body = btoa(JSON.stringify(payload));
   const unsigned = `${header}.${body}`;
 
-  // Import private key
   const pemKey = serviceAccount.private_key.replace(/\\n/g, '\n');
   const keyData = pemKey.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/\n/g, '');
-  const binaryKey = Uint8Array.from(atob(keyData), c => c.charCodeAt(0));
+  const binaryKey = Uint8Array.from(atob(keyData), (c) => c.charCodeAt(0));
 
   const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', binaryKey,
+    'pkcs8',
+    binaryKey,
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false, ['sign']
+    false,
+    ['sign']
   );
 
   const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5', cryptoKey,
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
     new TextEncoder().encode(unsigned)
   );
 
@@ -46,14 +47,16 @@ async function getGoogleAccessToken(): Promise<string> {
   return tokenData.access_token;
 }
 
-Deno.serve(async (_req) => {
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+Deno.serve(async (req) => {
+  const opts = handleOptions(req);
+  if (opts) return opts;
 
-    // Fetch all data in parallel
+  try {
+    const user = await authenticate(req);
+    requireAdmin(user);
+
+    const supabase = serviceClient();
+
     const [income, expenses, pendingSales, tasks, caspars, moneyLocations] = await Promise.all([
       supabase.from('table_data').select('*').order('created_at', { ascending: false }).limit(2000),
       supabase.from('expenses').select('*').order('expense_date', { ascending: false }).limit(2000),
@@ -64,7 +67,6 @@ Deno.serve(async (_req) => {
     ]);
 
     const wb = XLSX.utils.book_new();
-
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(income.data || []), 'הכנסות');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenses.data || []), 'הוצאות');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pendingSales.data || []), 'מכירות בהמתנה');
@@ -78,7 +80,6 @@ Deno.serve(async (_req) => {
     const date = new Date().toISOString().split('T')[0];
     const fileName = `malia-export-${date}.xlsx`;
 
-    // Upload to Google Drive
     const accessToken = await getGoogleAccessToken();
     const driveFolderId = Deno.env.get('GOOGLE_DRIVE_FOLDER_ID') || '';
 
@@ -101,9 +102,8 @@ Deno.serve(async (_req) => {
     );
 
     const uploadData = await uploadRes.json();
-
-    return Response.json({ success: true, fileId: uploadData.id, fileName });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return jsonResponse({ success: true, fileId: uploadData.id, fileName });
+  } catch (err) {
+    return errorResponse(err);
   }
 });

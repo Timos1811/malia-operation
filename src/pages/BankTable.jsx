@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import ConfirmDelete from "@/components/ConfirmDelete";
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16'];
 
@@ -742,14 +743,20 @@ export default function BankTable() {
                                                 <span className="font-medium text-slate-800">{loc.name}</span>
                                                 <span className="text-sm text-slate-500">{loc.amount} {loc.currency}</span>
                                             </div>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                onClick={() => deleteLocationMutation.mutate(loc.id)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+                                            <ConfirmDelete
+                                                description="האם למחוק את מיקום הכסף הזה?"
+                                                onConfirm={() => deleteLocationMutation.mutate(loc.id)}
+                                                trigger={
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    aria-label="מחק מיקום"
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </Button>
+                                                }
+                                            />
                                         </div>
                                     ))}
                                 </div>

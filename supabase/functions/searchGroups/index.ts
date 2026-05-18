@@ -1,50 +1,54 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authenticate, errorResponse, handleOptions, jsonResponse, serviceClient } from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
+  const opts = handleOptions(req);
+  if (opts) return opts;
+
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const user = await authenticate(req);
+    const supabase = serviceClient();
 
     const { sales_rep, event_name, event_status } = await req.json();
 
-    let query = supabase.from('table_data').select('*').order('created_at', { ascending: false }).limit(1000);
-    if (sales_rep && sales_rep !== 'all') {
+    let query = supabase
+      .from('table_data')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    // Non-admin: only see own data regardless of requested sales_rep
+    if (user.role !== 'admin') {
+      query = query.eq('sales_rep', user.full_name);
+    } else if (sales_rep && sales_rep !== 'all') {
       query = query.eq('sales_rep', sales_rep);
     }
 
-    const { data: groups, error } = await query;
-    if (error) throw error;
+    // Event filter pushed to DB level via wristbands join
+    if (event_name && event_name !== 'all') {
+      const { data: wristbands, error: wbErr } = await supabase
+        .from('wristbands')
+        .select('order_number')
+        .contains('allowed_events', [event_name]);
+      if (wbErr) throw wbErr;
 
-    if (!event_name || event_name === 'all' || !event_status || event_status === 'all') {
-      return Response.json(groups);
-    }
+      const orderNumbers = Array.from(
+        new Set((wristbands || []).map((w) => w.order_number).filter(Boolean))
+      );
 
-    // Filter by event — check wristbands.allowed_events
-    const { data: wristbands } = await supabase
-      .from('wristbands')
-      .select('order_number, allowed_events')
-      .order('created_at', { ascending: false })
-      .limit(3000);
-
-    const ordersWithEvent = new Set<string>();
-    for (const wb of wristbands || []) {
-      if (Array.isArray(wb.allowed_events) && wb.allowed_events.includes(event_name)) {
-        if (wb.order_number) ordersWithEvent.add(wb.order_number);
+      if (event_status === 'bought') {
+        if (orderNumbers.length === 0) return jsonResponse([]);
+        query = query.in('order_number', orderNumbers);
+      } else if (event_status === 'not_bought') {
+        if (orderNumbers.length > 0) {
+          query = query.not('order_number', 'in', `(${orderNumbers.map((o) => `"${o}"`).join(',')})`);
+        }
       }
     }
 
-    const filtered = (groups || []).filter(group => {
-      if (!group.order_number) return false;
-      const hasEvent = ordersWithEvent.has(group.order_number);
-      if (event_status === 'bought') return hasEvent;
-      if (event_status === 'not_bought') return !hasEvent;
-      return true;
-    });
+    const { data, error } = await query.limit(5000);
+    if (error) throw error;
 
-    return Response.json(filtered);
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return jsonResponse(data || []);
+  } catch (err) {
+    return errorResponse(err);
   }
 });

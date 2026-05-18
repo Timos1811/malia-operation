@@ -1,16 +1,16 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authenticate, errorResponse, handleOptions, jsonResponse, requireAdmin, serviceClient } from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+  const opts = handleOptions(req);
+  if (opts) return opts;
 
+  try {
+    const user = await authenticate(req);
+    requireAdmin(user);
+
+    const supabase = serviceClient();
     const { event_name } = await req.json();
-    if (!event_name) {
-      return Response.json({ error: 'Event name is required' }, { status: 400 });
-    }
+    if (!event_name) return jsonResponse({ error: 'Event name is required' }, 400);
 
     const { data: logs, error } = await supabase
       .from('wristband_scan_logs')
@@ -19,11 +19,9 @@ Deno.serve(async (req) => {
       .eq('status', 'success');
 
     if (error) throw error;
-    if (!logs || logs.length === 0) {
-      return Response.json({ message: 'No logs to reset', count: 0 });
-    }
+    if (!logs || logs.length === 0) return jsonResponse({ message: 'No logs to reset', count: 0 });
 
-    const ids = logs.map(l => l.id);
+    const ids = logs.map((l) => l.id);
     const batchSize = 50;
     let updatedCount = 0;
 
@@ -37,8 +35,9 @@ Deno.serve(async (req) => {
       updatedCount += batch.length;
     }
 
-    return Response.json({ success: true, count: updatedCount });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.log(`resetEventScans: ${user.id} reset ${updatedCount} logs for ${event_name}`);
+    return jsonResponse({ success: true, count: updatedCount });
+  } catch (err) {
+    return errorResponse(err);
   }
 });
