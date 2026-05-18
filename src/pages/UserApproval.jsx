@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { base44, supabase } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,11 @@ export default function UserApproval() {
     
     const { data: users = [], isLoading } = useQuery({
         queryKey: ['usersList'],
-        queryFn: () => base44.entities.User.list(),
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('list_all_users');
+            if (error) throw error;
+            return data || [];
+        },
     });
 
     const updateStatusMutation = useMutation({

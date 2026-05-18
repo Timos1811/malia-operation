@@ -56,13 +56,7 @@ export const AuthProvider = ({ children }) => {
         setAuthError({ type: 'user_not_registered', message: 'המשתמש ממתין לאישור' });
         setIsAuthenticated(false);
       } else {
-        // Create user profile if doesn't exist
-        await supabase.from('users').insert({
-          id: authUser.id,
-          role: 'user',
-          status: 'pending',
-          full_name: authUser.user_metadata?.full_name || authUser.email,
-        });
+        // Profile is auto-created by DB trigger on signup. Treat missing as pending.
         setAuthError({ type: 'user_not_registered', message: 'המשתמש ממתין לאישור' });
         setIsAuthenticated(false);
       }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from "@/api/base44Client";
+import { base44, supabase } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -224,98 +224,45 @@ export default function EventScanner() {
         setLoading(true);
         setScanResult(null);
 
-        // Convert serial number format if needed (usually comes as xx:xx:xx:xx)
-        const nfcId = serialNumber.replace(/:/g, "").toLowerCase(); // Normalize format
-        
-        try {
-            // Find wristband directly using filter (handles large datasets correctly)
-            let wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId });
-            
-            // Fallback: Try uppercase match if not found (for legacy data)
-            if (!wristbands || wristbands.length === 0) {
-                wristbands = await base44.entities.Wristband.filter({ nfc_id: nfcId.toUpperCase() });
-            }
+        const nfcId = serialNumber.replace(/:/g, "").toLowerCase();
 
-            const wristband = wristbands && wristbands.length > 0 ? wristbands[0] : null;
+        try {
+            // Single RPC call replaces 3 queries (lookup + uppercase fallback + previous scans check)
+            const { data: rpcResult, error: rpcError } = await supabase.rpc('scan_wristband', {
+                p_nfc_id: nfcId,
+                p_event_name: selectedEvent,
+            });
+            if (rpcError) throw rpcError;
+
+            const wristband = rpcResult?.wristband || null;
+            const status = rpcResult?.status;
 
             let resultStatus, resultMessage, resultDetails;
 
-            if (!wristband) {
+            if (status === 'not_found') {
                 resultStatus = 'error';
                 resultMessage = 'צמיד לא מזוהה במערכת';
                 resultDetails = { nfc_id: nfcId };
-            } else if (wristband.status === 'inactive') {
+            } else if (status === 'inactive') {
                 resultStatus = 'error';
                 resultMessage = 'הצמיד אינו פעיל';
                 resultDetails = { reason: 'status_inactive' };
-            } else if (wristband.valid_until && new Date(wristband.valid_until) < new Date(new Date().setHours(0,0,0,0))) {
-                // Check expiration: valid_until is usually inclusive (checkout day), 
-                // so if today is AFTER valid_until (at 00:00), it is expired.
-                // Actually, if departure is "2023-01-01", usually checkout is morning, so evening events on 01-01 might be invalid?
-                // User said "defined until... after that not active". 
-                // Let's assume strict: if today > valid_until, it's expired.
-                // If today == valid_until, it depends. Usually checkout is 11am. 
-                // Let's treat valid_until as the LAST VALID DAY (inclusive) for now, or assume it expires at the end of that day.
-                // Code: if today (00:00) > valid_until (parsed as date), then expired.
-                // Date comparison: '2023-01-02' > '2023-01-01'.
-                const todayStr = new Date().toISOString().split('T')[0];
-                if (todayStr > wristband.valid_until) {
-                    resultStatus = 'error';
-                    resultMessage = 'תוקף הצמיד פג';
-                    resultDetails = { valid_until: wristband.valid_until };
-                } else {
-                    // Continue with allowed check
-                    // Check if event is allowed
-                    const allowedEvents = wristband.allowed_events || [];
-                    const isAllowed = allowedEvents.includes(selectedEvent);
-
-                    if (isAllowed) {
-                        // Check if already scanned
-                        const previousScans = await base44.entities.WristbandScanLog.filter({
-                            nfc_id: nfcId,
-                            event_name: selectedEvent,
-                            status: 'success'
-                        }, '-scan_time', 1);
-
-                        if (previousScans.length > 0) {
-                            resultStatus = 'already_scanned';
-                        } else {
-                            resultStatus = 'success';
-                        }
-                        resultMessage = '';
-                        resultDetails = {};
-                    } else {
-                        resultStatus = 'warning';
-                        resultMessage = '';
-                        resultDetails = {};
-                    }
-                }
+            } else if (status === 'expired') {
+                resultStatus = 'error';
+                resultMessage = 'תוקף הצמיד פג';
+                resultDetails = { valid_until: wristband?.valid_until };
+            } else if (status === 'warning') {
+                resultStatus = 'warning';
+                resultMessage = '';
+                resultDetails = {};
+            } else if (status === 'already_scanned' || status === 'success') {
+                resultStatus = status;
+                resultMessage = '';
+                resultDetails = {};
             } else {
-                // Status active and date valid (or not set)
-                // Check if event is allowed
-                const allowedEvents = wristband.allowed_events || [];
-                const isAllowed = allowedEvents.includes(selectedEvent);
-
-                if (isAllowed) {
-                    // Check if already scanned
-                    const previousScans = await base44.entities.WristbandScanLog.filter({
-                        nfc_id: nfcId,
-                        event_name: selectedEvent,
-                        status: 'success'
-                    }, '-scan_time', 1);
-
-                    if (previousScans.length > 0) {
-                        resultStatus = 'already_scanned';
-                    } else {
-                        resultStatus = 'success';
-                    }
-                    resultMessage = '';
-                    resultDetails = {};
-                } else {
-                    resultStatus = 'warning';
-                    resultMessage = '';
-                    resultDetails = {};
-                }
+                resultStatus = 'error';
+                resultMessage = 'תגובת סורק לא צפויה';
+                resultDetails = {};
             }
 
             setScanResult({
