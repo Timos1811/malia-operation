@@ -5,6 +5,7 @@ import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import Login from './pages/Login';
 import SubmitReceipt from './pages/SubmitReceipt';
 import UserApproval from './pages/UserApproval';
 import EventStats from './pages/EventStats';
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
           <MyOrder />
         </LayoutWrapper>
       } />
+      <Route path="/login" element={<Login />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
