@@ -32,7 +32,8 @@ const functions = {
   async invoke(name, payload) {
     const { data, error } = await supabase.functions.invoke(name, { body: payload });
     if (error) throw error;
-    return data;
+    // Wrap in { data } to match Base44 SDK response shape
+    return { data };
   },
 };
 
