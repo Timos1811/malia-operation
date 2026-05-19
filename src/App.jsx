@@ -12,6 +12,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import InstallPrompt from '@/components/InstallPrompt';
 import PWAUpdateNotice from '@/components/PWAUpdateNotice';
+import GlobalSync from '@/lib/GlobalSync';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -80,6 +81,7 @@ function App() {
           <Toaster />
           <InstallPrompt />
           <PWAUpdateNotice />
+          <GlobalSync />
         </QueryClientProvider>
       </AuthProvider>
     </ErrorBoundary>
