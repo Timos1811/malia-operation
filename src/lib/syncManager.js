@@ -3,9 +3,18 @@ import {
   getQueuedScans,
   clearQueuedScans,
   cacheWristbandsForEvent,
+  cacheNewSaleData,
+  getQueuedSales,
+  updateQueuedSale,
+  removeQueuedSale,
 } from './offlineStore';
 
-let syncing = false;
+let syncingScans = false;
+let syncingSales = false;
+
+// ========================================================================
+// EventScanner sync
+// ========================================================================
 
 export async function syncEventData(eventName) {
   const { data, error } = await supabase.rpc('sync_wristbands_for_event', {
@@ -17,8 +26,8 @@ export async function syncEventData(eventName) {
 }
 
 export async function flushScanQueue() {
-  if (syncing) return { skipped: true };
-  syncing = true;
+  if (syncingScans) return { skipped: true };
+  syncingScans = true;
   try {
     const queued = await getQueuedScans();
     if (queued.length === 0) return { flushed: 0 };
@@ -40,6 +49,89 @@ export async function flushScanQueue() {
     await clearQueuedScans(queued.map((q) => q.id));
     return { flushed: queued.length };
   } finally {
-    syncing = false;
+    syncingScans = false;
+  }
+}
+
+// ========================================================================
+// NewSale data sync (cache for offline use)
+// ========================================================================
+
+export async function syncNewSaleData() {
+  const { data, error } = await supabase.rpc('cache_data_for_new_sale');
+  if (error) throw error;
+  await cacheNewSaleData(data);
+  return data;
+}
+
+// ========================================================================
+// Sales queue sync (flush offline-created sales to server)
+// ========================================================================
+
+export async function flushSalesQueue() {
+  if (syncingSales) return { skipped: true };
+  syncingSales = true;
+  const result = { created: 0, conflicts: 0, errors: 0 };
+
+  try {
+    const queued = await getQueuedSales();
+    if (queued.length === 0) return result;
+
+    for (const sale of queued) {
+      if (sale.status === 'synced') {
+        // Should have been removed already but clean up just in case
+        await removeQueuedSale(sale.local_id);
+        continue;
+      }
+
+      try {
+        await updateQueuedSale(sale.local_id, { status: 'syncing' });
+
+        const payload = {
+          order_number: sale.order_number,
+          departure_date: sale.departure_date,
+          customer: sale.customer,
+          nights: sale.nights,
+          gender: sale.gender,
+          hotel: sale.hotel,
+          company: sale.company,
+          requested_amount: sale.requested_amount,
+          sales_rep: sale.sales_rep,
+          is_combo: sale.is_combo,
+          wristbands: sale.wristbands || [],
+        };
+
+        const { data, error } = await supabase.rpc('create_sale_atomic', { p_sale: payload });
+        if (error) throw error;
+
+        if (data?.status === 'created') {
+          await removeQueuedSale(sale.local_id);
+          result.created++;
+        } else if (data?.status?.startsWith('conflict')) {
+          await updateQueuedSale(sale.local_id, {
+            status: 'conflict',
+            conflict: data,
+            conflict_at: Date.now(),
+          });
+          result.conflicts++;
+        } else {
+          await updateQueuedSale(sale.local_id, {
+            status: 'queued',
+            last_error: data?.message || 'Unknown server response',
+          });
+          result.errors++;
+        }
+      } catch (err) {
+        await updateQueuedSale(sale.local_id, {
+          status: 'queued',
+          last_error: err.message || String(err),
+        });
+        result.errors++;
+      }
+    }
+
+    return result;
+  } finally {
+    syncingSales = false;
   }
 }

@@ -1,291 +1,345 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CheckCircle2, ShieldAlert, PartyPopper, ScanLine, AlertTriangle, Users, Building2, Moon, Calendar, User } from "lucide-react";
-import { getNextEventDate } from "@/utils/dateHelpers";
-import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from '@tanstack/react-query';
+import { base44, supabase } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
+import {
+  isNfcIdTaken,
+  isOrderNumberTaken,
+  getCachedLookup,
+  enqueueSale,
+  getLastNewSaleSync,
+  getSalesQueueCount,
+} from '@/lib/offlineStore';
+import { syncNewSaleData, flushSalesQueue } from '@/lib/syncManager';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Loader2, CheckCircle2, ShieldAlert, PartyPopper, ScanLine, AlertTriangle,
+  Building2, User, Wifi, WifiOff, CloudOff, Cloud, RefreshCw,
+} from 'lucide-react';
+import { getNextEventDate } from '@/utils/dateHelpers';
+import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function NewSale() {
-  // --- State: Order Details ---
+  const online = useOnlineStatus();
+  const { user: currentUser } = useAuth();
+
   const [formData, setFormData] = useState({
     orderNumber: '',
     departureDate: '',
     customerCount: '1',
     gender: 'mixed',
     hotel: '',
-    company: ''
+    company: '',
   });
 
-  // --- State: Party Selection ---
   const [selectedAttractions, setSelectedAttractions] = useState(new Set());
-
-  // --- State: Scanning Process ---
   const [isScanning, setIsScanning] = useState(false);
   const [scannedIds, setScannedIds] = useState(new Set());
   const scannedIdsRef = useRef(new Set());
-  const [lastScanned, setLastScanned] = useState(null); // Feedback state
+  const [scannedWristbands, setScannedWristbands] = useState([]); // [{nfc_id, customer_name, allowed_events, valid_until}]
+  const [lastScanned, setLastScanned] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const { user: currentUser } = useAuth();
+  const [savedOffline, setSavedOffline] = useState(false);
 
   const isProcessingRef = useRef(false);
+  const audioCtxRef = useRef(null);
 
-  // --- Data Fetching ---
-  const { data: attractions = [] } = useQuery({
+  // Offline support state
+  const [lastSync, setLastSync] = useState(null);
+  const [salesQueueCount, setSalesQueueCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+
+  // Cached lookups (fallback to server data when online)
+  const [cachedAttractions, setCachedAttractions] = useState([]);
+  const [cachedHotels, setCachedHotels] = useState([]);
+  const [cachedCombos, setCachedCombos] = useState([]);
+  const [cachedComboPrice, setCachedComboPrice] = useState('550');
+
+  // --- Server-backed queries (used when online) ---
+  const { data: attractionsOnline = [] } = useQuery({
     queryKey: ['attractions'],
     queryFn: () => base44.entities.Attraction.list(),
+    staleTime: 1000 * 60 * 5,
+    enabled: online,
   });
 
-  const { data: hotels = [] } = useQuery({
+  const { data: hotelsOnline = [] } = useQuery({
     queryKey: ['hotels'],
     queryFn: () => base44.entities.Hotel.list(),
+    staleTime: 1000 * 60 * 5,
+    enabled: online,
   });
 
-  const { data: comboPriceSetting } = useQuery({
+  const { data: comboPriceOnline } = useQuery({
     queryKey: ['appSettings', 'combo_price_eur'],
     queryFn: async () => {
-        const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
-        return settings[0]?.value || '550';
+      const settings = await base44.entities.AppSetting.filter({ key: 'combo_price_eur' });
+      return settings[0]?.value || '550';
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
+    enabled: online,
   });
 
-  // --- Calculated Values ---
+  // Effective data (online first, fallback to cache)
+  const attractions = attractionsOnline.length > 0 ? attractionsOnline : cachedAttractions;
+  const hotels = hotelsOnline.length > 0 ? hotelsOnline : cachedHotels;
+  const comboPrice = parseFloat(comboPriceOnline || cachedComboPrice) || 550;
+
+  // --- Init: load cache + try syncing if online ---
+  useEffect(() => {
+    (async () => {
+      const [att, hot, comb, sett, last, queued] = await Promise.all([
+        getCachedLookup('attractions'),
+        getCachedLookup('hotels'),
+        getCachedLookup('combos'),
+        getCachedLookup('app_settings'),
+        getLastNewSaleSync(),
+        getSalesQueueCount(),
+      ]);
+      setCachedAttractions(att || []);
+      setCachedHotels(hot || []);
+      setCachedCombos(comb || []);
+      const cp = (sett || []).find((s) => s.key === 'combo_price_eur');
+      if (cp?.value) setCachedComboPrice(cp.value);
+      setLastSync(last);
+      setSalesQueueCount(queued);
+    })();
+  }, []);
+
+  // Refresh cache when going online
+  useEffect(() => {
+    if (online) {
+      handleSyncCache().catch(() => {});
+      flushSalesQueue()
+        .then((r) => {
+          if (r?.created) toast.success(`סונכרנו ${r.created} מכירות שהמתינו`);
+          if (r?.conflicts) toast.warning(`${r.conflicts} מכירות בקונפליקט - דרושה התערבות`);
+        })
+        .finally(refreshQueueCount);
+    }
+  }, [online]);
+
+  const refreshQueueCount = async () => setSalesQueueCount(await getSalesQueueCount());
+
+  const handleSyncCache = async () => {
+    if (!online) return;
+    setSyncing(true);
+    try {
+      const data = await syncNewSaleData();
+      setCachedAttractions(data.attractions || []);
+      setCachedHotels(data.hotels || []);
+      setCachedCombos(data.combos || []);
+      const cp = (data.app_settings || []).find((s) => s.key === 'combo_price_eur');
+      if (cp?.value) setCachedComboPrice(cp.value);
+      const last = await getLastNewSaleSync();
+      setLastSync(last);
+    } catch (e) {
+      console.error('cache sync failed', e);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // --- Calculated values ---
   const maxCustomers = parseInt(formData.customerCount) || 1;
   const maxCustomersRef = useRef(maxCustomers);
-  useEffect(() => {
-    maxCustomersRef.current = maxCustomers;
-  }, [maxCustomers]);
+  useEffect(() => { maxCustomersRef.current = maxCustomers; }, [maxCustomers]);
 
   const scannedCount = scannedIds.size;
   const isAllWristbandsScanned = scannedCount >= maxCustomers;
-  
-  const comboPrice = parseFloat(comboPriceSetting) || 550;
   const isCombo = attractions.length > 0 && selectedAttractions.size === attractions.length;
 
   const totalPrice = useMemo(() => {
     if (attractions.length > 0 && selectedAttractions.size === attractions.length) {
       return comboPrice * maxCustomers;
     }
-    
     let sum = 0;
-    selectedAttractions.forEach(id => {
-      const att = attractions.find(a => a.id === id);
-      if (att) sum += (att.price_eur || 0);
+    selectedAttractions.forEach((id) => {
+      const att = attractions.find((a) => a.id === id);
+      if (att) sum += att.price_eur || 0;
     });
     return sum * maxCustomers;
   }, [selectedAttractions, maxCustomers, attractions, comboPrice]);
 
-  // --- Handlers ---
-
+  // --- Order duplicate check (works offline against cache) ---
   const [casparLoaded, setCasparLoaded] = useState(false);
 
   const checkOrderDuplicate = async () => {
     if (!formData.orderNumber || formData.orderNumber.length < 3) return false;
-    
+
     try {
-      const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
-      const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
+      // Try unclaimed pending sale auto-fill (from cache if offline)
+      let unclaimedEntry = null;
+      if (online) {
+        const existingPending = await base44.entities.PendingSale.filter({
+          order_number: formData.orderNumber.toString(),
+        });
+        unclaimedEntry = existingPending.find((ps) => !ps.sales_rep);
+      } else {
+        const cached = (await getCachedLookup('unclaimed_pending_sales')) || [];
+        unclaimedEntry = cached.find((ps) => String(ps.order_number) === formData.orderNumber.toString());
+      }
 
-      // If a pending sale exists WITHOUT a sales_rep — it's an unclaimed entry (caspar or manual admin entry).
-      // Auto-fill the form so the seller can claim it.
-      const unclaimedEntry = existingPending.find(ps => !ps.sales_rep);
       if (unclaimedEntry) {
-        // People count may be stored in `customer` (caspar entries store the count there as a number)
         const peopleCount = parseInt(unclaimedEntry.customer, 10);
-
-        // Map gender from Hebrew (stored in DB) back to form value
         const genderReverseMap = { 'גברים': 'male', 'נשים': 'female', 'מעורב': 'mixed' };
-
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           departureDate: unclaimedEntry.departure_date || prev.departureDate,
           hotel: unclaimedEntry.hotel || prev.hotel,
           company: unclaimedEntry.company || prev.company,
-          customerCount: (peopleCount && peopleCount > 0) ? peopleCount.toString() : prev.customerCount,
+          customerCount: peopleCount > 0 ? peopleCount.toString() : prev.customerCount,
           gender: genderReverseMap[unclaimedEntry.gender] || prev.gender,
         }));
         setCasparLoaded(true);
         toast.success(`נטענו פרטי הזמנה ממתינה${peopleCount ? ` (${peopleCount} אנשים)` : ''}`);
-        return false; // Not a real duplicate — allow seller to claim it
+        return false;
       }
 
-      if (existingPending.length > 0 || existingTable.length > 0) {
-        toast.error("מספר הזמנה זה כבר קיים במערכת!");
+      const taken = await isOrderNumberTaken(formData.orderNumber.toString());
+      if (taken) {
+        toast.error('מספר הזמנה זה כבר קיים במערכת!');
         return true;
       }
     } catch (e) {
-      console.error("Error checking duplicates", e);
+      console.error('dup check', e);
     }
     return false;
   };
 
-  const playSound = (type = 'success') => {
+  // --- Audio feedback ---
+  const playSound = (type) => {
     try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.frequency.setValueAtTime(type === 'success' ? 880 : 200, audioCtx.currentTime);
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + (type === 'success' ? 0.1 : 0.3));
-    } catch (e) { console.error(e); }
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(type === 'success' ? 880 : 200, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+      if (navigator.vibrate) navigator.vibrate(type === 'success' ? 80 : [80, 60, 80]);
+    } catch {}
   };
 
+  // --- NFC Scanning ---
   const handleNFCScan = async () => {
     if (isAllWristbandsScanned) return;
-    if (!formData.orderNumber) return toast.error("נא להזין מספר הזמנה");
-    if (!('NDEFReader' in window)) return toast.error("דפדפן זה לא תומך ב-NFC");
+    if (!formData.orderNumber) return toast.error('נא להזין מספר הזמנה');
+    if (!('NDEFReader' in window)) return toast.error('דפדפן זה לא תומך ב-NFC');
 
     setIsScanning(true);
     try {
       const ndef = new window.NDEFReader();
       await ndef.scan();
-      toast.info("מוכן לסריקה: הצמד צמיד...");
+      toast.info('מוכן לסריקה: הצמד צמיד...');
 
       ndef.onreading = async (event) => {
-        // Remove colons and normalize to lowercase
-        const nfcId = event.serialNumber.replace(/:/g, "").toLowerCase();
-
-        // Check against the ref directly to avoid stale closures
+        const nfcId = event.serialNumber.replace(/:/g, '').toLowerCase();
         if (scannedIdsRef.current.has(nfcId)) return;
-        
-        // Also check if we already reached the max limit to prevent excess scans
-        const currentMax = maxCustomersRef.current;
-        if (scannedIdsRef.current.size >= currentMax) {
-           setIsScanning(false);
-           return;
+        if (scannedIdsRef.current.size >= maxCustomersRef.current) {
+          setIsScanning(false);
+          return;
         }
-
         if (isProcessingRef.current) return;
         isProcessingRef.current = true;
 
         try {
-          // STRICT CHECK: Is this wristband already in the DB?
-          const existing = await base44.entities.Wristband.filter({ nfc_id: nfcId });
-          
-          if (existing.length > 0) {
-            const usedWristband = existing[0];
+          // Duplicate check against cache (works offline)
+          const taken = await isNfcIdTaken(nfcId);
+          if (taken) {
             playSound('error');
             setLastScanned({
               status: 'error',
               id: nfcId,
-              message: "צמיד זה כבר בשימוש!",
-              details: `שייך להזמנה ${usedWristband.order_number}`
+              message: 'צמיד זה כבר בשימוש',
+              details: 'הצמיד מופיע במאגר המקומי',
             });
-            toast.error(`צמיד תפוס (הזמנה ${usedWristband.order_number})`);
+            toast.error('צמיד תפוס');
             return;
           }
 
-          // Register the wristband
+          // Add to local scan list (NOT yet to server)
           const selectedNames = Array.from(selectedAttractions)
-            .map(id => {
-                const att = attractions.find(a => a.id === id);
-                if (!att) return null;
-                const nextDateStr = getNextEventDate(att.event_days, att.start_time);
-                return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
+            .map((id) => {
+              const att = attractions.find((a) => a.id === id);
+              if (!att) return null;
+              const nextDateStr = getNextEventDate(att.event_days, att.start_time);
+              return nextDateStr ? `${att.name} - ${nextDateStr.split('-').reverse().join('/')}` : att.name;
             })
             .filter(Boolean);
 
           const guestNumber = scannedIdsRef.current.size + 1;
-
-          await base44.entities.Wristband.create({
+          const wbEntry = {
             nfc_id: nfcId,
-            order_number: formData.orderNumber.toString(),
-            // Wristband only holds the parties link and the order link
-            customer_name: `אורח ${guestNumber}`, // Optional: internal numbering
+            customer_name: `אורח ${guestNumber}`,
             allowed_events: selectedNames,
-            status: 'active',
-            valid_until: formData.departureDate // Set expiration from form
-          });
+            valid_until: formData.departureDate || null,
+          };
 
           playSound('success');
-          
-          // Update both ref and state
           scannedIdsRef.current.add(nfcId);
           setScannedIds(new Set(scannedIdsRef.current));
-          
+          setScannedWristbands((prev) => [...prev, wbEntry]);
+
           setLastScanned({
             status: 'success',
             id: nfcId,
-            message: "צמיד שויך בהצלחה",
-            details: `אורח ${guestNumber} שויך להזמנה ${formData.orderNumber}`
+            message: 'צמיד נסרק',
+            details: `אורח ${guestNumber}`,
           });
-          toast.success("צמיד נוסף להזמנה");
-
-        } catch (error) {
-          console.error(error);
-          toast.error("שגיאה ברישום הצמיד");
+          toast.success('צמיד נוסף');
+        } catch (e) {
+          console.error(e);
+          toast.error('שגיאה ברישום הצמיד');
         } finally {
           isProcessingRef.current = false;
-          
-          const currentMax = maxCustomersRef.current;
-          if (scannedIdsRef.current.size >= currentMax) {
+          if (scannedIdsRef.current.size >= maxCustomersRef.current) {
             setIsScanning(false);
-            toast.success("כל הצמידים להזמנה נסרקו!");
+            toast.success('כל הצמידים נסרקו!');
           }
         }
       };
     } catch (error) {
       console.error(error);
       setIsScanning(false);
-      toast.error("שגיאה בהפעלת NFC");
+      toast.error('שגיאה בהפעלת NFC');
     }
   };
 
+  // --- Finish Sale (online: server / offline: queue) ---
   const handleFinishSale = async () => {
-    if (!formData.orderNumber) return toast.error("חסר מספר הזמנה");
-    
+    if (!formData.orderNumber) return toast.error('חסר מספר הזמנה');
+    if (scannedCount === 0) return toast.error('יש לסרוק לפחות צמיד אחד');
     if (scannedCount < maxCustomers) {
-        const isConfirmed = window.confirm(`שים לב: הוגדרו ${maxCustomers} לקוחות בקבוצה, אך נסרקו רק ${scannedCount} צמידים. האם אתה בטוח שברצונך לסיים את המכירה?`);
-        if (!isConfirmed) return;
+      const ok = window.confirm(
+        `הוגדרו ${maxCustomers} לקוחות, נסרקו ${scannedCount}. להמשיך?`
+      );
+      if (!ok) return;
     }
-    
+
     setIsSubmitting(true);
-
     try {
-      // Check for duplicate order number in finalized sales
-      const existingTable = await base44.entities.TableData.filter({ order_number: formData.orderNumber.toString() });
+      const genderMap = { male: 'גברים', female: 'נשים', mixed: 'מעורב' };
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const departure = new Date(formData.departureDate); departure.setHours(0, 0, 0, 0);
+      const calculatedNights = Math.max(0, Math.ceil((departure - today) / (1000 * 60 * 60 * 24))).toString();
 
-      if (existingTable.length > 0) {
-        toast.error("מספר הזמנה זה כבר קיים במערכת!");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Check for existing pending sale — if unclaimed (no sales_rep), we'll CLAIM it
-      // (preserving any money fields the admin may have pre-filled).
-      const existingPending = await base44.entities.PendingSale.filter({ order_number: formData.orderNumber.toString() });
-      const unclaimedExisting = existingPending.find(ps => !ps.sales_rep);
-
-      // מיפוי ערכי מגדר לעברית
-      const genderMap = {
-        'male': 'גברים',
-        'female': 'נשים',
-        'mixed': 'מעורב'
-      };
-
-      // Calculate nights based on departure date vs today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const departure = new Date(formData.departureDate);
-      departure.setHours(0, 0, 0, 0);
-      const diffTime = departure - today;
-      const calculatedNights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))).toString();
-
-      // Build the row from the form
-      const formRow = {
+      const salePayload = {
         order_number: formData.orderNumber.toString(),
         departure_date: formData.departureDate,
         customer: formData.customerCount.toString(),
@@ -294,53 +348,33 @@ export default function NewSale() {
         hotel: formData.hotel,
         company: formData.company,
         requested_amount: totalPrice.toString(),
-        timestamp: Date.now(),
         sales_rep: currentUser?.full_name || '',
-        is_combo: isCombo
+        is_combo: isCombo,
+        wristbands: scannedWristbands,
       };
 
-      if (unclaimedExisting) {
-        // CLAIM the existing entry — preserve money fields pre-filled by the admin
-        const preservedMoneyFields = {
-          eur_amount: unclaimedExisting.eur_amount || "",
-          shekel_amount: unclaimedExisting.shekel_amount || "",
-          dollar_amount: unclaimedExisting.dollar_amount || "",
-          bit_amount: unclaimedExisting.bit_amount || "",
-          discount_amount: unclaimedExisting.discount_amount || "",
-          eur_status: unclaimedExisting.eur_status || "0",
-          comments: unclaimedExisting.comments || "",
-          envelope_received: unclaimedExisting.envelope_received || false
-        };
-        await base44.entities.PendingSale.update(unclaimedExisting.id, {
-          ...formRow,
-          ...preservedMoneyFields
-        });
-        // Remove any other duplicate pending sales for this order
-        for (const ps of existingPending) {
-          if (ps.id !== unclaimedExisting.id) {
-            await base44.entities.PendingSale.delete(ps.id);
-          }
+      if (online) {
+        const { data, error } = await supabase.rpc('create_sale_atomic', { p_sale: salePayload });
+        if (error) throw error;
+        if (data?.status === 'created') {
+          setIsSuccess(true);
+        } else if (data?.status === 'conflict_order') {
+          toast.error('מספר הזמנה כבר קיים במערכת');
+        } else if (data?.status === 'conflict_wristbands') {
+          toast.error(`צמידים שכבר בשימוש: ${(data.conflicting || []).join(', ')}`);
+        } else {
+          toast.error(`תגובה לא צפויה מהשרת: ${data?.status}`);
         }
       } else {
-        // Clean up any existing pending sales for this order (shouldn't happen since duplicate check passed)
-        for (const ps of existingPending) {
-          await base44.entities.PendingSale.delete(ps.id);
-        }
-        // Create new pending sale with empty money fields
-        await base44.entities.PendingSale.create({
-          ...formRow,
-          eur_amount: "",
-          shekel_amount: "",
-          dollar_amount: "",
-          bit_amount: "",
-          eur_status: "0"
-        });
+        // OFFLINE: queue it
+        await enqueueSale(salePayload);
+        await refreshQueueCount();
+        setSavedOffline(true);
+        setIsSuccess(true);
       }
-      
-      setIsSuccess(true);
     } catch (error) {
       console.error(error);
-      toast.error("שגיאה בשמירת ההזמנה");
+      toast.error(`שגיאה בשמירה: ${error.message || 'נסה שוב'}`);
       setIsSubmitting(false);
     }
   };
@@ -348,16 +382,27 @@ export default function NewSale() {
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center" dir="rtl">
-        <CheckCircle2 className="w-24 h-24 text-green-500 mb-6" />
-        <h1 className="text-3xl font-black text-slate-900 mb-2">המכירה הושלמה!</h1>
-        <p className="text-slate-500 text-lg mb-8">
-          הזמנה {formData.orderNumber} נשמרה עם {scannedIds.size} צמידים.
-        </p>
-        <Button 
-          size="lg" 
-          className="rounded-full font-bold text-lg px-8"
-          onClick={() => window.location.reload()}
-        >
+        {savedOffline ? (
+          <>
+            <CloudOff className="w-24 h-24 text-orange-500 mb-6" />
+            <h1 className="text-3xl font-black text-slate-900 mb-2">נשמר מקומית</h1>
+            <p className="text-slate-500 text-lg mb-2">
+              המכירה {formData.orderNumber} נשמרה בזכרון המכשיר.
+            </p>
+            <p className="text-slate-500 text-base mb-8">
+              כשתחזור הרשת - המכירה תסונכרן אוטומטית לשרת.
+            </p>
+          </>
+        ) : (
+          <>
+            <CheckCircle2 className="w-24 h-24 text-green-500 mb-6" />
+            <h1 className="text-3xl font-black text-slate-900 mb-2">המכירה הושלמה!</h1>
+            <p className="text-slate-500 text-lg mb-8">
+              הזמנה {formData.orderNumber} נשמרה עם {scannedIds.size} צמידים.
+            </p>
+          </>
+        )}
+        <Button size="lg" className="rounded-full font-bold text-lg px-8" onClick={() => window.location.reload()}>
           התחל מכירה חדשה
         </Button>
       </div>
@@ -371,13 +416,47 @@ export default function NewSale() {
         <div className="flex items-center gap-2 font-black text-xl text-slate-800">
           <PartyPopper className="text-indigo-600" /> מכירה חדשה
         </div>
-        <div className={`px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2 ${isAllWristbandsScanned ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
-           <ScanLine className="w-4 h-4" /> {scannedCount} / {maxCustomers}
+        <div className="flex items-center gap-2">
+          <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+            online ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'
+          }`}>
+            {online ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+            {online ? 'מקוון' : 'לא מקוון'}
+          </div>
+          <div className={`px-3 py-1 rounded-full text-sm font-black flex items-center gap-1 ${
+            isAllWristbandsScanned ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
+          }`}>
+            <ScanLine className="w-3 h-3" /> {scannedCount} / {maxCustomers}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto p-4 space-y-6">
-        
+      <div className="max-w-xl mx-auto p-4 space-y-4">
+        {/* Sync status / Queue indicator */}
+        {(salesQueueCount > 0 || !lastSync) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm text-blue-800">
+              {salesQueueCount > 0 ? (
+                <>
+                  <CloudOff className="w-4 h-4" />
+                  <span>{salesQueueCount} מכירות ממתינות לסנכרון</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span>טרם סונכרן - צריך אינטרנט לעבודה offline</span>
+                </>
+              )}
+            </div>
+            {online && (
+              <Button size="sm" variant="outline" onClick={handleSyncCache} disabled={syncing} className="h-8">
+                {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Cloud className="w-3 h-3" />}
+                סנכרן
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Step 1: Order Details */}
         <Card className="border-none shadow-sm rounded-3xl overflow-hidden">
           <CardHeader className="bg-slate-900 text-white p-4">
@@ -385,8 +464,8 @@ export default function NewSale() {
               <User className="w-5 h-5" /> פרטי הזמנה
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-5 grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-1">
+          <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs text-slate-500 flex items-center gap-2">
                 מספר הזמנה
                 {casparLoaded && (
@@ -395,12 +474,14 @@ export default function NewSale() {
                   </span>
                 )}
               </Label>
-              <Input 
-                type="number" 
+              <Input
+                type="number"
+                inputMode="numeric"
+                autoComplete="off"
                 className={`text-lg font-bold border-slate-200 ${casparLoaded ? 'bg-green-50 border-green-300' : 'bg-slate-50'}`}
                 value={formData.orderNumber}
-                onChange={e => {
-                  setFormData({...formData, orderNumber: e.target.value});
+                onChange={(e) => {
+                  setFormData({ ...formData, orderNumber: e.target.value });
                   setCasparLoaded(false);
                 }}
                 onBlur={checkOrderDuplicate}
@@ -410,13 +491,15 @@ export default function NewSale() {
 
             <div className="space-y-1">
               <Label className="text-xs text-slate-500">מספר לקוחות</Label>
-              <Input 
-                type="number" 
+              <Input
+                type="number"
+                inputMode="numeric"
                 value={formData.customerCount}
-                onChange={e => {
-                  setFormData({...formData, customerCount: e.target.value});
-                  setScannedIds(new Set()); // Reset scans on count change to avoid confusion
+                onChange={(e) => {
+                  setFormData({ ...formData, customerCount: e.target.value });
+                  setScannedIds(new Set());
                   scannedIdsRef.current = new Set();
+                  setScannedWristbands([]);
                 }}
                 className="bg-slate-50 border-slate-200 font-bold"
               />
@@ -424,25 +507,18 @@ export default function NewSale() {
 
             <div className="space-y-1">
               <Label className="text-xs text-slate-500">תאריך עזיבה</Label>
-              <Input 
-                type="date" 
+              <Input
+                type="date"
                 value={formData.departureDate}
-                onChange={e => setFormData({...formData, departureDate: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, departureDate: e.target.value })}
                 className="bg-slate-50 border-slate-200"
               />
             </div>
 
-
-
             <div className="space-y-1">
               <Label className="text-xs text-slate-500">מגדר</Label>
-              <Select 
-                value={formData.gender} 
-                onValueChange={val => setFormData({...formData, gender: val})}
-              >
-                <SelectTrigger className="bg-slate-50 border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={formData.gender} onValueChange={(val) => setFormData({ ...formData, gender: val })}>
+                <SelectTrigger className="bg-slate-50 border-slate-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="mixed">מעורב</SelectItem>
                   <SelectItem value="male">גברים</SelectItem>
@@ -451,35 +527,20 @@ export default function NewSale() {
               </Select>
             </div>
 
-            <div className="col-span-2 space-y-1">
+            <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs text-slate-500">מלון</Label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 z-10" />
-                <Select 
-                  value={formData.hotel} 
-                  onValueChange={val => setFormData({...formData, hotel: val})}
-                >
-                  <SelectTrigger className="bg-slate-50 border-slate-200 pl-10">
-                    <SelectValue placeholder="בחר מלון" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {hotels.map(h => (
-                        <SelectItem key={h.id} value={h.name}>{h.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={formData.hotel} onValueChange={(val) => setFormData({ ...formData, hotel: val })}>
+                <SelectTrigger className="bg-slate-50 border-slate-200"><SelectValue placeholder="בחר מלון" /></SelectTrigger>
+                <SelectContent>
+                  {hotels.map((h) => <SelectItem key={h.id} value={h.name}>{h.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="col-span-2 space-y-1">
+            <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs text-slate-500">חברה</Label>
-              <Select 
-                value={formData.company} 
-                onValueChange={val => setFormData({...formData, company: val})}
-              >
-                <SelectTrigger className="bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="בחר חברה" />
-                </SelectTrigger>
+              <Select value={formData.company} onValueChange={(val) => setFormData({ ...formData, company: val })}>
+                <SelectTrigger className="bg-slate-50 border-slate-200"><SelectValue placeholder="בחר חברה" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ק">ק - קשרי תעופה</SelectItem>
                   <SelectItem value="נ">נ - נטו פאן</SelectItem>
@@ -493,40 +554,42 @@ export default function NewSale() {
         {/* Step 2: Parties */}
         <div className="space-y-3">
           <h3 className="font-bold text-slate-700 px-1">בחירת מסיבות</h3>
-          {attractions.map(att => {
+          {attractions.map((att) => {
             const isSelected = selectedAttractions.has(att.id);
             return (
-            <div key={att.id} className={`flex flex-col gap-3 p-4 rounded-2xl border transition-all ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm' : 'bg-white border-slate-100 hover:border-slate-300'}`}>
-              <div 
-                onClick={() => setSelectedAttractions(prev => {
-                  const next = new Set(prev);
-                  next.has(att.id) ? next.delete(att.id) : next.add(att.id);
-                  return next;
-                })}
-                className="flex items-center gap-4 cursor-pointer"
+              <div
+                key={att.id}
+                className={`flex flex-col gap-3 p-4 rounded-2xl border transition-all ${
+                  isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm' : 'bg-white border-slate-100 hover:border-slate-300'
+                }`}
               >
-                <Checkbox 
-                  checked={isSelected} 
-                  className="w-5 h-5 rounded-full"
-                />
-                <div className="flex-1 flex justify-between items-center font-medium">
-                  <span>{att.name}</span>
-                  <span className="text-indigo-600 font-bold">€{att.price_eur}</span>
+                <div
+                  onClick={() => setSelectedAttractions((prev) => {
+                    const next = new Set(prev);
+                    next.has(att.id) ? next.delete(att.id) : next.add(att.id);
+                    return next;
+                  })}
+                  className="flex items-center gap-4 cursor-pointer"
+                >
+                  <Checkbox checked={isSelected} className="w-5 h-5 rounded-full" />
+                  <div className="flex-1 flex justify-between items-center font-medium">
+                    <span>{att.name}</span>
+                    <span className="text-indigo-600 font-bold">€{att.price_eur}</span>
+                  </div>
                 </div>
-              </div>
-              
-              {isSelected && getNextEventDate(att.event_days, att.start_time) && (
-                <div className="pl-9 pr-2 pb-2">
+                {isSelected && getNextEventDate(att.event_days, att.start_time) && (
+                  <div className="pl-9 pr-2 pb-2">
                     <span className="text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md block w-fit">
-                        תאריך נבחר: {getNextEventDate(att.event_days, att.start_time).split('-').reverse().join('/')}
+                      תאריך נבחר: {getNextEventDate(att.event_days, att.start_time).split('-').reverse().join('/')}
                     </span>
-                </div>
-              )}
-            </div>
-          )})}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Step 3: Scanning Feedback */}
+        {/* Scan Feedback */}
         <AnimatePresence mode="wait">
           {lastScanned && (
             <motion.div
@@ -543,9 +606,7 @@ export default function NewSale() {
                 {lastScanned.status === 'success' ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
               </div>
               <div>
-                <div className={`font-bold text-lg ${
-                  lastScanned.status === 'success' ? 'text-green-800' : 'text-red-800'
-                }`}>
+                <div className={`font-bold text-lg ${lastScanned.status === 'success' ? 'text-green-800' : 'text-red-800'}`}>
                   {lastScanned.message}
                 </div>
                 <div className="text-slate-600 text-sm mt-1">{lastScanned.details}</div>
@@ -554,30 +615,22 @@ export default function NewSale() {
             </motion.div>
           )}
         </AnimatePresence>
-
       </div>
 
-      {/* Footer / Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t p-4 z-40 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <div className="max-w-xl mx-auto space-y-4">
-          
+      {/* Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t p-4 z-40 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-xl mx-auto space-y-3">
           {!isAllWristbandsScanned ? (
-            <Button 
-              className={`
-                w-full py-8 text-xl font-black rounded-2xl shadow-lg transition-all
-                ${isScanning 
-                  ? 'bg-indigo-100 text-indigo-700 animate-pulse' 
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }
-              `}
+            <Button
+              className={`w-full py-8 text-xl font-black rounded-2xl shadow-lg transition-all ${
+                isScanning ? 'bg-indigo-100 text-indigo-700 animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
               onClick={handleNFCScan}
               disabled={isScanning}
             >
-              {isScanning ? (
-                <span className="flex items-center gap-2"><Loader2 className="animate-spin" /> סורק...</span>
-              ) : (
-                <span className="flex items-center gap-2"><ScanLine /> סרוק צמיד {scannedCount + 1}</span>
-              )}
+              {isScanning
+                ? <span className="flex items-center gap-2"><Loader2 className="animate-spin" /> סורק...</span>
+                : <span className="flex items-center gap-2"><ScanLine /> סרוק צמיד {scannedCount + 1}</span>}
             </Button>
           ) : (
             <div className="w-full py-4 bg-green-50 text-green-700 rounded-2xl border border-green-200 text-center font-bold flex items-center justify-center gap-2">
@@ -597,57 +650,18 @@ export default function NewSale() {
                 )}
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="px-4 py-6 border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold">
-                             Bit
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md text-center" dir="rtl">
-                        <DialogHeader>
-                            <DialogTitle className="text-center text-xl font-bold mb-4">תשלום ב-Bit</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex flex-col items-center justify-center gap-4 py-4">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-                                        (formData.orderNumber && formData.orderNumber.toString().startsWith('1'))
-                                            ? 'https://pay.grow.link/a6830cb14a28eaeef475543c247832d5-MjMzNTY1Ng'
-                                            : 'https://meshulam.co.il/quick_payment?b=0889ba79bc44fc854df0bf7d7e596601'
-                                    )}`} 
-                                    alt="Bit QR Code" 
-                                    className="w-48 h-48 object-contain"
-                                />
-                            </div>
-                            <p className="text-slate-500 text-sm">סרוק את הברקוד לתשלום מהיר</p>
-                            <a 
-                                href={(formData.orderNumber && formData.orderNumber.toString().startsWith('1'))
-                                    ? 'https://pay.grow.link/a6830cb14a28eaeef475543c247832d5-MjMzNTY1Ng'
-                                    : 'https://meshulam.co.il/quick_payment?b=0889ba79bc44fc854df0bf7d7e596601'} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="text-blue-600 hover:underline text-sm font-medium"
-                            >
-                                לחץ כאן למעבר ישיר לאפליקציה
-                            </a>
-                        </div>
-                    </DialogContent>
-                </Dialog>
 
-                <Button 
-                  className={`px-8 py-6 text-lg font-bold rounded-xl transition-all ${
-                    scannedCount > 0 && !isSubmitting
-                      ? 'bg-slate-900 text-white shadow-xl hover:scale-105'
-                      : 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                  }`}
-                  onClick={handleFinishSale}
-                  disabled={scannedCount === 0 || isSubmitting}
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : "סיים מכירה"}
-                </Button>
-            </div>
+            <Button
+              className={`px-8 py-6 text-lg font-bold rounded-xl transition-all ${
+                scannedCount > 0 && !isSubmitting
+                  ? 'bg-slate-900 text-white shadow-xl hover:scale-105'
+                  : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+              }`}
+              onClick={handleFinishSale}
+              disabled={scannedCount === 0 || isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin" /> : online ? 'סיים מכירה' : 'שמור (offline)'}
+            </Button>
           </div>
         </div>
       </div>

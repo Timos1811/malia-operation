@@ -29,18 +29,34 @@ export default function Login() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     if (error) {
       toast.error(error.message);
-    } else {
-      toast.success('נרשמת בהצלחה! ממתין לאישור מנהל');
-      setMode('login');
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    toast.success('נרשמת בהצלחה!');
+
+    // If session created immediately (auto-confirm on), go straight to app
+    if (data?.session) {
+      window.location.href = '/';
+      return;
+    }
+
+    // Otherwise auto-attempt sign in (in case email confirmation is disabled at server level)
+    const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+    if (loginErr) {
+      toast.message('בדוק את האימייל לאישור החשבון, ואז התחבר.');
+      setMode('login');
+      setLoading(false);
+    } else {
+      window.location.href = '/';
+    }
   };
 
   return (

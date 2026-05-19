@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
 
       if (profile?.status === 'approved') {
         setUser({
