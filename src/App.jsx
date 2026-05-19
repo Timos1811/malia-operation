@@ -10,6 +10,8 @@ import Login from './pages/Login';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import InstallPrompt from '@/components/InstallPrompt';
+import PWAUpdateNotice from '@/components/PWAUpdateNotice';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -76,6 +78,8 @@ function App() {
             <AuthenticatedApp />
           </Router>
           <Toaster />
+          <InstallPrompt />
+          <PWAUpdateNotice />
         </QueryClientProvider>
       </AuthProvider>
     </ErrorBoundary>
