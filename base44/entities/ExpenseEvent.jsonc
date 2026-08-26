@@ -1,0 +1,34 @@
+{
+  "name": "ExpenseEvent",
+  "type": "object",
+  "properties": {
+    "expense_id": {
+      "type": "string",
+      "description": "\u05de\u05d6\u05d4\u05d4 \u05d4\u05d4\u05d5\u05e6\u05d0\u05d4 \u05d4\u05de\u05e7\u05d5\u05e9\u05e8\u05ea"
+    },
+    "event_name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d4\u05d0\u05d9\u05e8\u05d5\u05e2"
+    },
+    "event_date": {
+      "type": "string",
+      "format": "date",
+      "description": "\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05d0\u05d9\u05e8\u05d5\u05e2"
+    },
+    "buyers_count": {
+      "type": "number",
+      "description": "\u05db\u05de\u05d5\u05ea \u05e7\u05d5\u05e0\u05d9\u05dd"
+    },
+    "scanned_count": {
+      "type": "number",
+      "description": "\u05db\u05de\u05d5\u05ea \u05e0\u05e1\u05e8\u05e7\u05d9\u05dd"
+    }
+  },
+  "required": [
+    "expense_id",
+    "event_name",
+    "event_date",
+    "buyers_count",
+    "scanned_count"
+  ]
+}

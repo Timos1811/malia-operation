@@ -1,0 +1,13 @@
+{
+  "name": "Supplier",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d4\u05e1\u05e4\u05e7"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

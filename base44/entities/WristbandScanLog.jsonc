@@ -1,0 +1,51 @@
+{
+  "name": "WristbandScanLog",
+  "type": "object",
+  "properties": {
+    "nfc_id": {
+      "type": "string",
+      "description": "NFC Serial Number"
+    },
+    "event_name": {
+      "type": "string",
+      "description": "Event Name"
+    },
+    "scan_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of scan"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "warning",
+        "error",
+        "processed"
+      ],
+      "description": "Scan result status"
+    },
+    "message": {
+      "type": "string",
+      "description": "Result message"
+    },
+    "scanned_by": {
+      "type": "string",
+      "description": "User who scanned"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer Name (snapshot)"
+    },
+    "order_number": {
+      "type": "string",
+      "description": "Order Number (snapshot)"
+    }
+  },
+  "required": [
+    "nfc_id",
+    "event_name",
+    "scan_time",
+    "status"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Hotel",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "\u05e9\u05dd \u05d4\u05de\u05dc\u05d5\u05df"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

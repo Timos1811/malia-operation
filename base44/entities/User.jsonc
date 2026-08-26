@@ -19,5 +19,6 @@
       "default": "pending",
       "description": "User approval status"
     }
-  }
+  },
+  "required": []
 }
